@@ -1,0 +1,53 @@
+---
+description: Next.js 16 App Router conventions and version-specific gotchas for routes, layouts, and server/client components
+globs:
+  - "apps/web/app/**/*.tsx"
+  - "apps/web/app/**/*.ts"
+alwaysApply: false
+---
+
+# Next.js App Router Rules (`apps/web/app/*`)
+
+## Version-specific correctness (these break the build if missed)
+
+- `params` and `searchParams` are **always Promises** in this version —
+  always `await` them: `const { city, society } = await params`. Never
+  destructure or index them synchronously, even in a type that looks
+  like a plain object in an older example you might recall.
+- Turbopack is the default bundler. Don't add webpack-specific config or
+  plugins without checking they have a Turbopack equivalent first.
+
+## Server vs. client components
+
+- Default to Server Components. Add `"use client"` only when a file
+  actually needs interactivity (state, effects, browser APIs, event
+  handlers) — not preemptively "to be safe."
+- Push `"use client"` as far down the tree as possible — wrap just the
+  interactive leaf (e.g., the compare-tool widget), not the whole page.
+- Data fetching happens in Server Components or Server Actions, not in a
+  client-side `useEffect` calling a tRPC procedure that could have run
+  server-side.
+
+## Routing & layouts
+
+- Route groups (`(marketplace)`, `(buyer)`, `(society)`, `(dealer)`,
+  `(admin)`) map to distinct auth contexts — don't add a page outside its
+  intended group, and don't rely on UI-level hiding for access control;
+  `middleware.ts` is the actual gate.
+- Every new public page under `(marketplace)` implements `generateMetadata`
+  — see `seo.mdc` for the full requirement.
+
+## Server Actions
+
+- Validate every Server Action's input with Zod before use, same as a
+  tRPC procedure — Server Actions are a public network boundary even
+  though they look like local function calls.
+- Prefer calling into `packages/api-client` from a Server Action rather
+  than duplicating logic — keep one source of truth for a given mutation.
+
+## Images & fonts
+
+- All images via `next/image` with explicit `width`/`height` — no raw
+  `<img>` tags, no layout-shift-causing unsized images.
+- Fonts via `next/font` only, to avoid FOUT/FOIT and to keep Core Web
+  Vitals scores intact on public pages.

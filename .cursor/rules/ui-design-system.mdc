@@ -1,0 +1,47 @@
+---
+description: Rules for the shared design system package (Tailwind v4, shadcn/ui, Storybook)
+globs:
+  - "packages/ui/**/*.tsx"
+  - "packages/ui/**/*.ts"
+  - "packages/ui/**/*.css"
+alwaysApply: false
+---
+
+# UI / Design System Rules (`packages/ui/*`)
+
+## Tailwind v4 — CSS-first
+
+- Design tokens (colors, spacing, fonts, radii) live in the shared
+  `@theme` block in `packages/ui/theme.css`. Never hardcode a hex color,
+  arbitrary pixel value, or one-off font stack directly in a component
+  file — add or reuse a token instead.
+- There is no `tailwind.config.ts` to edit for tokens in this version —
+  if you're about to create one for that purpose, stop and use `@theme` instead.
+
+## Component conventions
+
+- Every shared component exported from this package ships with a
+  Storybook story exercising its prop variants (including loading/empty/
+  error states where applicable) before it's imported into `apps/web`.
+- Presentational only: no data fetching, no tRPC calls, no business logic
+  inside `packages/ui`. Components receive data and callbacks as props.
+- Built on shadcn/ui primitives where one exists for the pattern — don't
+  hand-roll a dialog/dropdown/combobox that Radix/shadcn already provides
+  correctly with accessibility handled.
+
+## Domain-specific UI conventions (project-wide consistency)
+
+- Monetary values always render as `PKR X,XXX,XXX` — use the shared
+  `formatPKR()` helper, don't reimplement comma formatting inline.
+- Status badges follow the fixed color mapping: green = verified/compliant,
+  amber = pending, red = blocked/rejected, blue = informational/in-progress.
+  Don't introduce a new ad-hoc color for a status — extend the shared
+  `StatusBadge` variant set instead.
+- CNIC display is always masked (`35202-XXXXX-X` pattern) outside of
+  explicitly-gated admin/verification views — never render a full CNIC by default.
+
+## Accessibility
+
+- Every interactive element has a visible focus state and an accessible
+  name (label, `aria-label`, or visually-hidden text) — this isn't optional
+  polish, it's required before a component is considered done.

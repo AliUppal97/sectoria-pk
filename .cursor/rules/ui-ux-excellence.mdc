@@ -1,0 +1,126 @@
+---
+description: Apply when designing or building any user-facing screen, component, form, or interaction — visual hierarchy, responsiveness, states, motion, accessibility, and content tone
+globs:
+  - "apps/web/app/**/*.tsx"
+  - "packages/ui/**/*.tsx"
+alwaysApply: false
+---
+
+# Pro UI/UX Standards
+
+This product's core selling point is trust in a market full of fraud.
+Every screen either reinforces that trust or undermines it — there's no
+neutral UI here. Hold every interface to that bar, not just "does it work."
+
+## Visual hierarchy & layout
+
+- One clear primary action per screen/section — if a screen has three
+  buttons of equal visual weight, the user has to think about which
+  matters; that's a design failure, not a minor nitpick. Use the design
+  system's button variants (`primary`/`ghost`/`destructive`) deliberately,
+  not interchangeably.
+- Group related information with proximity and consistent spacing rather
+  than separating lines; use the shared spacing scale from
+  `packages/ui/theme.css` — never an arbitrary one-off margin value.
+- Respect a single consistent vertical rhythm within a page — don't let
+  card padding, section gaps, and form field spacing each follow a
+  different unstated scale.
+
+## Responsive design
+
+- Design mobile-first. A large share of Pakistani users, especially
+  buyers and dealers in smaller offices, are primarily on mobile — a
+  layout that works at 375px width and is then expanded, not one
+  designed for desktop and awkwardly squeezed down.
+- Tables of data (inventory listings, transaction history) need an
+  explicit mobile pattern — a stacked card view, not a horizontally
+  scrolling table that's effectively unusable on a phone.
+- Touch targets are at least 44×44px on any interactive element on a
+  page that will be used on mobile — this includes table row actions and
+  icon-only buttons, not just primary CTAs.
+
+## The five states every meaningful view needs
+
+Every data-bearing screen/component is designed for all of these, not
+just the success case:
+
+1. **Loading** — a skeleton matching the eventual content's shape, not a
+   generic spinner, for anything taking more than ~300ms (society
+   listings, booking status, verification results).
+2. **Empty** — a deliberate empty state with a clear next action ("No
+   societies match these filters — try widening your price range"), never
+   a blank area or a bare "No results."
+3. **Error** — a human-readable message and a recovery action (retry,
+   go back, contact support) — never a raw error message, stack trace, or
+   generic "Something went wrong" with no path forward.
+4. **Partial/degraded** — specifically relevant here: if NADRA or FBR
+   verification is slow/unavailable, the UI says so explicitly ("Identity
+   verification is taking longer than usual") rather than appearing frozen.
+5. **Success** — confirms what happened in specific terms ("Booking token
+   of PKR 3,000 received — your spot in Phase 2, Block C is reserved"),
+   not a generic "Success!" that leaves the user unsure what just occurred.
+
+## Forms
+
+- Validate inline, on blur or on a short debounce — not only on submit.
+  A CNIC field with an obviously wrong format should show feedback before
+  the user reaches the submit button.
+- Error messages are specific and actionable ("CNIC must be 13 digits in
+  the format XXXXX-XXXXXXX-X"), never generic ("Invalid input").
+- Never clear a form on a failed submission — preserve everything the
+  user entered; re-render with the error shown alongside the relevant field.
+- For money/tax-related forms specifically: show the computed result
+  (tax breakdown) updating live as inputs change, not only after an
+  explicit "Calculate" click — this was a deliberate, well-received
+  pattern in the tax calculator and should be the default expectation for
+  similar flows, not a one-off.
+
+## Motion & micro-interactions
+
+- Motion communicates state change, not decoration — a balloting result
+  animating into place, a status pill transitioning color, a certificate
+  "stamping" in on issuance all reinforce that something real just
+  happened. Don't add motion that has no informational purpose, and don't
+  skip it where it would clarify what changed.
+- Respect `prefers-reduced-motion` — every meaningful animation has a
+  reduced/instant fallback, not just a faster version of the same animation.
+- Keep transition durations short (150–300ms for UI feedback, slightly
+  longer only for celebratory/confirmatory moments like certificate
+  issuance) — slow animations on frequently-used flows feel sluggish, not premium.
+
+## Trust-specific UI patterns (specific to this product)
+
+- Verification badges (PLRA Verified, NADRA Verified, Escrow Protected,
+  DNFBP Verified) are visually consistent, always paired with a brief
+  explanation on hover/tap (not just a green checkmark with no context) —
+  a trust signal nobody understands isn't actually building trust.
+- Money and tax figures are never ambiguous about currency or whether tax
+  is included — always explicit "PKR" prefix and explicit labeling
+  ("before tax" / "total including tax").
+- Anything irreversible (executing a transfer, releasing escrow) gets an
+  explicit confirmation step describing the consequence in plain language
+  — not a generic "Are you sure?" but "This will release PKR 1,683,000
+  from escrow to Green Valley Housing Scheme and cannot be undone."
+
+## Accessibility (non-negotiable, not aspirational)
+
+- WCAG AA contrast ratios for all text against its background, including
+  status pill text on tinted backgrounds.
+- Every interactive element reachable and operable via keyboard alone,
+  with a visible focus ring (see `ui-design-system.mdc`).
+- Icon-only buttons always have an accessible label — a screen reader
+  user should never encounter an unlabeled icon button.
+- Color is never the only signal for a status — pair color with text/icon
+  (a colorblind user shouldn't have to distinguish "verified" from
+  "blocked" by hue alone).
+
+## Content & microcopy tone
+
+- Direct, plain language over formal/legalistic phrasing where possible
+  — explain what's happening and why in terms a first-time user
+  understands, reserving precise legal/tax terminology for where it's
+  actually required (tax breakdowns, certificates).
+- Never use fear-based or pressure-based microcopy ("Only 2 plots left!
+  Buy now!") — this is explicitly the manipulative pattern this product
+  is positioned against; urgency, where genuine (e.g., balloting deadline),
+  is stated factually, not amplified for pressure.

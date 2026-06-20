@@ -1,0 +1,77 @@
+---
+description: Conventions for JSON configuration files, versioned data files, and JSON payload shapes
+globs:
+  - "**/*.json"
+alwaysApply: false
+---
+
+# JSON & Configuration File Standards
+
+## When JSON is — and isn't — the right format
+
+- Use JSON for: package manifests (required by tooling), static
+  configuration that's genuinely data (not logic), versioned reference
+  data (e.g., a historical `TaxRateTable` snapshot for an old fiscal
+  year), and Storybook/tooling config that requires it.
+- **Don't** use JSON for anything that's actually TypeScript logic
+  wearing a data costume — e.g., don't encode conditional business rules
+  as a JSON rule-tree when a typed TS function in `packages/domain` would
+  be clearer, type-checked, and testable. If a "config" file starts
+  needing comments to explain a contained value's meaning, that's a sign
+  it should be a typed `.ts` constants file instead (which supports
+  TSDoc comments JSON cannot).
+
+## Schema validation
+
+- Any JSON file read at runtime (not just build-time tooling config) is
+  validated against a Zod schema from `packages/types` before being
+  trusted — a malformed config file should fail loudly at boot, not
+  produce a confusing downstream `undefined`.
+- Versioned data files (e.g., `tax-rates-fy2025-26.json`) include a
+  `fiscalYear` or equivalent version field inside the file itself, not
+  only in the filename — this prevents silent mismatches if a file gets
+  renamed or copied incorrectly.
+
+## Structure conventions
+
+- Keys are `camelCase`, matching the TypeScript convention used
+  everywhere else in the codebase — don't mix `snake_case` JSON with
+  `camelCase` TS without an explicit, documented transformation boundary
+  (e.g., a government API that returns `snake_case` gets normalized to
+  `camelCase` immediately inside its adapter, per `verification-adapters.mdc`,
+  not carried through the rest of the app in its original casing).
+- Money values in JSON are represented as integers in the smallest unit
+  (paisa) or as explicit decimal strings, never as floating-point numbers
+  — same rationale as the `Decimal` requirement in `database.mdc`; JSON
+  numbers lose precision guarantees that matter for tax/escrow amounts.
+- Dates/timestamps are ISO 8601 strings, never ambiguous formats like
+  `"12/06/2026"` that depend on locale to interpret correctly.
+
+## API payload shapes (request/response JSON over the wire)
+
+- Every payload shape crossing a network boundary (webhook bodies, the
+  OpenAPI-exposed REST shim for tRPC, third-party API responses) has a
+  corresponding Zod schema in `packages/types` or
+  `packages/verification` — never parse `JSON.parse(body)` and access
+  fields with untyped property access.
+- Error response shapes are consistent across the whole API surface:
+  `{ code, message, details? }` — a consumer (including future mobile
+  clients) should never need to guess the error shape per-endpoint.
+
+## Environment & secrets files
+
+- `.env.example` is kept up to date with every required variable
+  (placeholder values only, never real secrets) whenever
+  `packages/config/env.ts`'s schema changes — see `dependency-management.mdc`
+  and `security.mdc` for the related requirement that the schema itself
+  validates at boot.
+- Never commit a real `.env` or any JSON file containing an actual API
+  key, even in a "test" or "local" variant — use the mock verification
+  adapters instead, consistent with `verification-adapters.mdc`.
+
+## Localization / content JSON (if introduced)
+
+- If/when bilingual (English/Urdu) content is added, keep translation
+  keys structured and namespaced (`booking.confirmStep.title`), not flat
+  and ambiguous (`title3`) — a flat structure becomes unmaintainable
+  almost immediately once more than a handful of strings exist.

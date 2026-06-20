@@ -1,0 +1,35 @@
+---
+description: Conventions for commit messages, PR structure, and what must be true before proposing a merge. Invoke manually with @git-workflow when preparing a commit or PR.
+alwaysApply: false
+---
+
+# Git & PR Workflow Rules
+
+Invoke this explicitly (`@git-workflow`) when committing or preparing a PR
+description — it's intentionally not auto-loaded on every file edit.
+
+## Commit messages
+
+- Conventional Commits style: `feat:`, `fix:`, `refactor:`, `test:`,
+  `docs:`, `chore:`. Scope when useful: `feat(domain-tax): add Section 7E threshold edge case`.
+- Reference the ADR number in the commit body if the change implements or
+  modifies a documented architectural decision.
+
+## Before proposing a PR is ready
+
+- `turbo run test lint typecheck` passes locally.
+- Any touched `packages/domain/*` or `packages/verification/*` function
+  still has up-to-date TSDoc and a passing test for the new behavior.
+- Any new public page under `(marketplace)` has `generateMetadata` and a
+  sitemap entry — see `seo.mdc`.
+- Any new or changed dependency is reflected in
+  `docs/architecture/dependency-baseline.md` — see `dependency-management.mdc`.
+- A one-line summary of *why*, not just *what*, is in the PR description —
+  "what" is visible in the diff; "why" is what a reviewer actually needs.
+
+## Scope discipline
+
+- One logical change per PR. A tax-rate fix and an unrelated UI tweak
+  belong in separate PRs even if they're both small — this keeps the
+  audit trail (and rollback story) clean for the parts of this codebase
+  that touch money and compliance.

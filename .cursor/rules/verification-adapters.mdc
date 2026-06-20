@@ -1,0 +1,44 @@
+---
+description: Rules for government API adapters (NADRA, FBR ATL, DNFBP, PLRA)
+globs:
+  - "packages/verification/**/*.ts"
+alwaysApply: false
+---
+
+# Verification Adapter Rules (`packages/verification/*`)
+
+Every external government integration is an **interface + swappable
+implementation**, never a direct fetch call scattered through the app.
+
+## Required pattern for every integration
+
+1. Define a TypeScript `interface` describing the contract
+   (`NadraVerificationAdapter`, `FbrAtlAdapter`, `DnfbpVerificationAdapter`,
+   `PlraCertificateAdapter`).
+2. Implement a `Mock*Adapter` returning schema-valid, realistic Pakistani
+   demo data with simulated network latency (don't resolve instantly — it
+   hides loading-state bugs in the UI).
+3. Wire both through a single factory (`createVerificationAdapters(config)`)
+   that returns mocks in development and real implementations only when the
+   corresponding API credentials are present in validated env vars.
+4. Never call a mock or real adapter directly from a UI component or page —
+   always go through `packages/api-client`.
+
+## When wiring a real adapter later
+
+- Touch **only** the new adapter implementation file and the factory's
+  branching logic. If implementing a real adapter requires changing the
+  interface, that's a signal the interface was wrong — fix the interface
+  and update the mock to match, don't special-case around it.
+- Document the swap in `docs/runbooks/swapping-verification-adapters.md`:
+  required env vars, expected response shape, rate limits, and failure modes.
+
+## Data handling
+
+- Adapter responses containing CNIC/NTN must be passed through the
+  encryption helper (`packages/database/encryption.ts`) before persistence —
+  never logged or cached in plaintext, including in error messages or
+  debug logs.
+- Treat a verification failure and a verification timeout as distinct,
+  typed outcomes — the caller (e.g., a booking flow) needs to handle "denied"
+  and "couldn't check right now" differently.

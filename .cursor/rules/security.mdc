@@ -1,0 +1,68 @@
+---
+description: Apply whenever touching authentication, authorization/RBAC, CNIC/NTN or other PII, payments/escrow, secrets, environment variables, rate limiting, or anything that handles user-submitted input
+alwaysApply: false
+---
+
+# Security Rules
+
+This platform handles national ID numbers, tax identifiers, and money.
+Treat every rule below as a hard requirement, not a suggestion to weigh
+against convenience.
+
+## Authentication & authorization
+
+- Auth.js v5 config lives in a single `auth.ts` exporting
+  `handlers`/`auth`/`signIn`/`signOut`. Don't recreate the older
+  `[...nextauth]` options-object pattern from v4 — they're structurally
+  different and mixing patterns causes type errors that look unrelated to auth.
+- `middleware.ts` is the authorization gate for route groups. A page
+  component checking `session.user.role` and conditionally rendering is
+  **not** sufficient access control on its own — the middleware check is
+  what actually prevents access, the page-level check is just UX.
+- Domain and API-layer code never trusts a role, userId, or permission
+  flag passed from client input — always re-derive identity from the
+  server-side session.
+
+## Sensitive data
+
+- CNIC and NTN are encrypted at rest (AES-256-GCM, via
+  `packages/database/encryption.ts`) and **never** appear in plaintext in:
+  logs, error messages, analytics events, or test fixtures committed to
+  the repo. Use realistic but clearly-fake patterns in tests/seed data.
+- When displaying a CNIC in the UI outside an explicitly-authorized admin
+  view, mask it (`35202-XXXXX-X`).
+- Key rotation strategy is documented in ADR-005 — if you're touching the
+  encryption helper, check that ADR before changing the key-derivation approach.
+
+## Input validation
+
+- Every boundary — tRPC procedure, Server Action, webhook handler — has a
+  Zod schema validating input before any business logic runs. Reject
+  early with a clear error; don't validate halfway through a function body.
+- Webhook handlers (escrow, verification callbacks) verify the request's
+  signature/origin before trusting the payload — never process a webhook
+  body as authoritative without that check.
+
+## Secrets & environment variables
+
+- All env vars are validated at boot via the Zod schema in
+  `packages/config/env.ts`. If you add a new required env var, add it to
+  that schema in the same change — don't let the app start successfully
+  with a silently-undefined secret.
+- Never commit a real credential, even temporarily "to test" — use the
+  mock verification adapters for local development.
+
+## Rate limiting
+
+- Auth endpoints, booking-token payment endpoints, and any
+  verification-triggering endpoint (NADRA/FBR calls) are rate-limited via
+  `@upstash/ratelimit`. If you add a new endpoint in one of these
+  categories, add the rate limit alongside it — don't ship it unprotected
+  and plan to add limiting "later."
+
+## Headers
+
+- Security headers (CSP, `X-Frame-Options`, `Strict-Transport-Security`,
+  `Referrer-Policy`) are set centrally in `next.config.ts`. Don't override
+  or weaken them in an individual route for convenience — fix the root
+  config if a legitimate need conflicts with a header.

@@ -1,0 +1,50 @@
+---
+description: Rules for tRPC routers and procedures — the composition layer between domain logic and the database
+globs:
+  - "packages/api-client/**/*.ts"
+  - "apps/web/app/api/trpc/**/*.ts"
+alwaysApply: false
+---
+
+# API Layer Rules (`packages/api-client` — tRPC)
+
+This package is the **composition root**: the only place allowed to import
+from both `packages/domain` and `packages/database` in the same file. Routes
+and pages never call domain or database packages directly — everything
+flows through here.
+
+## Every procedure
+
+- Has a Zod input schema imported from `packages/types` — never an inline
+  ad-hoc shape, never a duplicate redefinition of a shape that already
+  exists there.
+- Re-derives the caller's role/identity from the server-side session
+  (`ctx.session`), never trusts a role or userId passed in the input
+  payload, even if the client "shouldn't" be able to fake it.
+- Returns typed errors via `TRPCError` with an appropriate `code`
+  (`UNAUTHORIZED`, `FORBIDDEN`, `BAD_REQUEST`, `NOT_FOUND`) — not a generic
+  thrown `Error`, so the client can branch on it meaningfully.
+
+## Composing domain + database
+
+- Fetch the data the domain function needs, call the **pure** domain
+  function, then persist the result. Don't reimplement tax/escrow/allocation
+  logic inline here "just this once" — if the existing domain function
+  doesn't fit, fix the domain function's signature.
+- Any domain call that returns a `LedgerEvent` must have that event
+  persisted in the same transaction as the state change it describes —
+  use a Prisma `$transaction` so the mutation and its audit trail can't
+  diverge if one write fails.
+
+## Mutations that touch money or documents
+
+- Booking, escrow transition, and certificate-issuance procedures must be
+  idempotent where plausible (e.g., a duplicate webhook retry for the same
+  escrow event should not double-charge or double-issue) — check existing
+  state before applying a transition, not just before insert.
+
+## Router organization
+
+- One router file per domain area (`booking.ts`, `society.ts`, `dealer.ts`,
+  `verification.ts`), merged into a root router — don't grow a single file
+  into a catch-all.

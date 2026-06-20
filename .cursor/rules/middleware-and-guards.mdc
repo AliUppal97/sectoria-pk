@@ -1,0 +1,99 @@
+---
+description: Patterns for middleware, guards, and the request processing pipeline (validation, auth, rate limiting, error handling ordering)
+globs:
+  - "apps/web/middleware.ts"
+  - "packages/api-client/**/*.ts"
+alwaysApply: false
+---
+
+# Middleware & Request Pipeline Standards
+
+A request's journey through this system should follow the same predictable
+order every time, so reasoning about any single endpoint doesn't require
+re-deriving the pipeline from scratch.
+
+## The standard pipeline order
+
+For any request that reaches a tRPC procedure:
+
+```
+1. Route-group middleware    → coarse auth check (is there a session at all? right role for this route group?)
+2. Rate limiting             → reject early, before any real work, for abuse-prone endpoints
+3. Input validation (Zod)    → reject malformed input before touching business logic
+4. Fine-grained authorization → resource-ownership guard (see auth-and-access-control.mdc)
+5. Business logic            → call into packages/domain
+6. Persistence                → write via packages/database, wrapped in a transaction if it spans multiple writes
+7. Audit logging              → emit LedgerEvent for any state-changing action
+8. Response                   → typed success or TRPCError
+```
+
+Don't reorder this without a specific reason — e.g., rate limiting before
+auth is deliberate (an unauthenticated flood shouldn't reach the auth
+check's cost), and validation before authorization is deliberate (don't
+spend a database lookup checking ownership of a malformed/nonsensical request).
+
+## Middleware composition
+
+- Each middleware function does one job (auth gate, rate limit, logging)
+  and is composed, not combined into one large function with multiple
+  responsibilities and nested conditionals.
+- `apps/web/middleware.ts` should read as a short, declarative list of
+  route-group → requirement mappings — push actual logic (token
+  validation, role lookup) into named helper functions imported into it,
+  not inlined.
+
+```typescript
+// middleware.ts — declarative, not logic-heavy
+export function middleware(request: NextRequest) {
+  if (isAdminRoute(request) && !hasRole(request, "SUPER_ADMIN")) {
+    return redirectToLogin(request);
+  }
+  if (isSocietyPortalRoute(request) && !hasRole(request, "SOCIETY_ADMIN")) {
+    return redirectToLogin(request);
+  }
+  // ...
+}
+```
+
+## Guards in tRPC procedures
+
+- Build guards as small composable middleware functions in tRPC's own
+  middleware system (`t.middleware(...)`), chained onto a base procedure
+  to produce named, reusable procedure variants:
+  `protectedProcedure`, `societyAdminProcedure`, `verifiedBuyerProcedure`.
+  Define each once; don't repeat the same guard logic inline across
+  multiple router files.
+- A guard that fails throws immediately with the correct `TRPCError`
+  code — it does not let execution continue with a "null" or "guest"
+  fallback identity, which is a common source of accidental data leaks.
+
+## Rate limiting placement
+
+- Apply rate limiting **before** any expensive work, including before
+  Zod validation if the validation itself is non-trivial — the point of
+  rate limiting is to bound cost under abuse, so it has to sit as early
+  in the pipeline as possible.
+- Scope rate limits per-identity where the user is known (post-auth) and
+  per-IP where they aren't (pre-auth, e.g., the OTP request endpoint) —
+  using the wrong key (e.g., rate-limiting an OTP-request endpoint only
+  by user ID) defeats the purpose, since the abuse case is often
+  unauthenticated.
+
+## Error handling in the pipeline
+
+- Every layer translates failures into the appropriate typed error before
+  they reach the client — a Prisma constraint violation becomes a
+  `TRPCError` with code `CONFLICT` and a clear message, not a raw
+  database error leaking implementation details (table/column names) to the client.
+- Logging happens for every error, but **what** gets logged respects
+  `security.mdc`'s rule on never logging plaintext CNIC/NTN — log the
+  entity ID, not the sensitive field, even in error context.
+
+## Webhooks are a pipeline entry point too
+
+- Escrow and verification webhooks go through the same conceptual
+  pipeline: verify signature/origin first (this is their "authentication"
+  step), validate payload shape with Zod, then proceed. A webhook handler
+  that processes a payload before verifying its origin is a critical bug,
+  not a style issue — treat it with the same severity as a missing
+  authorization check.

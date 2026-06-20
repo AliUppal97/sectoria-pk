@@ -1,0 +1,108 @@
+---
+description: Class, interface, enum, and service design patterns for all TypeScript code in the codebase — how to model domain concepts correctly
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+# OOP & Domain Modeling Standards
+
+How to shape classes, interfaces, enums, and services so the codebase
+stays readable and changeable as it grows. These are judgment calls made
+once here, so they don't get re-litigated file by file.
+
+## Interfaces vs. types
+
+- Use `interface` for anything representing an object shape that might be
+  extended or implemented (adapter contracts like `NadraVerificationAdapter`,
+  service contracts). Use `type` for unions, intersections, mapped types,
+  and anything derived from a Zod schema (`z.infer<typeof BookingSchema>`).
+- Don't define the same shape twice as both an `interface` and a Zod
+  schema — the Zod schema in `packages/types` is the source of truth;
+  derive the TS type from it (`type Booking = z.infer<typeof bookingSchema>`),
+  never hand-write a parallel interface that can drift out of sync.
+
+## Enums — prefer them for closed, known value sets
+
+- Use TypeScript `enum` (or a `const` object with `as const` + a derived
+  union type, which is more tree-shakeable) for any field with a fixed set
+  of legal values: `EscrowState`, `PlotStatus`, `UserRole`, `VerificationTier`.
+- Mirror Prisma enums exactly in `packages/types` — don't let the database
+  enum and the application-level enum drift into different value sets.
+- Prefer the `as const` object pattern over `enum` for values that cross
+  the client/server boundary in a Next.js Server Component context, since
+  plain TS `enum` can have subtle bundling quirks; pick one convention for
+  the whole codebase and apply it consistently rather than mixing.
+
+```typescript
+// Preferred pattern for cross-boundary enums:
+export const EscrowState = {
+  BOOKING_TOKEN_PAID: "BOOKING_TOKEN_PAID",
+  ALLOCATED: "ALLOCATED",
+  // ...
+} as const;
+export type EscrowState = (typeof EscrowState)[keyof typeof EscrowState];
+```
+
+## Classes — use sparingly, and only with a reason
+
+Most of this codebase should be functions and plain data (especially
+`packages/domain`, which is explicitly function-based per `domain-logic.mdc`).
+Reach for a `class` only when one of these is true:
+- You need to encapsulate **mutable internal state** with invariants that
+  must be protected (e.g., a stateful balloting session being built up
+  before the deterministic draw runs).
+- You're implementing an **adapter** with shared constructor configuration
+  (e.g., a `RealNadraAdapter` holding an API client instance) — the
+  interface stays the contract; the class is just one implementation.
+- You're building a genuinely reusable, instantiable UI controller object
+  (rare in a React codebase — usually a hook replaces this).
+
+Do **not** create a class merely to group a few related functions — a
+module with named exports does that without the ceremony, and is easier
+to tree-shake and test.
+
+## Getters and setters
+
+- Prefer plain readonly properties or derived computed values over
+  getter/setter pairs for simple data. A `getter` is justified when it
+  performs real computation or validation on read (e.g., `get isExpired()`
+  on a booking checking against the current time), not as a default style
+  for every field.
+- Never put side effects (network calls, mutations of other state) inside
+  a getter — a getter should always be safe to call repeatedly without
+  consequence. If a "getter" needs to do something with side effects,
+  it's not a getter — make it an explicitly-named async method
+  (`refreshAtlStatus()`, not `get atlStatus()`).
+- Setters that need to validate or reject an invalid value should throw a
+  descriptive, typed error rather than silently clamping or ignoring the input.
+
+## Services
+
+- A "service" in this codebase is a cohesive set of functions/methods
+  operating on one bounded concern, exposed through `packages/api-client`
+  as the composition layer (see `api-trpc.mdc`). Name service modules for
+  what they do, not how (`bookingService`, not `bookingHelper` or `bookingUtils`).
+- Services compose domain functions and persistence — they don't
+  reimplement business rules inline. If a service function is more than
+  ~30 lines of actual logic (excluding error handling/logging), check
+  whether part of it belongs in `packages/domain` instead.
+
+## Dependency direction
+
+- Higher-level modules depend on lower-level abstractions, not the
+  reverse. `packages/api-client` depends on `packages/domain` and
+  `packages/verification` interfaces — neither of those ever imports
+  from `packages/api-client` or `apps/web`.
+- When a function needs an external capability (database, clock, RNG,
+  HTTP), pass it in as a parameter or injected adapter rather than
+  importing a concrete implementation directly inside a domain function —
+  this is what keeps `packages/domain` testable without mocks.
+
+## Composition over inheritance
+
+- Prefer composing small functions/objects over building class
+  hierarchies. If you find yourself wanting to extend a base class to
+  share behavior, consider whether a shared utility function or a
+  higher-order function achieves the same result with less coupling.

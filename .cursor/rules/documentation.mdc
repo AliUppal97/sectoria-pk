@@ -1,0 +1,52 @@
+---
+description: Apply when creating a new package, writing exported domain/verification functions, making an architectural decision, or finishing a feature that should be documented
+alwaysApply: false
+---
+
+# Documentation Rules
+
+Documentation is part of the deliverable for this project, not a follow-up
+task. A package or function isn't "done" until its documentation exists.
+
+## Per-package README
+
+Every package under `packages/*` has a `README.md` covering:
+- What the package does and what it deliberately does *not* do (its boundary).
+- A runnable usage example — actual import + function call, not pseudocode.
+- Any non-obvious constraint (e.g., "pure, no I/O" for domain packages).
+
+A package should not be imported by another package until this exists.
+
+## TSDoc
+
+Every exported function in `packages/domain/*` and `packages/verification/*`
+has a TSDoc comment: what it does, its parameters' meaning where not
+obvious from naming, and `@see` references to the legal/business rule it
+implements where applicable. This is what makes `domain-logic.mdc`'s
+citation requirement concrete.
+
+## Architecture Decision Records (ADRs)
+
+Create a new `docs/architecture/ADR-XXX-<short-title>.md` when a change:
+- Trades off scalability, cost, or complexity in a way a future engineer
+  would reasonably ask "why was it built this way?"
+- Chooses between two viable libraries/approaches (e.g., Prisma vs Drizzle,
+  REST vs tRPC for an external consumer).
+- Changes a previously-recorded decision — link the new ADR to the one it supersedes.
+
+Keep ADRs short: context, decision, consequences. Don't retroactively
+document something as an ADR after the fact without flagging that it's
+backfilled.
+
+## Runbooks
+
+Operational "how to do X" knowledge — swapping a mock adapter for a real
+one, rotating an encryption key, scaling the sitemap past the single-file
+limit — goes in `docs/runbooks/`, written for someone who didn't build the
+feature.
+
+## Storybook
+
+Every component exported from `packages/ui` gets a story exercising its
+prop variants before it's considered ready to import elsewhere — see
+`ui-design-system.mdc`.

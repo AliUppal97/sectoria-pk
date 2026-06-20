@@ -1,0 +1,96 @@
+---
+description: Apply when designing data access patterns, caching, background jobs, or anything where performance/scale under growing load matters
+alwaysApply: false
+---
+
+# Scalability & Performance Standards
+
+Design for the load this product will plausibly have in 12–18 months
+(thousands of concurrent buyers browsing, hundreds of societies, real
+transaction volume) without prematurely over-engineering for load it will
+never see. Specifically:
+
+## Database access patterns
+
+- Never fetch-then-filter-in-JS what the database can filter directly —
+  push `WHERE`/filter logic into the Prisma query, not into a
+  `.filter()` call on a fully-loaded result set.
+- Watch for N+1 queries when rendering lists with related data (society
+  cards showing category counts, dealer profiles showing trust score
+  inputs) — use Prisma's `include`/`select` to fetch related data in the
+  same query, not a loop issuing one query per row.
+- Paginate any list endpoint that could plausibly grow past ~50 rows
+  (society directory, booking history, ledger viewer) using cursor-based
+  pagination for anything append-heavy/chronological (the ledger
+  especially), not offset-based pagination, which degrades as the table grows.
+- Index any field used in a `WHERE`, `ORDER BY`, or join condition that
+  isn't already indexed — see `database.mdc`'s indexing convention; treat
+  a slow query found in development as a signal to add an index, not just
+  "it'll be fine at this scale."
+
+## Caching
+
+- ISR (`revalidate`) is the default caching strategy for public society/
+  category pages, per `seo.mdc` — don't add a separate Redis cache layer
+  for the same data unless ISR's revalidation window genuinely doesn't
+  fit the freshness requirement.
+- Use Redis caching specifically for: rate-limit counters, session data,
+  and computed values that are expensive and don't change every request
+  (e.g., a society's aggregate trust score, recomputed on a schedule
+  rather than on every profile view).
+- Cache invalidation is explicit and tied to the event that changes the
+  underlying data (a new completed transaction invalidates that society's
+  cached trust score) — never rely solely on a TTL for data where
+  staleness has a real cost (e.g., available-unit counts during active booking).
+
+## Background jobs vs. synchronous processing
+
+- Anything that calls an external service with unpredictable latency
+  (NADRA/FBR verification, PLRA certificate issuance, document
+  generation) is a candidate for a BullMQ background job with the
+  request returning quickly and the UI polling/subscribing for the
+  result — don't make a user's browser hang on a slow government API call.
+- Anything affecting whether a booking can proceed right now (e.g., "is
+  this plot still available") must be synchronous and consistent — don't
+  defer availability checks to a background job where a race condition
+  could let two buyers book the same plot.
+- Idempotency for background jobs: a retried job (after a crash/timeout)
+  must not double-issue a certificate or double-charge escrow — check
+  current state before acting, consistent with the idempotency
+  requirement in `api-trpc.mdc`.
+
+## Concurrency & race conditions
+
+- Plot allocation (`packages/domain/allocation`) is the highest-risk spot
+  for a race condition — two simultaneous bookings for the last available
+  unit in a category. Use a database-level constraint or transaction with
+  appropriate isolation (e.g., `SELECT ... FOR UPDATE` semantics via
+  Prisma's transaction API) rather than an application-level check-then-act
+  that has a window for a race.
+- Document any place a deliberate trade-off was made between strict
+  consistency and throughput (e.g., balloting pool entries can be
+  eventually consistent since allocation only happens at the scheduled
+  draw) as an ADR, so it's a recorded decision, not an accidental gap.
+
+## Compatibility & forward-thinking design
+
+- Adapter interfaces (`packages/verification`) are designed assuming the
+  real government API's exact contract is unknown today — keep the
+  interface focused on what the *business logic* needs ("verify this
+  CNIC and return identity + confidence"), not shaped around a guessed
+  real API response, so swapping in the real one later doesn't ripple
+  outward (see `verification-adapters.mdc`).
+- Avoid tight coupling to any one infrastructure vendor where a
+  reasonable abstraction is cheap — e.g., the file storage adapter for
+  certificates/documents should be behind a small interface, not
+  `S3Client` calls scattered through business logic, so a future
+  region/provider change is contained.
+
+## When NOT to over-engineer
+
+- Don't introduce a message queue, a second database, or a microservice
+  split speculatively "for scale" without an actual measured bottleneck —
+  the modular monolith (ADR-001) is the deliberate starting point. Revisit
+  via a new ADR when there's real evidence (load testing results,
+  production metrics) that a specific piece needs to scale independently,
+  not based on anticipated future scale alone.

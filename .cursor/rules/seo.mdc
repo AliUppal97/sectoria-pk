@@ -1,0 +1,55 @@
+---
+description: SEO requirements for public marketplace pages — metadata, structured data, sitemaps, and Core Web Vitals
+globs:
+  - "apps/web/app/(marketplace)/**/*.tsx"
+  - "apps/web/app/(marketplace)/**/*.ts"
+alwaysApply: false
+---
+
+# SEO Rules — Public Marketplace Pages
+
+"Compare housing societies in [city]" and similar queries are a real,
+currently-unserved search opportunity for this product. SEO here is a
+ranking-system requirement, not decoration — treat it as such.
+
+## Every new public page
+
+- Implements `generateMetadata` with a unique, descriptive title and
+  description derived from the actual entity data (society name, city,
+  category) — never a generic static title reused across pages.
+- Has a corresponding entry in `sitemap.ts` if it represents a real,
+  crawlable entity (society, category, dealer profile). If you add a new
+  entity type intended to be publicly discoverable, update the sitemap
+  generator in the same change.
+- Sets a `canonical` URL — for the comparison tool specifically, the
+  canonical points to the page's own URL (each parameter combination is a
+  legitimate distinct page, not duplicate content to be canonicalized away).
+
+## Structured data (JSON-LD)
+
+- Society pages emit `Organization` schema; inventory categories emit
+  `RealEstateListing` schema with `priceRange`/`availability`; pages with
+  reviews emit `AggregateRating`; all pages emit `BreadcrumbList`.
+- Use the shared `packages/ui/seo/JsonLd.tsx` component with a
+  Zod-validated schema object — don't hand-write a `<script>` tag with
+  inline JSON per page.
+- Validate new structured data against Google's Rich Results Test before
+  considering the page done — a schema that's present but malformed is
+  worse than none, since it can trigger a manual action.
+
+## Rendering strategy
+
+- `/societies` directory: SSR, filters as URL search params (so filtered
+  views are crawlable/shareable, not client-state-only).
+- `/societies/[city]/[society]`: ISR with a 6-hour revalidation window —
+  don't switch this to fully dynamic rendering without a specific reason,
+  since inventory counts changing slightly doesn't require always-fresh HTML.
+- Heavy interactive widgets (the comparison tool) are dynamically imported
+  (`next/dynamic`) so they don't bloat the initial page bundle for users
+  who are just browsing.
+
+## Core Web Vitals
+
+- `next/image` with explicit dimensions for every image; `next/font` for
+  all fonts. A public page shipped without these is not done — Lighthouse
+  SEO + Performance should be ≥ 90 before merging.

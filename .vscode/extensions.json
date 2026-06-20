@@ -1,0 +1,27 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "yoavbls.pretty-ts-errors",
+    "usernamehw.errorlens",
+    "wix.vscode-import-cost",
+    "Prisma.prisma",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    "bradlc.vscode-tailwindcss",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "eamodio.gitlens",
+    "vivaxy.vscode-conventional-commits",
+    "GitHub.vscode-pull-request-github",
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint",
+    "streetsidesoftware.code-spell-checker",
+    "redhat.vscode-yaml",
+    "mikestead.dotenv",
+    "EditorConfig.EditorConfig",
+    "PKief.material-icon-theme",
+    "christian-kohler.path-intellisense",
+    "Gruntfuggly.todo-tree"
+  ]
+}

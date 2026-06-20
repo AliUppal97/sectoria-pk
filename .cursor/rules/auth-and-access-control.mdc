@@ -1,0 +1,99 @@
+---
+description: Apply whenever designing or modifying authentication flows, authorization checks, roles, permissions, or access rights for any resource
+alwaysApply: false
+---
+
+# Authentication & Authorization Standards
+
+This platform has four distinct roles (`BUYER`, `DEALER_PARTNER`,
+`SOCIETY_ADMIN`, `SUPER_ADMIN`) with meaningfully different access scopes,
+plus a multi-tenant dimension (a `SOCIETY_ADMIN` only sees their own
+society's data, a `DEALER_PARTNER` only sees their own authorized
+categories and leads). Keep authentication and authorization conceptually
+separate — they answer different questions and fail differently.
+
+## Authentication (AuthN) — "who is this?"
+
+- Phone-first, OTP-based login via Auth.js v5, matching how Pakistani
+  users actually expect to log in (not email/password as the primary path).
+- A successful authentication establishes identity only — it says
+  nothing about what the identity is allowed to do. Don't conflate "logged
+  in" with "authorized for this action" anywhere in the code.
+- NADRA verification (CNIC identity check) is a **separate, stronger**
+  assertion than session authentication — a user can be logged in
+  (authenticated) without yet being NADRA-verified. Don't let one stand in
+  for the other; gate money-moving actions on NADRA verification
+  explicitly, not just session presence.
+
+## Authorization (AuthZ) — "what can this identity do?"
+
+- Authorization is **role + resource ownership**, evaluated together.
+  "Is this user a `SOCIETY_ADMIN`?" is necessary but not sufficient — also
+  check "is this user the admin **of this specific society**?" Never
+  authorize an action based on role alone when the action targets a
+  specific owned resource.
+
+```typescript
+// Insufficient — checks role only:
+if (ctx.session.user.role !== "SOCIETY_ADMIN") throw new TRPCError({ code: "FORBIDDEN" });
+
+// Correct — checks role AND ownership of the specific resource:
+const society = await getSociety(input.societyId);
+if (ctx.session.user.role !== "SOCIETY_ADMIN" || society.adminUserId !== ctx.session.user.id) {
+  throw new TRPCError({ code: "FORBIDDEN" });
+}
+```
+
+## Where authorization checks live
+
+- **Two layers, both required, neither sufficient alone:**
+  1. `middleware.ts` — coarse-grained route-group gating (a `BUYER` can't
+     load `/society-portal/*` at all). This is the first line of defense
+     and prevents wasted work, but it cannot know about resource ownership.
+  2. The tRPC procedure itself — fine-grained, resource-level checks (the
+     specific society/booking/category being accessed belongs to this
+     caller). This is the actual authorization boundary — never rely on
+     the UI hiding a button as a substitute for this check.
+- A page component conditionally rendering UI based on role is a UX nicety,
+  not a security control. Assume any client-side check can be bypassed and
+  ensure the server-side check exists regardless.
+
+## Access rights matrix — keep this explicit and current
+
+Maintain a permissions matrix (in `docs/architecture/access-rights-matrix.md`)
+mapping role × resource × action → allowed/denied, especially for actions
+with real consequences (issuing a certificate, releasing escrow, revoking
+a dealer authorization). When adding a new mutation, add its row to this
+matrix in the same change — don't let the matrix go stale while new
+endpoints accumulate undocumented access rules.
+
+## Guards — composition over duplication
+
+- Express authorization checks as small, named, composable guard
+  functions (`requireRole(role)`, `requireSocietyOwnership(societyId)`,
+  `requireNadraVerified()`) that a tRPC procedure or middleware chains
+  together, rather than writing the same `if` chain inline in every procedure.
+- A guard either passes (returns/resolves) or throws a typed
+  `TRPCError`/redirects — it never returns a boolean for the caller to
+  remember to check. Making the failure path "loud" (a thrown error)
+  prevents the easy mistake of forgetting to act on a `false` return value.
+
+## Session & token strategy
+
+- Session data trusted server-side is the session object Auth.js
+  populates from the database/JWT — never trust a role or permission
+  claim sent in a request body or query param, even if it matches what
+  the UI would have sent legitimately.
+- Sensitive actions (booking token payment, certificate issuance) may
+  warrant re-validating the session is still fresh (not just present) —
+  don't let an authorization decision rest on a session that could be
+  hours stale for a high-stakes action without re-confirmation.
+
+## Multi-tenancy discipline
+
+- Every database query that returns data scoped to a society, dealer, or
+  buyer **must** filter by the appropriate ownership ID derived from the
+  session — never construct a query that could leak another tenant's data
+  if a filter is accidentally omitted. Prefer query helpers that bake the
+  scoping in by default, requiring an explicit opt-out for genuinely
+  cross-tenant admin queries (which themselves require `SUPER_ADMIN`).

@@ -1,0 +1,60 @@
+---
+description: Rules for the Prisma schema, migrations, seed data, and encryption helpers
+globs:
+  - "packages/database/**/*.ts"
+  - "**/*.prisma"
+alwaysApply: false
+---
+
+# Database Rules (`packages/database/*`)
+
+## Schema conventions
+
+- Every model gets an `@@index` on foreign keys used in frequent lookups
+  (already established for `societyId`, `categoryId`, `buyerId` — follow
+  this pattern for any new relation).
+- Use `cuid()` for IDs, not auto-incrementing integers — these IDs may be
+  exposed in URLs (slugs aside) or shared externally, and sequential IDs
+  leak volume information.
+- Money fields are `Decimal`, never `Float` or `Int` — floating point
+  rounding errors in tax/escrow calculations are a correctness bug, not a
+  cosmetic one.
+- Enums over free-text strings for any field with a closed, known set of
+  values (status fields, plot types, roles).
+
+## The audit ledger is append-only — enforce, don't just document
+
+- `LedgerEvent` rows must never be updated or deleted at the application
+  layer. When writing migrations, ensure the Postgres trigger from ADR-004
+  blocking `UPDATE`/`DELETE` on this table is in place — don't rely on
+  convention alone.
+- If a new domain package produces a new kind of mutation (anything in
+  booking/escrow/allocation/balloting), it must emit a `LedgerEvent` through
+  the standard builder — don't write ad-hoc audit rows.
+
+## Sensitive fields
+
+- `cnicEncrypted` / `ntnEncrypted` are the only acceptable storage form for
+  these fields. Never add a new plaintext CNIC/NTN column anywhere in the
+  schema, including on join tables, denormalized views, or seed fixtures
+  that might get committed.
+- Encryption/decryption goes through `packages/database/encryption.ts`
+  exclusively — don't inline `crypto` calls elsewhere.
+
+## Migrations
+
+- One logical change per migration. Don't bundle an unrelated schema change
+  into a migration generated for a different feature.
+- Run `prisma migrate dev` locally and check the generated SQL before
+  committing — Prisma's diff can occasionally propose a destructive change
+  (column drop/recreate) for what looks like a benign edit; catch this
+  before it ships.
+
+## Seed data
+
+- Keep seed data realistic and Pakistani-context-appropriate (real city
+  names, valid-format CNIC/NTN patterns, plausible PKR amounts) — this data
+  doubles as documentation for what valid records look like.
+- Never seed a `LedgerEvent` via direct insert bypassing the domain ledger
+  builder — seed via the same code path production would use, so the seed
+  script also exercises the real flow.

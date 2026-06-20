@@ -1,0 +1,94 @@
+---
+description: Naming, comment philosophy, and self-explanatory code standards applying to all source files
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+# Code Clarity, Naming & Comments
+
+Code is read far more often than it's written. Optimize for the next
+person (often future-you, three months from now, with no memory of why a
+decision was made).
+
+## Naming
+
+- Names describe **what something is or does**, not how it's implemented.
+  `getAvailablePlotsInCategory`, not `getPlots2` or `filterAndReturnArr`.
+- Booleans read as a question or assertion: `isVerified`, `hasEscrowFunds`,
+  `canCancelBooking` — never `verified` or `flag` or `status` for a boolean.
+- Avoid abbreviations that aren't immediately obvious. `cnic`, `ntn`,
+  `atl`, `lop`, `noc` are fine — they're the domain's own vocabulary and
+  spelled out fully in every TSDoc comment the first time they're used in
+  a file. `tmp`, `val`, `obj`, `data` as variable names are not fine
+  outside a 2-line scope where the meaning is visually obvious.
+- Function names are verbs (`calculateTransferTax`, `allocatePlot`);
+  variable/property names are nouns (`taxBreakdown`, `availableUnits`).
+- Don't encode type information in the name (`userArray`, `priceNumber`)
+  — TypeScript's type system already tells you that; let the name carry meaning instead.
+
+## Comments — the "why," not the "what"
+
+- Code should be clear enough that a comment explaining *what* a line
+  does is a sign the code itself should be clearer (extract a
+  well-named function instead of commenting an unclear one).
+- Comments are for **why**: why a non-obvious approach was chosen, why a
+  workaround exists, why a value is what it is, what a future maintainer
+  needs to know before changing this safely.
+
+```typescript
+// Bad — explains *what*, which the code already shows:
+// loop through bookings and sum the tax
+const total = bookings.reduce((sum, b) => sum + b.tax, 0);
+
+// Good — explains *why*, which the code can't show on its own:
+// FBR requires tax to be computed on whichever is higher: the agreed
+// price or the FBR table value. See packages/domain/tax/README.md.
+const taxableValue = Math.max(agreedPrice, fbrTableValue);
+```
+
+- A `// TODO` or `// FIXME` always includes context — what's missing and
+  why it wasn't done now — not just the bare tag. Reference a ticket/issue
+  if one exists.
+- Public, exported functions in `packages/domain` and
+  `packages/verification` get full TSDoc (see `documentation.mdc`); inline
+  comments inside a function body are reserved for genuinely non-obvious steps.
+
+## Function design
+
+- A function does one thing at one level of abstraction. If a function
+  mixes "calculate the tax" with "format it for display" with "log the
+  result," split it — each of those is independently testable and reusable.
+- Prefer early returns over deeply nested conditionals — flatten the
+  happy path, handle edge cases and exits first.
+
+```typescript
+// Prefer this:
+function processBooking(booking: Booking) {
+  if (!booking.isVerified) return { status: "rejected", reason: "unverified" };
+  if (booking.isExpired) return { status: "rejected", reason: "expired" };
+  // happy path, unindented
+  return { status: "accepted" };
+}
+```
+
+- Keep function parameter lists short (ideally ≤3 positional params). Past
+  that, accept a single well-typed options object — it also makes call
+  sites self-documenting since each value is named at the call site.
+
+## Magic numbers and strings
+
+- Any number or string with business meaning gets a named constant, not
+  a bare literal: `SECTION_7E_THRESHOLD_PKR = 25_000_000`, not a bare
+  `25000000` appearing inline in a calculation. This is the difference
+  between a tax-law change being a one-line edit versus a search-and-hope
+  across the codebase.
+
+## Self-documenting structure over clever code
+
+- Prefer the obvious, slightly more verbose implementation over a clever
+  one-liner that requires the reader to mentally trace through chained
+  operators or nested ternaries. This codebase optimizes for a reviewer
+  understanding a tax/escrow change correctly on first read, not for
+  fewest characters.

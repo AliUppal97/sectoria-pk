@@ -1,0 +1,51 @@
+---
+description: Apply whenever installing, adding, removing, or upgrading any npm package or dependency, or when setting up a new package's package.json
+alwaysApply: false
+---
+
+# Dependency Management Rules
+
+Package ecosystems for this stack (Next.js, Auth.js, tRPC, Tailwind) move
+fast. An agent defaulting to "latest" without checking can silently mix
+incompatible majors. Follow this process every time.
+
+## Before installing anything
+
+1. Check `docs/architecture/dependency-baseline.md` for a pinned version
+   for this package first.
+2. If it's listed, install that exact version — don't substitute "latest"
+   even if it seems like a trivial patch bump, unless explicitly asked to
+   upgrade.
+3. If it's **not** listed (a genuinely new dependency), check its current
+   stable major on npm before adding it, and add it to the baseline doc in
+   the same change so the next install is consistent.
+
+## Workspace consistency
+
+- All packages in the monorepo resolve to the **same version** of any
+  shared dependency (`zod`, `typescript`, `react`, `@trpc/*`) via the pnpm
+  workspace catalog. Never let one package's `package.json` drift to a
+  different version of a workspace-wide dependency — this is the single
+  most common source of "works in package A, breaks in package B" bugs in
+  a monorepo.
+- Adding a new package to the monorepo means adding its dependencies to
+  the catalog reference (`"zod": "catalog:"`), not a hardcoded version string,
+  for anything already present in the catalog.
+
+## High-churn packages — extra caution
+
+These specific packages have shipped breaking or structurally significant
+changes recently and deserve a version check rather than assumption, even
+mid-project: `next`, `next-auth` (Auth.js), `@trpc/server` /
+`@trpc/client` / `@trpc/react-query`, `tailwindcss`, `prisma` /
+`@prisma/client`. If a task involves touching auth config, tRPC router
+setup, or Tailwind theme config and something doesn't match what's
+described in the project's setup docs, suspect a version mismatch before
+assuming the code is wrong.
+
+## After installing
+
+- Run typecheck immediately. A version mismatch across packages often
+  surfaces as a confusing type error far from the actual cause (e.g., a
+  React type conflict appearing in a UI component when the real issue is
+  two different `@types/react` versions resolving in the workspace).

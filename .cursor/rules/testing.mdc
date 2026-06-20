@@ -1,0 +1,51 @@
+---
+description: Testing conventions for Vitest (unit/domain) and Playwright (E2E)
+globs:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "e2e/**/*.ts"
+alwaysApply: false
+---
+
+# Testing Rules
+
+## Unit tests (Vitest) — `packages/domain/*` and `packages/verification/*`
+
+- `packages/domain/tax` and `packages/domain/escrow` specifically: aim for
+  near-complete branch coverage. These encode legal/financial correctness;
+  an untested branch here is a compliance risk, not just a coverage metric gap.
+- Test names describe the scenario and expected outcome in plain language
+  (`"throws when sale price is below zero"`, not `"test 3"`).
+- Cover boundary values explicitly: exactly-at-threshold for Section 7E,
+  all combinations of seller/buyer ATL status for tax calculations, the
+  first and last item in a balloting pool, an empty inventory category.
+- Domain tests never import Prisma, Next.js, or mock a database — if a
+  "unit test" needs a database mock, the function under test has leaked
+  outside the pure-domain boundary; fix the function, don't add the mock.
+- Mock adapter tests verify the response matches its Zod schema, not just
+  that it returns *something* — a mock returning a shape the real API
+  would never produce defeats the purpose of having a typed contract.
+
+## Adding or changing tax/escrow/balloting logic
+
+- Any change to a rate, threshold, or state-transition table requires a
+  new or updated test case in the **same PR** — flag explicitly if you
+  touch this logic without adding a test, rather than silently skipping it.
+
+## E2E (Playwright)
+
+- Cover the critical path end-to-end at minimum: browse societies →
+  compare → select a category → verification (against mock adapters) →
+  pay booking token → see allocation result. Keep this path green before
+  adding peripheral E2E coverage.
+- E2E tests run against mock verification adapters in CI — never against
+  real government endpoints, even in a "staging" configuration, unless
+  that's an explicitly separate, manually-triggered suite.
+
+## CI expectations
+
+- `turbo run test lint typecheck` must pass before merge. Don't introduce
+  a test that's flaky-by-design (e.g., depends on real wall-clock timing)
+  — inject a clock/seed instead, consistent with the determinism
+  requirement in `domain-logic.mdc`.

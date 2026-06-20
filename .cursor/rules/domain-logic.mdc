@@ -1,0 +1,63 @@
+---
+description: Rules for pure business-logic packages (tax, allocation, balloting, escrow, trust-score, ledger)
+globs:
+  - "packages/domain/**/*.ts"
+alwaysApply: false
+---
+
+# Domain Logic Rules (`packages/domain/*`)
+
+This code encodes tax law, money movement, and fairness guarantees. Bugs
+here are compliance/financial-correctness incidents, not just UX bugs.
+Treat every function in this directory accordingly.
+
+## Required for every exported function
+
+- **TSDoc comment** explaining what it does and why, including `@see`
+  references to the relevant legal section where applicable (e.g.,
+  `@see Section 236C — Advance tax on sale/transfer of immovable property`).
+- **Pure**: no I/O, no `Date.now()`/`Math.random()` without an injected seed
+  or clock for determinism, no framework imports of any kind.
+- **A test file in the same package** covering: the happy path, boundary
+  values (e.g., exactly-at-threshold for Section 7E), and invalid input
+  (should throw a descriptive, typed error — never silently return `0` or `null`).
+
+## Tax (`packages/domain/tax`)
+
+- Tax rates live in a versioned `TaxRateTable` keyed by fiscal year. A rate
+  change is a new config entry, never a hardcoded literal inside the
+  calculation function.
+- Always compute against `max(agreedPrice, fbrTableValue)` — never let a
+  sale price below the FBR table value reduce the tax owed.
+- Any change to a rate or threshold requires a corresponding test update in
+  the same PR — flag this explicitly if you touch this file.
+
+## Escrow (`packages/domain/escrow`)
+
+- Implemented as an explicit state machine. Adding a new state requires
+  updating the full transition table, not just the new edge — enumerate
+  what can and cannot follow it.
+- A transition function returns `{ nextState, event }` — it does not write
+  to a database. Persistence is the caller's job (in `packages/api-client`).
+- Invalid transitions throw a typed `InvalidEscrowTransitionError`, never a
+  generic `Error`.
+
+## Balloting (`packages/domain/balloting`)
+
+- Must be **deterministic given the same seed** — same `entries` + `seed`
+  always produces the same `BallotResult`. This determinism is what makes
+  the result independently auditable; don't introduce hidden randomness
+  (e.g., relying on object key iteration order, or unseeded `Math.random`).
+- Always return the seed and a hash of the input set alongside the result.
+
+## Trust score (`packages/domain/trust-score`)
+
+- Verified-transaction weighting must dominate the formula (≥50%). Never
+  rebalance weights such that engagement/activity metrics alone could
+  produce a high score with zero completed transactions — that breaks the
+  core anti-gaming guarantee this system exists for.
+
+## Ledger (`packages/domain/ledger`)
+
+- Event builders only — this package never performs the actual database
+  insert. It returns a typed `LedgerEvent` for the caller to persist.

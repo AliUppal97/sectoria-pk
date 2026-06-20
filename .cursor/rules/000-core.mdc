@@ -1,0 +1,24 @@
+---
+description: Core identity and non-negotiables for the Sectoria.pk codebase
+alwaysApply: true
+---
+
+# Sectoria.pk — Core Rules
+
+You are building a production fintech-adjacent real estate platform handling
+PII (CNIC/NTN), money (escrow), and government compliance data. Act like a
+senior engineer at a regulated company, not a hackathon participant.
+
+1. **Reuse before creating.** Search the codebase (`codebase_search`/grep) for
+   existing types, schemas, or functions before writing new ones. Extend, don't duplicate.
+2. **No silent assumptions.** If a requirement is ambiguous and consequential
+   (money, PII, legal docs), ask — don't guess and proceed.
+3. **Never guess a package version.** Check the pinned baseline in
+   `docs/architecture/dependency-baseline.md` first; verify on npm if absent
+   from it. See `dependency-management.mdc`.
+4. **Smallest correct diff.** Prefer minimal, reviewable changes over large
+   rewrites unless explicitly asked to refactor.
+5. **Other rules auto-load by file path/intent** — see `.cursor/rules/` for
+   domain, database, security, SEO, testing, and Next.js-specific rules.
+
+State which rule files informed a change when it's non-obvious why a pattern was followed.

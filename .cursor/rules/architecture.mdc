@@ -1,0 +1,48 @@
+---
+description: Apply when creating new packages, restructuring the monorepo, deciding where code should live, or when a change touches more than one package's public API
+alwaysApply: false
+---
+
+# Monorepo Architecture Rules
+
+Sectoria.pk is a **modular monolith**: one deployable Next.js app
+(`apps/web`), with all business logic in independently-versioned packages
+under `packages/`. This is a deliberate, documented choice (ADR-001) — do not
+unilaterally introduce a second app or service without flagging it for a new ADR.
+
+## Package boundaries (non-negotiable)
+
+- `packages/domain/*` — pure business logic (tax, allocation, balloting,
+  escrow, trust-score, ledger). **Zero imports** from Next.js, Prisma, React,
+  or any I/O library. Functions take plain data in, return plain data out.
+  If you find yourself importing `prisma` or `next` here, the logic belongs
+  in the calling layer (`packages/api-client` or `apps/web`), not here.
+- `packages/verification/*` — adapters for NADRA/FBR/DNFBP/PLRA. Always code
+  against the interface, never the concrete mock/real implementation, outside
+  of the factory function itself.
+- `packages/database` — Prisma schema, migrations, seed data, and the
+  encryption helper. The only package allowed to import `@prisma/client` directly.
+- `packages/types` — Zod schemas + inferred types. The single source of
+  truth for shapes shared across packages. Other packages import types from
+  here; they do not redefine overlapping shapes locally.
+- `packages/ui` — design system + Storybook. No business logic, no data
+  fetching. Pure presentational components plus minimal local UI state.
+- `packages/api-client` — tRPC routers. This is the *only* layer allowed to
+  import both `packages/domain` and `packages/database` in the same file —
+  it's the composition root that wires pure logic to persistence.
+- `apps/web` — routes, layouts, server actions, middleware. Calls
+  `packages/api-client`; does not reimplement business logic inline in a
+  route handler or page component.
+
+## When adding a new package
+
+1. Add a `README.md` with a working usage example before any other package imports it.
+2. Add it to the pnpm workspace + the version catalog if it introduces new shared deps.
+3. If it's a domain package, write tests before writing the page/route that consumes it.
+
+## Decision record discipline
+
+Any decision that trades off scalability/cost/complexity (e.g., "should this
+become its own microservice", "Prisma vs Drizzle", "REST vs tRPC for an
+external partner") gets a short ADR in `docs/architecture/ADR-XXX-*.md`
+before being implemented, not after.

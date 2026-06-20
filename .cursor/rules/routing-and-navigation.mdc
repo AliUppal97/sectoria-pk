@@ -1,0 +1,79 @@
+---
+description: URL structure, redirect/reroute conventions, and navigation patterns for the App Router
+globs:
+  - "apps/web/app/**/*.tsx"
+  - "apps/web/middleware.ts"
+alwaysApply: false
+---
+
+# Routing & Navigation Standards
+
+## URL structure
+
+- Public marketplace URLs are human-readable and SEO-meaningful:
+  `/societies/lahore/green-valley-housing-scheme`, not
+  `/societies/[id]` with an opaque cuid. Use the `slug` field already on
+  `Society`/`InventoryCategory` for this — never expose a raw database ID
+  in a public-facing URL where a slug exists.
+- Authenticated portal URLs (`/dashboard`, `/society-portal`,
+  `/dealer-portal`, `/admin`) can use IDs freely since they're not
+  optimizing for shareability/SEO, but still prefer slugs for anything a
+  user might bookmark or share internally (e.g., a specific booking reference).
+- Query params represent **state that should be shareable/bookmarkable**
+  (search filters, comparison selections, pagination) — anything that
+  shouldn't survive a page refresh or shouldn't be shareable belongs in
+  client state (Zustand), not the URL.
+
+## Protected routes — redirect, don't blank-render
+
+- An unauthenticated user hitting a protected route is redirected to
+  login **with a `callbackUrl`/return path** preserved, so they land back
+  where they intended after authenticating — never just render an empty
+  or error page in place.
+- A wrong-role user hitting a route they're not authorized for (e.g., a
+  `BUYER` hitting `/society-portal`) is redirected to **their own**
+  correct dashboard, not to a generic "access denied" dead end — this
+  keeps navigation feeling helpful rather than punitive, which matters
+  for a product still building trust.
+- Implement this redirect logic in `middleware.ts`, not scattered
+  per-page checks — see `middleware-and-guards.mdc` for why middleware is
+  the actual gate, not a page-level convenience check.
+
+## Reroutes for changed/removed content
+
+- A society/category/dealer that's deactivated or removed: serve a `410
+  Gone` or a clear "no longer available" page with a link back to the
+  directory — never a bare unstyled 404 for content that previously
+  existed and may still be indexed by search engines.
+- A slug that changes (e.g., a society renames) should redirect (HTTP 301)
+  from the old slug to the new one for some retention window, not silently
+  404 — preserve any inbound SEO value and bookmarks.
+- Document any introduced redirect rule (old pattern → new pattern,
+  permanent vs temporary) in `next.config.ts`'s `redirects()` array rather
+  than handling it ad hoc inside a page component, so all redirect logic
+  is discoverable in one place.
+
+## Deep linking & state restoration
+
+- The society comparison tool's selected societies are reflected in the
+  URL (`/compare?ids=a,b,c`) specifically so a user can share or bookmark
+  a comparison — don't move this into client-only state, since that
+  breaks the sharing use case this feature exists for.
+- Booking flow steps (multi-step verification → category selection → tax
+  review → payment) should be resumable — if a user navigates away and
+  back, or refreshes, they shouldn't lose meaningful progress. Persist
+  booking-in-progress state server-side (tied to the booking record's
+  current `EscrowState`) rather than only in client memory.
+
+## Navigation between portals
+
+- A user with multiple roles (rare, but e.g., a buyer who is also a
+  dealer) sees an explicit, deliberate switcher rather than the app
+  guessing which portal to land them in — ambiguous auto-routing for a
+  multi-role user is a common source of confusing support tickets.
+
+## Avoiding dead ends
+
+- Every error state and empty state (see `ui-ux-excellence.mdc`) includes
+  a way back into a working part of the app — a broken or empty page
+  without a navigation path out is a navigation bug, not just a content gap.
