@@ -1,5 +1,4 @@
 ---
-description: Conventions for commit messages, PR structure, and what must be true before proposing a merge. Invoke manually with @git-workflow when preparing a commit or PR.
 alwaysApply: false
 ---
 
