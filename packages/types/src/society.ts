@@ -1,0 +1,53 @@
+import { z } from "zod";
+import {
+  idSchema,
+  isoDateTimeSchema,
+  latitudeSchema,
+  longitudeSchema,
+  slugSchema,
+} from "./common.js";
+
+/**
+ * Trust ladder for a society. `VERIFIED` means LOP + NOC documents are
+ * confirmed; `HSMS_LINKED` additionally has a live HSMS integration.
+ * Mirrors the Prisma `VerificationTier` enum.
+ *
+ * Domain vocabulary:
+ * - `lop` — Layout Plan approval reference.
+ * - `noc` — No Objection Certificate reference.
+ * - `hsms` — Housing Society Management System.
+ */
+export const VerificationTier = {
+  PENDING: "PENDING",
+  VERIFIED: "VERIFIED",
+  HSMS_LINKED: "HSMS_LINKED",
+} as const;
+export type VerificationTier =
+  (typeof VerificationTier)[keyof typeof VerificationTier];
+export const verificationTierSchema = z.nativeEnum(VerificationTier);
+
+/** A verified housing society — the seller of record on the marketplace. */
+export const societySchema = z.object({
+  id: idSchema,
+  slug: slugSchema,
+  name: z.string().min(1),
+  city: z.string().min(1),
+  citySlug: slugSchema,
+  /** Issuing development authority, e.g. "CDA", "LDA", "RDA". */
+  authority: z.string().min(1),
+  lopReferenceNo: z.string().nullable().optional(),
+  nocReferenceNo: z.string().nullable().optional(),
+  hsmsLinked: z.boolean(),
+  verificationTier: verificationTierSchema,
+  description: z.string(),
+  amenities: z.array(z.string()),
+  latitude: latitudeSchema.nullable().optional(),
+  longitude: longitudeSchema.nullable().optional(),
+  /** Human-readable stage, e.g. "Under Development", "Possession Underway". */
+  developmentStage: z.string().min(1),
+  /** Completion percentage, 0–100. */
+  developmentPct: z.number().int().min(0).max(100),
+  heroImageUrl: z.string().url().nullable().optional(),
+  createdAt: isoDateTimeSchema,
+});
+export type Society = z.infer<typeof societySchema>;
