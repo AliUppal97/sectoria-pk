@@ -61,6 +61,16 @@ against npm before relying on this table if significant time has passed.
 | `vitest` | `^2.1.0` | |
 | `@playwright/test` | `^1.49.0` | |
 
+## ESLint toolchain (`packages/config`)
+
+| Package | Version | Notes |
+|---|---|---|
+| `@eslint/js` | `^9.15.0` | ESLint flat config base presets — align major with `eslint` |
+| `typescript-eslint` | `^8.62.0` | TypeScript rules for flat config |
+| `eslint-config-next` | `^16.2.0` | Align major with `next` |
+| `globals` | `^17.7.0` | Shared global identifiers for ESLint |
+| `@types/node` | `^22.0.0` | Node.js types for TS packages |
+
 ## How to verify a version before installing
 
 ```bash

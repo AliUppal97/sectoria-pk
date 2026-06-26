@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+out/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# IDE / OS
+.DS_Store
+*.log
+
+# Prisma
+packages/database/prisma/migrations/**/migration_lock.toml
+
+# Generated docs
+docs/api/openapi.json

@@ -1,0 +1,47 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+catalog:
+  # Core
+  next: ^16.2.0
+  react: ^19.0.0
+  react-dom: ^19.0.0
+  typescript: ^5.7.0
+
+  # API & validation
+  "@trpc/server": ^11.0.0
+  "@trpc/client": ^11.0.0
+  "@trpc/react-query": ^11.0.0
+  "@tanstack/react-query": ^5.60.0
+  zod: ^3.24.0
+
+  # Database
+  prisma: ^6.0.0
+  "@prisma/client": ^6.0.0
+
+  # Auth
+  next-auth: 5.0.0-beta.25
+  "@auth/prisma-adapter": ^2.7.0
+
+  # Styling
+  tailwindcss: ^4.0.0
+  "@tailwindcss/postcss": ^4.0.0
+
+  # State & jobs
+  zustand: ^5.0.0
+  bullmq: ^5.30.0
+  ioredis: ^5.4.0
+
+  # Tooling
+  turbo: ^2.3.0
+  eslint: ^9.15.0
+  vitest: ^2.1.0
+  "@playwright/test": ^1.49.0
+
+  # ESLint toolchain (packages/config)
+  "@eslint/js": ^9.15.0
+  typescript-eslint: ^8.62.0
+  eslint-config-next: ^16.2.0
+  globals: ^17.7.0
+  "@types/node": ^22.0.0
