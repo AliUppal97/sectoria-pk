@@ -67,6 +67,13 @@ export const taxRateTableSchema = z.object({
   section236K: atlRateSetSchema,
   /** Stamp duty as a single decimal-string rate (e.g. "0.02"). */
   stampDuty: decimalStringSchema,
+  /**
+   * Provincial/authority regulatory (registration/transfer) fee as a single
+   * decimal-string rate (e.g. "0.01"). Carried in the versioned table — like
+   * every other rate — so a fee change is a config edit, never a literal
+   * baked into the calculation. Surfaces as `TaxBreakdown.regulatoryFee`.
+   */
+  regulatoryFee: decimalStringSchema,
   /** Section 7E only applies above this property value (paisa). */
   section7eThreshold: pkrAmountSchema,
   section7eRate: decimalStringSchema,
