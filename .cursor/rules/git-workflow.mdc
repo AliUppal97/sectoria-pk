@@ -1,4 +1,5 @@
 ---
+description: Commit style, PR readiness, and scope discipline. For the full ship loop (branch → PR → merge → sync main), invoke the ship-pr skill.
 alwaysApply: false
 ---
 
@@ -6,6 +7,13 @@ alwaysApply: false
 
 Invoke this explicitly (`@git-workflow`) when committing or preparing a PR
 description — it's intentionally not auto-loaded on every file edit.
+
+## End-of-task ship loop
+
+When implementation is done and local gates pass, invoke **`ship-pr`**
+(`.cursor/skills/ship-pr/SKILL.md`) or say *ship it* / *land this*. That skill
+runs: branch → scoped commit → push → PR → wait for CI → merge when green →
+`main` synced with `origin`. Do not merge with failing checks.
 
 ## Commit messages
 
