@@ -69,6 +69,31 @@ importers:
         specifier: 'catalog:'
         version: 8.62.0(eslint@9.39.4)(typescript@5.9.3)
 
+  packages/domain/allocation:
+    dependencies:
+      '@sectoria/types':
+        specifier: workspace:*
+        version: link:../../types
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
+    devDependencies:
+      '@sectoria/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.0
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 2.1.9(@types/node@22.20.0)
+
   packages/domain/balloting:
     dependencies:
       '@sectoria/types':
