@@ -18,10 +18,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Version is intentionally NOT set here: pnpm/action-setup@v4 errors if a
+      # version is given both here and via package.json's "packageManager"
+      # field. The pinned "pnpm@9.15.4" in package.json is the single source of
+      # truth.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
