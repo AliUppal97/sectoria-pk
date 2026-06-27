@@ -1,0 +1,100 @@
+---
+description: Sectoria.pk design system enforcement — tokens, components, typography, spacing, and visual patterns. Replaces the generic ui-design-system.mdc for this project.
+globs:
+  - "packages/ui/**/*.tsx"
+  - "packages/ui/**/*.css"
+  - "apps/web/app/**/*.tsx"
+alwaysApply: false
+---
+
+# Sectoria Design System Rules
+
+Design language: Modern Enterprise Minimalism + Bento Grid.
+Reference: Sectoria_Design_System.md (full spec). This rule file
+enforces the non-negotiable constraints — consult the full spec
+document for measurements, values, and reasoning.
+
+## Token discipline
+
+- EVERY color, spacing, radius, shadow, duration value must come
+  from a token defined in `packages/ui/src/theme.css` @theme block.
+  Never write a hex value, px value, or rgba() inline in a component.
+  If a token doesn't exist for what you need, add it to theme.css FIRST,
+  then use the token.
+- Two fonts only: `var(--font-sans)` (Inter) for all UI text,
+  `var(--font-mono)` (JetBrains Mono) for all data: CNIC, NTN, PKR
+  amounts in tables, serial codes, certificate numbers, CPR refs.
+  No third font under any circumstance.
+- Spacing uses the 4px base grid. Legal values: 4, 8, 12, 16, 20, 24,
+  32, 40, 48, 64, 80, 96px. Any other value needs explicit justification
+  in a code comment before it's accepted.
+
+## Color rules
+
+- Colors are never decorative. Every color token encodes information
+  (status, interaction state, hierarchy). If you're reaching for a
+  color to "make it look nice," stop — use whitespace and typography
+  weight instead.
+- Semantic colors are reserved for semantic use only:
+  --color-success → verified, compliant, complete
+  --color-warning → pending, awaiting, late
+  --color-danger  → blocked, rejected, non-filer, error
+  --color-info    → in-progress, informational
+  Never repurpose a semantic color for a non-semantic visual purpose.
+- Status badges: always colored dot + colored text on tinted background.
+  Color alone (background only, no dot or text) is never sufficient.
+
+## Bento grid
+
+- Use for: society comparison sections, dashboard metric areas,
+  feature sections on the public marketplace, compliance overviews.
+- One anchor cell (2×2) per bento section maximum — two equal anchors
+  is a two-column hero, not a bento.
+- Gutter = half of inner cell padding. Default: 16px gutter, 24px
+  inner padding. Never mix different gutter values within one grid.
+- Cell importance = cell size. Don't size cells by convenience or
+  available space — size by what the content importance warrants.
+
+## Component requirements
+
+- Every status badge: dot + text + tinted background (see Section 5.3
+  of the design spec). Never text alone on a colored background.
+- Every empty state: illustration + specific heading + CTA.
+  "No results" is never acceptable as a heading — be specific about
+  what's absent and how to add it.
+- Every loading state: skeleton matching content shape. A generic
+  spinner is not an acceptable substitute for content-shaped skeletons
+  on anything that takes more than 300ms.
+- Every form field: visible label above the field. Placeholder text
+  is supplementary UX, not a label. Never remove the label.
+
+## PKR / CNIC formatting
+
+- PKR amounts: always `formatPKR()` from packages/ui/src/lib/format-pkr.ts
+  Result looks like: "PKR 14,200,000". Never "Rs.", "₨", or a raw number.
+- CNIC: always masked in display via `maskCnic()` except in explicitly
+  authorized admin/verification views. Full CNICs never rendered to DOM
+  in any public or buyer-facing route.
+- Dates: always "DD Mon YYYY" format (e.g., "12 Jun 2026") via
+  `formatDate()`. Never MM/DD/YYYY or YYYY-MM-DD in the UI.
+
+## Motion
+
+- Every animation is functional (communicates state change) not
+  decorative. If an animation's removal wouldn't confuse the user,
+  remove it.
+- Duration range: 150ms minimum, 500ms maximum. Exceptions: the
+  certificate stamp (400ms spring) and gauge fill (800ms ease-out)
+  are documented in the design spec — don't add more exceptions.
+- All animations wrapped in: `@media (prefers-reduced-motion: reduce)`
+  with instant/no-animation fallback. This is non-negotiable.
+
+## What NEVER goes in a Sectoria component
+
+- Gradient backgrounds on buttons
+- Shadows heavier than var(--shadow-lg)
+- Any font other than var(--font-sans) and var(--font-mono)
+- Inline color or spacing values (see token discipline above)
+- Fear-based microcopy ("Only 2 left!", "Act now!")
+- More than 2 primary-weight CTAs visible at once
+- A toast for any action involving money — use a confirm dialog

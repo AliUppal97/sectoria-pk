@@ -14,6 +14,22 @@ For **every** build session this file gives you, in order:
 
 ---
 
+## Design documentation (Sessions 4, 6–10)
+
+Sectoria UI work is governed by three artifacts. **Lean rules auto-load** when you edit UI files; **the full spec is `@`-attached** when you need exact token values, component anatomy, or layout patterns.
+
+| Artifact | Location | Role |
+|---|---|---|
+| **Full spec** | `@docs/design/Sectoria_Design_System.md` | Source of truth for colors, typography, bento grid, component specs, motion, trust patterns |
+| **Design system rules** | `.cursor/rules/ui-design-system-sectoria.mdc` | Auto-attaches on `packages/ui/**` and `apps/web/app/**` — token discipline, PKR/CNIC formatting, bento rules |
+| **UX excellence rules** | `.cursor/rules/ui-ux-excellence-sectoria.mdc` | Auto-attaches on `packages/ui/**` and `apps/web/app/**` — five states, trust UX, responsive, accessibility |
+
+The generic `ui-design-system.mdc` and `ui-ux-excellence.mdc` are superseded by the `-sectoria` versions. When both appear in Settings → Rules, follow the Sectoria-specific files.
+
+**Attach the full spec** (`@docs/design/Sectoria_Design_System.md`) in Sessions **4** and **6–10** prompts. **Do not attach it** in domain, database, API, security, or E2E sessions — it adds ~650 lines of context with no benefit.
+
+---
+
 ## Model Tiers (map once, reuse everywhere)
 
 Cursor's model list changes over time, so this playbook uses **tiers**, not hardcoded names. Pick the current best-fit in each tier from your model dropdown.
@@ -65,11 +81,11 @@ Run this once. Maps to Part 1–3 of the build doc.
 - [ ] Redis reachable (`redis-cli ping` → `PONG`, or Upstash creds saved) (1.4)
 - [ ] `git --version` works + `user.name`/`user.email` configured (1.5)
 - [ ] Folder created, `git init`, `git branch -M main`, remote `origin` added (2.1–2.2)
-- [ ] Foundation unzipped into root; `find .cursor/rules -name "*.mdc" | wc -l` → **22** (2.3–2.4)
+- [ ] Foundation unzipped into root; `find .cursor/rules -name "*.mdc" | wc -l` → **24** (22 foundation + `ui-design-system-sectoria` + `ui-ux-excellence-sectoria`) (2.3–2.4)
 - [ ] `.env` created from `.env.example`; `AUTH_SECRET` + `ENCRYPTION_KEY` generated; DB/Redis filled; verification keys left blank (mocks) (2.5)
 - [ ] Foundation committed + pushed: `chore: add Cursor rules, docs, and project config` (2.6)
 - [ ] Recommended extensions installed (Install All popup) (Part 3 intro)
-- [ ] **3.1** Settings → Rules: 22 Project Rules; `000-core` = Always; 14 Auto Attached; 6 Agent Requested; `git-workflow` = Manual
+- [ ] **3.1** Settings → Rules: 24 Project Rules; `000-core` = Always; 16 Auto Attached (incl. `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`); 6 Agent Requested; `git-workflow` = Manual
 - [ ] **3.2** Settings → Docs: Next.js, tRPC, Prisma, Auth.js, Tailwind all show **Indexed**
 - [ ] **3.3** Settings → Indexing → Ignored files lists `node_modules/`, `.next/`, etc.
 - [ ] **3.5** Settings → Features → Agent → Auto-run ON; allow/block lists configured
@@ -77,7 +93,7 @@ Run this once. Maps to Part 1–3 of the build doc.
 - [ ] **3.8** Codebase indexing finished (checkmark, not spinner)
 - [ ] **3.7** Next.js DevTools MCP — *deferred until after Session 0* (needs `apps/web`)
 
-**Per-session ritual (every time):** new chat → set model tier → `@`-attach `@docs/Sectoria_Cursor_Prompt.md` and `@docs/Sectoria_File_Structure.md` (Sessions 11 & 12 attach only the prompt) → paste the session prompt from below → run Test Gate → commit → push.
+**Per-session ritual (every time):** new chat → set model tier → `@`-attach `@docs/Sectoria_Cursor_Prompt.md` and `@docs/Sectoria_File_Structure.md` (Sessions 11 & 12 attach only the prompt; **Sessions 4 & 6–10 also attach** `@docs/design/Sectoria_Design_System.md`) → paste the session prompt from below → run Test Gate → commit → push.
 
 ---
 
@@ -390,28 +406,36 @@ Zod schema from packages/types.
 
 - **Model:** Tier B (fast)
 - **Mode:** Agent
-- **Rules expected to load:** `ui-design-system` (`packages/ui/**`), `ui-ux-excellence`, `code-clarity-and-comments`.
+- **Rules expected to load:** `ui-design-system-sectoria` (`packages/ui/**`), `ui-ux-excellence-sectoria`, `code-clarity-and-comments`.
+- **Design:** `@docs/design/Sectoria_Design_System.md` — implement Section 2 (tokens) and Section 5 (component specs) exactly.
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
-Build packages/ui. Start with theme.css — a Tailwind v4 @theme block with all
-design tokens (colors, spacing, fonts, radii). Then build every component from
-the file structure blueprint, each with a Storybook story, in this order:
-StatusBadge (green/amber/red/blue), TaxBreakdownCard, IdentityCard,
-CertificateCard, then primitives (Button, Input, Select, Card, Table, Dialog,
-Skeleton, EmptyState, ErrorState, ProgressBar). Every component shows all 5
-states where applicable: loading, empty, error, partial, success. NO business
-logic or data fetching in any component. Include a mask-cnic display helper.
+Build packages/ui per the Sectoria Design System spec. Start with theme.css —
+a Tailwind v4 @theme block copying the complete token set from Section 2 of the
+design spec (colors, spacing, fonts, radii, shadows, motion durations). Two
+fonts only: Inter (--font-sans) and JetBrains Mono (--font-mono). Then build
+every component from the file structure blueprint, each with a Storybook story,
+in this order: StatusBadge (dot + text + tinted bg per Section 5.3),
+TaxBreakdownCard, IdentityCard, CertificateCard, then primitives (Button, Input,
+Select, Card, Table, Dialog, Skeleton, EmptyState, ErrorState, ProgressBar).
+Every component shows all 5 states where applicable: loading (content-shaped
+skeleton), empty (specific heading + CTA), error, partial, success. Include
+formatPKR(), formatDate(), and maskCnic() helpers. NO business logic or data
+fetching in any component. No inline hex/px values — tokens only.
 ```
 
 **Test Gate:**
 - [ ] `pnpm --filter @sectoria/ui storybook` opens; visually inspect each component + variants
-- [ ] `theme.css` uses `@theme { ... }` (v4 CSS-first), no `tailwind.config.js` tokens
-- [ ] StatusBadge has all 4 color variants; stateful components show all 5 states
+- [ ] `theme.css` uses `@theme { ... }` (v4 CSS-first); token values match Section 2 of the design spec
+- [ ] `grep` for inline `#[0-9a-fA-F]` or arbitrary `px` in `packages/ui/src` → none (tokens only)
+- [ ] StatusBadge: dot + text + tinted background for all 4 semantic variants (success/warning/danger/info)
+- [ ] Stateful components show all 5 states in Storybook (not just success)
+- [ ] `formatPKR()`, `formatDate()`, and `maskCnic()` helpers exist and are used in domain components
 - [ ] No `fetch`/tRPC/data calls inside components (`grep` check)
-- [ ] `mask-cnic` helper exists (needed by later PII masking)
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(ui): design system components and Storybook stories`
 
@@ -456,20 +480,27 @@ ALLOCATED escrow transition with a LedgerEvent created in the SAME transaction.
 - **Model:** Tier B
 - **Mode:** Agent
 - **Required before running:** After this session, **connect Next.js DevTools MCP (build-doc 3.7)** once `pnpm dev` runs.
-- **Rules expected to load:** `nextjs-app-router` (`apps/web/app/**`), `routing-and-navigation`, `seo` (`(marketplace)/**`), `ui-ux-excellence`.
+- **Rules expected to load:** `nextjs-app-router` (`apps/web/app/**`), `routing-and-navigation`, `seo` (`(marketplace)/**`), `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`.
+- **Design:** Bento grid for homepage feature sections and society comparison (Section 4 + 8 of design spec). Import all UI from `@sectoria/ui` — no one-off styling.
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
 Build the public marketplace in apps/web. Create the (marketplace) route group:
-homepage, /societies directory (SSR with URL search-param filters),
-/societies/[city]/[society] profile (ISR, revalidate 6h),
-/societies/[city]/[society]/[category] detail, /compare (dynamic import for the
-widget), and /dealers directory. Every page: generateMetadata with unique
-title/description, JSON-LD (Organization, RealEstateListing, BreadcrumbList),
-dynamic opengraph-image.tsx for society pages, and a sitemap.ts entry. ALL
-params/searchParams must be awaited (Next.js 16 async params).
+homepage (bento grid feature sections per Section 4), /societies directory
+(SSR with URL search-param filters), /societies/[city]/[society] profile (ISR,
+revalidate 6h), /societies/[city]/[society]/[category] detail, /compare
+(bento comparison layout, max 2 societies side-by-side on mobile), and /dealers
+directory. Use @sectoria/ui components and tokens only — no inline colors or
+arbitrary spacing. Every data-bearing section shows all 5 states (loading skeleton,
+empty with CTA, error with recovery, partial, success). Verification/trust badges
+must include a label or tooltip explaining what they mean — never a bare icon.
+Every page: generateMetadata with unique title/description, JSON-LD
+(Organization, RealEstateListing, BreadcrumbList), dynamic opengraph-image.tsx
+for society pages, and a sitemap.ts entry. ALL params/searchParams must be
+awaited (Next.js 16 async params). Mobile-first: layout must work at 390px.
 ```
 
 **Test Gate:**
@@ -479,6 +510,9 @@ params/searchParams must be awaited (Next.js 16 async params).
 - [ ] View source / JSON-LD validator: Organization + RealEstateListing + BreadcrumbList present
 - [ ] `grep`-check: no synchronous `params.`/`searchParams.` access without `await`
 - [ ] `sitemap.ts` includes society + category routes; OG image renders
+- [ ] Homepage and /compare use bento grid layout (not a flat card dump)
+- [ ] Trust/verification badges have visible labels or tooltips (not icon-only)
+- [ ] Spot-check at 390px viewport: no horizontal overflow; touch targets ≥ 44px
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(web): public marketplace with SSR/ISR and full SEO`
 
@@ -488,32 +522,43 @@ params/searchParams must be awaited (Next.js 16 async params).
 
 - **Model:** Tier B for UI; **switch to Tier A** for the Step-2 tax + escrow logic wiring
 - **Mode:** Agent
-- **Rules expected to load:** `nextjs-app-router`, `ui-ux-excellence`, `routing-and-navigation`, `auth-and-access-control`, `security`.
+- **Rules expected to load:** `nextjs-app-router`, `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `routing-and-navigation`, `auth-and-access-control`, `security`.
+- **Design:** Highest-stakes trust UX session — follow Section 8 (Sectoria-specific patterns): ATL tax implications, money confirm dialogs, certificate stamp animation.
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
-Build the (buyer) route group in apps/web: buyer dashboard, bookings list,
-booking detail (escrow state timeline + LedgerEvent audit trail), and the
-5-step wizard at /dashboard/booking/[categoryId]:
-  Step 1 — NADRA CNIC verification via the verification router (scanning
-           animation while the mock adapter responds)
+Build the (buyer) route group in apps/web: buyer dashboard (bento metric layout),
+bookings list, booking detail (escrow state timeline + LedgerEvent audit trail),
+and the 5-step wizard at /dashboard/booking/[categoryId]:
+  Step 1 — NADRA CNIC verification via the verification router (NADRA scan-bar
+           animation per Section 7 — not a generic spinner)
   Step 2 — tax calculation via the tax domain package (live recalculation as
-           inputs change)
-  Step 3 — tax summary review
-  Step 4 — payment (escrow token; PKR amount shown clearly)
-  Step 5 — allocation result + certificate display
+           inputs change); show ATL status WITH its tax implication beneath
+           (e.g. "Filer: 3% purchase tax applies" per Section 8)
+  Step 3 — tax summary review (TaxBreakdownCard from @sectoria/ui)
+  Step 4 — payment (escrow token; PKR amount via formatPKR(); confirm dialog
+           before payment — never a toast for money actions)
+  Step 5 — allocation result + certificate display (stamp reveal animation,
+           specific success copy, download/share buttons)
 Each step must be independently URL-addressable so a refresh preserves
-progress. Display CNIC only via the mask-cnic helper — never in full.
+progress. Display CNIC only via maskCnic() — never in full. PKR amounts via
+formatPKR() everywhere. Wizard shows a clear progress indicator. All 5 states
+on every data-bearing screen.
 ```
 
 **Test Gate:**
 - [ ] `pnpm dev` → walk the full wizard with a seeded buyer account
 - [ ] Each step is its own URL; refresh mid-flow preserves progress
 - [ ] Step 2 tax numbers match `domain/tax` outputs (no re-implemented math)
+- [ ] Step 2 shows ATL status with tax implication text beneath it
+- [ ] Step 4 payment uses a confirm dialog (not a toast) describing the PKR amount
+- [ ] Step 5 certificate has stamp animation + specific success confirmation copy
 - [ ] `npx prisma studio` → LedgerEvent rows created across the transitions
 - [ ] CNIC shown masked everywhere (no full CNIC in DOM/logs)
+- [ ] PKR amounts formatted via `formatPKR()` (no raw numbers or "Rs.")
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(web): buyer dashboard and 5-step booking wizard`
 
@@ -523,26 +568,34 @@ progress. Display CNIC only via the mask-cnic helper — never in full.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `security`, `ui-ux-excellence`.
+- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `security`, `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`.
+- **Design:** Dashboard bento layout (Section 4); sidebar per Section 6; money confirmations for booking receipt actions.
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
-Build the (society) route group in apps/web: overview dashboard (compliance
-score, HSMS status, active bookings), inventory management (category list,
-create/edit category with pricing + payment plan), partner authorization
+Build the (society) route group in apps/web: overview dashboard (bento grid
+for compliance score, HSMS status, active bookings per Section 4), inventory
+management (category list with mobile card view for tables), partner authorization
 (list dealers with active/revoked status, add/revoke a dealer per category),
-booking confirmation queue (incoming bookings awaiting action, confirm payment
-receipt, issue allotment document), settings (LOP/NOC upload, HSMS link status).
-EVERY mutation must enforce resource ownership — a society admin can act ONLY
-on their own society's data.
+booking confirmation queue (incoming bookings awaiting action; confirm payment
+receipt via confirm dialog with PKR amount — not a toast, issue allotment
+document), settings (LOP/NOC upload, HSMS link status). Sidebar navigation per
+Section 6 (hamburger < 768px, icon-only 768–1024px, full labels > 1024px).
+Use @sectoria/ui components; all 5 states on data-bearing screens. EVERY
+mutation must enforce resource ownership — a society admin can act ONLY on
+their own society's data.
 ```
 
 **Test Gate:**
 - [ ] `pnpm dev` → log in as seeded society admin
 - [ ] **Ownership test:** edit URL to another society's ID → access **denied** (not 200)
 - [ ] Create/edit category, add/revoke dealer, confirm a booking all work
+- [ ] Booking payment confirmation uses a confirm dialog (not a toast)
+- [ ] Dashboard uses bento grid layout for key metrics
+- [ ] Inventory/booking tables have a mobile card view (not horizontal scroll)
 - [ ] Mutations route through `societyAdminProcedure` guards
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(web): society admin portal`
@@ -553,18 +606,23 @@ on their own society's data.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `ui-ux-excellence`.
+- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`.
+- **Design:** Trust score gauge animation (Section 7); verification badges with explanatory labels (Section 8).
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
-Build the (dealer) route group in apps/web: dealer dashboard, DNFBP
-certificate verification submission (upload cert number, submit for spot-check
-via the DNFBP adapter, show verified/pending/rejected), lead pipeline (buyer
-enquiries from societies the dealer is authorized for, with NADRA-verified
-badge + ATL status), and a trust score page (component breakdown from the
-trust-score domain package).
+Build the (dealer) route group in apps/web: dealer dashboard (bento layout),
+DNFBP certificate verification submission (upload cert number, submit for
+spot-check via the DNFBP adapter; show verified/pending/rejected with StatusBadge
+dot + text + tinted bg), lead pipeline (buyer enquiries from societies the
+dealer is authorized for, with NADRA-verified badge + ATL status and its tax
+implication), and a trust score page (component breakdown from the trust-score
+domain package with gauge fill animation per Section 7). Use @sectoria/ui
+components; all 5 states on data-bearing screens. Verification badges must
+include a label or tooltip — never a bare checkmark.
 ```
 
 **Test Gate:**
@@ -572,6 +630,8 @@ trust-score domain package).
 - [ ] DNFBP submission flows through the verification adapter (pending→verified mock)
 - [ ] Lead pipeline only shows leads from societies the dealer is authorized for
 - [ ] Trust score breakdown matches `domain/trust-score` output
+- [ ] Trust score page has gauge/progress animation (not static numbers only)
+- [ ] Verification badges have visible labels or tooltips
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(web): dealer portal`
 
@@ -581,26 +641,32 @@ trust-score domain package).
 
 - **Model:** Tier B (watch the LedgerEvent writes carefully)
 - **Mode:** Agent
-- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `security`, `database`.
+- **Rules expected to load:** `nextjs-app-router`, `auth-and-access-control`, `security`, `database`, `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`.
+- **Design:** Revenue dashboard bento layout; ledger viewer mobile card view; approve/reject uses confirm dialog with reason field.
 
 **Prompt:**
 ```
 @docs/Sectoria_Cursor_Prompt.md @docs/Sectoria_File_Structure.md
+@docs/design/Sectoria_Design_System.md
 
-Build the (admin) route group in apps/web: admin dashboard, verification queue
-(societies + dealers awaiting approval; approve/reject updates VerificationTier
-AND logs a LedgerEvent), full ledger viewer (search/filter by entityId, event
-type, date range), disputes page (flag/resolve disputed plots), revenue
-dashboard (transfers completed this month, total escrow released, commission by
-society). EVERY admin action writes a LedgerEvent tagged with the admin's
-userId and a reason field.
+Build the (admin) route group in apps/web: admin dashboard (bento metric
+layout), verification queue (societies + dealers awaiting approval; approve/reject
+via confirm dialog that requires a reason — updates VerificationTier AND logs a
+LedgerEvent), full ledger viewer (search/filter by entityId, event type, date
+range; mobile card view for table data), disputes page (flag/resolve disputed
+plots), revenue dashboard (bento layout: transfers completed this month, total
+escrow released, commission by society; PKR via formatPKR()). Use @sectoria/ui
+components; all 5 states on data-bearing screens. EVERY admin action writes a
+LedgerEvent tagged with the admin's userId and a reason field.
 ```
 
 **Test Gate:**
 - [ ] `pnpm dev` → log in as seeded super admin
 - [ ] Approve/reject updates VerificationTier and creates a LedgerEvent (check Studio)
+- [ ] Approve/reject uses a confirm dialog requiring a reason (not a one-click action)
 - [ ] Every admin LedgerEvent carries `userId` + non-empty `reason`
 - [ ] Ledger viewer filters by entityId / type / date range
+- [ ] Revenue dashboard uses bento layout; PKR amounts via `formatPKR()`
 - [ ] Revenue numbers reconcile against seeded completed transfers
 - [ ] `pnpm turbo run test lint typecheck` clean
 - [ ] Commit + push: `feat(web): admin portal`
@@ -655,7 +721,9 @@ Report what you changed for each of the 6 items.
 @docs/Sectoria_Cursor_Prompt.md
 
 Documentation pass per documentation.mdc. For each package in packages/*:
-ensure README.md has a working, current usage example. For every exported
+ensure README.md has a working, current usage example. For packages/ui:
+README must link to @docs/design/Sectoria_Design_System.md and document
+formatPKR(), formatDate(), and maskCnic() usage. For every exported
 function in packages/domain/* and packages/verification/*: add/complete TSDoc
 including @see references to the relevant legal section (e.g. @see Section 236C).
 Fill in the ADR files in docs/architecture/ with the actual decisions made
@@ -665,6 +733,7 @@ actions added in Sessions 8–10 that don't yet have a row.
 
 **Test Gate:**
 - [ ] Every `packages/*` README has a runnable usage example
+- [ ] `packages/ui/README.md` links to `docs/design/Sectoria_Design_System.md` and documents formatting helpers
 - [ ] Exported domain/verification functions have TSDoc with `@see` legal refs
 - [ ] ADR files reflect real decisions (incl. ADR-004 ledger trigger)
 - [ ] `access-rights-matrix.md` updated for Session 8–10 actions
@@ -679,6 +748,7 @@ actions added in Sessions 8–10 that don't yet have a row.
 - **Mode:** Agent
 - **Required before running:** verification env vars **blank** (mock adapters only in CI).
 - **Rules expected to load:** `testing` (`e2e/**`, `*.spec.ts`), `nextjs-app-router`.
+- **Design:** No design spec attachment — E2E validates flows, not visuals. Assert on visible trust copy (tax implications, certificate confirmation) where the critical path touches them.
 
 **Prompt:**
 ```
@@ -697,6 +767,8 @@ Run against MOCK adapters only — no real government API calls in CI.
 **Test Gate:**
 - [ ] `npx playwright test` → all pass
 - [ ] `npx playwright show-report` → all 8 steps visible and green
+- [ ] Wizard step 2 asserts ATL tax implication text is visible (not just raw numbers)
+- [ ] Final step asserts certificate/allocation confirmation copy is specific (not generic "Success")
 - [ ] Test uses mock adapters only (no real API env vars referenced)
 - [ ] CI workflow (`.github/workflows/ci.yml`) runs the E2E suite
 - [ ] `pnpm turbo run test lint typecheck` clean
@@ -721,3 +793,5 @@ All three must pass before you commit and move on. If anything fails, paste the 
 | Domain package imports Prisma/Next/React | "Violates architecture.mdc boundary — move logic to packages/api-client" |
 | `apps/web` build error | If Next.js DevTools MCP connected (3.7), Cursor reads it directly; else paste full stack trace |
 | CNIC/NTN in a log/error | STOP → "replace every plaintext CNIC/NTN with mask-cnic or entity ID" |
+| Inline hex colors / arbitrary spacing in UI | "Violates ui-design-system-sectoria.mdc — add a token to theme.css and use it" |
+| Money action uses a toast instead of confirm dialog | "Violates ui-ux-excellence-sectoria.mdc — use a confirm dialog with PKR amount and consequence" |

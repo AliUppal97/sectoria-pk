@@ -1,0 +1,116 @@
+---
+description: Sectoria.pk UX excellence rules — interaction patterns, trust-specific UX, responsive behavior, accessibility, and content tone. Apply to all user-facing screens.
+globs:
+  - "apps/web/app/**/*.tsx"
+  - "packages/ui/**/*.tsx"
+alwaysApply: false
+---
+
+# Sectoria UX Excellence Rules
+
+## The prime directive
+
+Every screen either reinforces trust or undermines it.
+There is no neutral screen in this product.
+Design for the buyer who is about to hand over PKR 3,000,000 remotely
+and needs every pixel to say "this is safe, legitimate, and official."
+
+## The five states — always build all five
+
+Every data-bearing component is designed for:
+1. Loading → content-shaped skeleton (never a spinner alone)
+2. Empty  → specific heading + CTA (never "No results")
+3. Error  → human-readable message + recovery action + support link
+4. Partial/degraded → explicitly named ("NADRA verification is slow")
+5. Success → specific confirmation ("Booking token of PKR 3,000 received
+             — your Phase 2 Block C slot is reserved")
+
+If a component has only the success state designed, it is not done.
+
+## Trust-specific UX (Sectoria-only patterns)
+
+### Verification badges — always explain themselves
+A trust badge without context does not build trust. Every badge has:
+- A tooltip or inline label explaining what it means
+  (e.g., "PLRA Verified — ownership confirmed against Punjab Land
+  Record Authority's live database")
+- Never a bare green checkmark with no label
+
+### Money actions require confirm dialogs — never toasts
+Any action moving money (releasing escrow, paying booking token,
+confirming installment receipt) gets:
+- A modal confirm dialog describing the consequence in plain language
+- "This will release PKR 1,683,000 from escrow to Green Valley Housing
+  Scheme and cannot be undone" — not "Are you sure?"
+- Two buttons: Cancel (ghost) + Confirm (success-colored, with amount)
+
+### PLRA Certificate generation
+The certificate generation is the emotional peak of the product.
+Treat it as such:
+- Show an animated "Processing…" state (not a spinner — the NADRA
+  scan-bar animation adapted for this context)
+- Reveal the certificate with a stamp animation (scale + slight rotate)
+- Show a specific success confirmation: "Certificate issued —
+  PLRA-GV-2026-XXXX. This is now permanently recorded."
+- Download + share buttons immediately below
+
+### ATL status always shows its tax implication
+When a user's FBR ATL status is shown (Filer / Late Filer / Non-Filer),
+always immediately beneath it show what it means for this transaction:
+  Filer: "3% purchase tax applies"
+  Late Filer: "6% purchase tax applies — consider filing to save money"
+  Non-Filer: "12% purchase tax applies — PKR X extra on this transaction"
+This is the single biggest informational value Sectoria provides that
+no other platform offers. Make it prominent.
+
+## Forms
+
+- Validate inline, on blur — not only on submit
+- Never clear a form on a failed submission
+- Error messages: specific + actionable
+  ✅ "CNIC must be 13 digits in the format XXXXX-XXXXXXX-X"
+  ❌ "Invalid CNIC"
+- Money input fields: format with commas as user types (14200000 → 14,200,000)
+- CNIC input: auto-insert hyphens as user types
+- Multi-step wizard: show a clear progress indicator, each step
+  persisted server-side so a refresh doesn't lose progress
+
+## Responsive behavior
+
+- Design mobile-first. A layout that works at 390px and expands up,
+  not one designed for 1440px and squeezed down.
+- Data tables on mobile: stacked card view with the most important
+  field as the card title. Horizontal scroll is a last resort.
+- Sidebar: collapses to a hamburger at < 768px. Icon-only mode at
+  768px–1024px. Full labels at > 1024px.
+- Comparison tool: maximum 2 societies side-by-side on mobile,
+  with clear "swap" controls
+
+## Navigation
+
+- Every error state has a path back into the app
+- Wrong-role redirect: redirect to the user's own correct portal,
+  not a generic "access denied" page
+- Booking wizard progress survives a refresh (persisted server-side)
+- A completed action shows what happened AND what the natural next
+  step is — never a dead end after success
+
+## Content tone
+
+- Direct plain language over formal phrasing where possible
+- Explain tax/legal terminology at the moment it appears, not only
+  in a separate help section
+- Never use pressure-based urgency microcopy ("Only 2 left!", "Hurry!")
+- Genuine urgency (a compliance deadline, a balloting close date) is
+  stated as a fact: "Balloting closes 30 Jun 2026 at 11:59 PM PKT"
+
+## Accessibility (WCAG AA — not aspirational, required)
+
+- 4.5:1 minimum contrast for all text against its background
+  Test: status badge text, table cells, tertiary text on card bg
+- Every interactive element has a visible focus ring
+- Every icon-only button has aria-label
+- Color is never the only status signal — always pair with text/icon
+- Touch targets: minimum 44×44px
+- All animations respect prefers-reduced-motion (Section 7.3 of design spec)
+- aria-live="polite" on all loading → loaded state transitions
