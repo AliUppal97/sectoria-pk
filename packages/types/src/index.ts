@@ -15,6 +15,7 @@ export * from "./plot.js";
 export * from "./payment-plan.js";
 export * from "./escrow.js";
 export * from "./ballot.js";
+export * from "./allocation.js";
 export * from "./tax.js";
 export * from "./booking.js";
 export * from "./dealer-profile.js";
