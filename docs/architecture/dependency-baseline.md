@@ -44,6 +44,30 @@ against npm before relying on this table if significant time has passed.
 |---|---|---|
 | `tailwindcss` | `^4.0.0` | CSS-first `@theme` config, no JS preset file. High churn — verify before installing. |
 | `@tailwindcss/postcss` | `^4.0.0` | |
+| `@tailwindcss/vite` | `^4.3.1` | Tailwind v4 Vite plugin — used by the `packages/ui` Storybook (Vite) build to compile `theme.css`. |
+
+## UI component toolkit (`packages/ui`)
+
+| Package | Version | Notes |
+|---|---|---|
+| `class-variance-authority` | `^0.7.1` | Variant-driven className composition for component APIs (Button, Badge). |
+| `clsx` | `^2.1.1` | className concatenation, composed into the `cn()` helper. |
+| `tailwind-merge` | `^3.6.0` | De-duplicates conflicting Tailwind classes inside `cn()`. |
+| `lucide-react` | `^1.22.0` | Icon set. Icons inherit `currentColor` (no hardcoded hex). React 19 compatible. |
+| `@radix-ui/react-dialog` | `^1.1.17` | Accessible Dialog primitive — focus trap + `aria-modal`, required by design spec §9. |
+| `@radix-ui/react-select` | `^2.3.1` | Accessible Select primitive. |
+| `@radix-ui/react-slot` | `^1.3.0` | `asChild` composition for Button. |
+
+## Storybook + Vite (`packages/ui`)
+
+| Package | Version | Notes |
+|---|---|---|
+| `storybook` / `@storybook/react-vite` | `^10.4.6` | Component workshop + docs. High churn — verify before installing. |
+| `@storybook/addon-a11y` | `^10.4.6` | Per-story accessibility checks (WCAG AA is a hard requirement, design spec §9). |
+| `@storybook/addon-docs` | `^10.4.6` | Autodocs for component stories. |
+| `vite` | `^8.1.0` | Bundler for Storybook. |
+| `@vitejs/plugin-react` | `^6.0.3` | React Fast Refresh for the Storybook Vite builder. |
+| `@types/react` / `@types/react-dom` | `^19.2.17` / `^19.2.3` | React 19 type definitions. Pin one major workspace-wide to avoid duplicate-types errors. |
 
 ## State & jobs
 

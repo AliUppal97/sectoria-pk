@@ -7,6 +7,7 @@ node_modules/
 dist/
 out/
 .turbo/
+storybook-static/
 
 # Environment
 .env
@@ -21,6 +22,7 @@ test-results/
 # IDE / OS
 .DS_Store
 *.log
+.vscode/settings.json
 
 # Prisma
 packages/database/prisma/migrations/**/migration_lock.toml

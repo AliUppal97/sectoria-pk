@@ -1,0 +1,170 @@
+/*
+ * packages/ui/src/theme.css
+ *
+ * The single source of truth for every Sectoria design token. Tailwind v4
+ * CSS-first config — there is no tailwind.config.ts. Apps import this file
+ * once (`import "@sectoria/ui/theme.css"`) and every token below becomes a
+ * Tailwind utility (e.g. --color-success → bg-success / text-success).
+ *
+ * Values mirror Section 2 of docs/design/Sectoria_Design_System.md exactly.
+ * NEVER hardcode a hex/px/rgba in a component — add a token here first.
+ */
+
+@import "tailwindcss";
+
+@theme {
+  /* ─── Brand ─────────────────────────────────────────────── */
+  --color-brand-navy:        #0A1628;  /* primary surface — sidebar, dark panels */
+  --color-brand-navy-mid:    #0F3460;  /* hover, active states */
+  --color-brand-navy-light:  #1A5276;  /* borders on dark surfaces */
+  --color-brand-accent:      #00C896;  /* emerald — verified, compliant, success */
+  --color-brand-accent-dim:  #00A87E;  /* accent hover */
+
+  /* ─── Surfaces ───────────────────────────────────────────── */
+  --color-surface-base:      #F7F8FA;  /* page background */
+  --color-surface-card:      #FFFFFF;  /* card background */
+  --color-surface-elevated:  #FFFFFF;  /* modal, popover */
+  --color-surface-subtle:    #F0F2F5;  /* table stripes, code bg */
+  --color-surface-inset:     #E8EBF0;  /* input background (unfocused) */
+
+  /* ─── Border ─────────────────────────────────────────────── */
+  --color-border-base:       #E2E6EC;  /* default card/input border */
+  --color-border-strong:     #C8CDD6;  /* table headers, dividers */
+  --color-border-focus:      #0F3460;  /* navy focus ring */
+
+  /* ─── Text ───────────────────────────────────────────────── */
+  --color-text-primary:      #0A1628;  /* headings — brand navy */
+  --color-text-secondary:    #3D4F6B;  /* body copy */
+  --color-text-tertiary:     #7A8AA0;  /* labels, captions, placeholders */
+  --color-text-disabled:     #B0BAC9;  /* disabled state */
+  --color-text-inverse:      #FFFFFF;  /* text on dark backgrounds */
+  --color-text-accent:       #00A87E;  /* accent text links */
+
+  /* ─── Semantic — Status ──────────────────────────────────── */
+  --color-success:           #00C896;  /* verified, compliant, complete */
+  --color-success-bg:        #E6FAF5;
+  --color-success-border:    #A7EDD9;
+  --color-success-text:      #065F46;
+
+  --color-warning:           #F59E0B;  /* pending, awaiting action */
+  --color-warning-bg:        #FFFBEB;
+  --color-warning-border:    #FDE68A;
+  --color-warning-text:      #92400E;
+
+  --color-danger:            #EF4444;  /* blocked, rejected, non-filer flag */
+  --color-danger-bg:         #FEF2F2;
+  --color-danger-border:     #FECACA;
+  --color-danger-text:       #991B1B;
+
+  --color-info:              #3B82F6;  /* informational, in-progress */
+  --color-info-bg:           #EFF6FF;
+  --color-info-border:       #BFDBFE;
+  --color-info-text:         #1E40AF;
+
+  /* ─── Special — Certificate & Premium Moments ───────────── */
+  --color-cert-from:         #0A1628;  /* certificate gradient start */
+  --color-cert-to:           #0F3460;  /* certificate gradient end */
+  --color-cert-accent:       #00C896;  /* cert verified badge */
+  --color-cert-glass:        rgba(255, 255, 255, 0.06);  /* glass card on cert */
+
+  /* ─── Typography ────────────────────────────────────────── */
+  --font-sans:     'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --font-display:  'Inter', system-ui, sans-serif;
+
+  /* ─── Type scale ─────────────────────────────────────────── */
+  /* Two micro sizes below the Section 2 scale, required by the component
+   * specs (§5.3 badge text 11px, §5.5 certificate labels 10px, sidebar
+   * sub-labels 10px). Kept on the scale rather than inlined per component. */
+  --text-3xs:   0.625rem;   /* 10px — certificate micro-labels, sub-labels */
+  --text-2xs:   0.6875rem;  /* 11px — badge text, category labels, step labels */
+  --text-xs:    0.75rem;    /* 12px — labels, captions, metadata */
+  --text-sm:    0.8125rem;  /* 13px — body, table cells */
+  --text-base:  0.875rem;   /* 14px — default body */
+  --text-md:    1rem;       /* 16px — section headers */
+  --text-lg:    1.125rem;   /* 18px — card titles */
+  --text-xl:    1.25rem;    /* 20px — page titles */
+  --text-2xl:   1.5rem;     /* 24px — hero section subtitles */
+  --text-3xl:   1.875rem;   /* 30px — hero headlines */
+  --text-4xl:   2.25rem;    /* 36px — landing hero */
+  --text-5xl:   3rem;       /* 48px — marketing hero display */
+
+  /* ─── Spacing scale (4px base grid) ─────────────────────── */
+  --space-1:   0.25rem;   /* 4px */
+  --space-2:   0.5rem;    /* 8px */
+  --space-3:   0.75rem;   /* 12px */
+  --space-4:   1rem;      /* 16px */
+  --space-5:   1.25rem;   /* 20px */
+  --space-6:   1.5rem;    /* 24px */
+  --space-8:   2rem;      /* 32px */
+  --space-10:  2.5rem;    /* 40px */
+  --space-12:  3rem;      /* 48px */
+  --space-16:  4rem;      /* 64px */
+  --space-20:  5rem;      /* 80px */
+  --space-24:  6rem;      /* 96px */
+
+  /* ─── Border radius ──────────────────────────────────────── */
+  --radius-sm:   0.375rem;  /* 6px — small elements, badges */
+  --radius-md:   0.5rem;    /* 8px — buttons, inputs */
+  --radius-lg:   0.75rem;   /* 12px — cards, panels */
+  --radius-xl:   1rem;      /* 16px — large cards, modals */
+  --radius-2xl:  1.25rem;   /* 20px — bento cells, society cards */
+  --radius-full: 9999px;    /* pills, avatars */
+
+  /* ─── Shadows ────────────────────────────────────────────── */
+  --shadow-xs:   0 1px 2px 0 rgba(10, 22, 40, 0.04);
+  --shadow-sm:   0 1px 3px 0 rgba(10, 22, 40, 0.06), 0 1px 2px -1px rgba(10, 22, 40, 0.04);
+  --shadow-md:   0 4px 6px -1px rgba(10, 22, 40, 0.07), 0 2px 4px -2px rgba(10, 22, 40, 0.04);
+  --shadow-lg:   0 10px 15px -3px rgba(10, 22, 40, 0.08), 0 4px 6px -4px rgba(10, 22, 40, 0.04);
+  --shadow-xl:   0 20px 25px -5px rgba(10, 22, 40, 0.08), 0 8px 10px -6px rgba(10, 22, 40, 0.04);
+
+  /* ─── Motion ─────────────────────────────────────────────── */
+  --ease-default:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:         cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:        cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);  /* bouncy — success moments only */
+  --duration-fast:   150ms;
+  --duration-base:   200ms;
+  --duration-slow:   300ms;
+  --duration-slower: 500ms;
+
+  /* ─── Keyframes (functional animations only, design spec §7.2) ─── */
+  --animate-pulse-dot:  pulse-dot 1.5s var(--ease-default) infinite;
+  --animate-shimmer:    shimmer 1.5s var(--ease-default) infinite;
+  --animate-stamp:      stamp 400ms var(--ease-spring);
+  --animate-pill-in:    pill-in 200ms var(--ease-out);
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -150% 0; }
+    100% { background-position: 150% 0; }
+  }
+
+  @keyframes stamp {
+    0%   { transform: scale(1.1) rotate(2deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  @keyframes pill-in {
+    0%   { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+}
+
+/*
+ * Accessibility: honor the OS "reduce motion" setting everywhere.
+ * Design spec §7.3 — this is non-negotiable, not optional.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
