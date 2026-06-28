@@ -12,13 +12,19 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | Browse public society directory | ✅ | ✅ | ✅ | ✅ |
 | View own booking history | ✅ | ❌ | ❌ | ✅ |
 | Create a booking (pay token) | ✅ (after NADRA verification) | ❌ | ❌ | ❌ |
+| Cancel a booking (while refundable) | 🔶 own booking only | ❌ | 🔶 own society's bookings only | ✅ |
 | Submit a review | ✅ (only post-booking-milestone) | ❌ | ❌ | ❌ |
+| Trigger NADRA CNIC verification (self) | ✅ self only | ✅ self only | ✅ self only | ✅ self only |
+| Check own FBR ATL status (self) | ✅ self only | ✅ self only | ✅ self only | ✅ self only |
+| View a dealer's public trust score | ✅ | ✅ | ✅ | ✅ |
 | View own lead pipeline | ❌ | 🔶 own leads only | ❌ | ✅ |
 | Register/update DNFBP certificate | ❌ | 🔶 own profile only | ❌ | ✅ |
+| Update society profile fields | ❌ | ❌ | 🔶 own society only | ✅ |
 | Create/edit inventory category for a society | ❌ | ❌ | 🔶 own society only | ✅ |
 | Set pricing/payment plans | ❌ | ❌ | 🔶 own society only | ✅ |
 | Authorize a dealer as Sales Partner | ❌ | ❌ | 🔶 own society only | ✅ |
 | Revoke a dealer's authorization | ❌ | ❌ | 🔶 own society only | ✅ |
+| Allocate a plot to a token-paid booking | ❌ | ❌ | 🔶 own society's bookings only | ✅ |
 | Confirm receipt of an installment | ❌ | ❌ | 🔶 own society's bookings only | ✅ |
 | Issue allotment/PLRA certificate | ❌ | ❌ | 🔶 own society's bookings only | ✅ |
 | Release escrowed commission | ❌ | ❌ | ❌ (triggered automatically on certificate issuance) | ✅ (manual override, logged) |
