@@ -21,11 +21,16 @@ export const idSchema = z.string().min(1).brand<"Id">();
 export type Id = z.infer<typeof idSchema>;
 
 /**
- * A monetary amount expressed as a whole number of paisa (1 PKR = 100
- * paisa). Money is never a float anywhere in this codebase — floating
- * point cannot represent decimal currency exactly, and tax/escrow math
- * must be exact. Always store and pass paisa integers, format to rupees
- * only at the display boundary.
+ * A monetary amount expressed as a whole number of **Pakistani rupees** —
+ * the single currency unit used everywhere in this codebase. Paisa are no
+ * longer in circulation, so the rupee is the smallest real unit and a plain
+ * integer represents money exactly: no paisa sub-unit, no float (binary
+ * floating point cannot represent decimal currency exactly, and tax/escrow
+ * math must reconcile to the rupee).
+ *
+ * Genuinely fractional values (a price-per-sqft, a percentage rate) are NOT
+ * `PkrAmount` — they use {@link decimalStringSchema}. A `PkrAmount` is only
+ * ever a settled, whole-rupee figure.
  */
 export const pkrAmountSchema = z.number().int().nonnegative().brand<"PkrAmount">();
 export type PkrAmount = z.infer<typeof pkrAmountSchema>;

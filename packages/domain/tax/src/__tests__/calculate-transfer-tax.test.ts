@@ -12,8 +12,8 @@ import { InvalidTaxInputError } from "../errors.js";
 
 /**
  * Builds a valid, schema-branded {@link TaxCalculationInput}. Defaults keep
- * the taxable value (PKR 100,000 = 10,000,000 paisa) well below the Section
- * 7E threshold so the ATL-combination assertions can isolate 236C/236K.
+ * the taxable value (PKR 10,000,000) well below the Section 7E threshold so
+ * the ATL-combination assertions can isolate 236C/236K.
  */
 function makeInput(
   overrides: Partial<{
@@ -34,9 +34,9 @@ function makeInput(
   });
 }
 
-// Expected advance-tax amounts on a 10,000,000-paisa (PKR 100,000) taxable
-// value, derived directly from CURRENT_FISCAL_YEAR_RATES. Kept here as plain
-// literals so a rate change forces an intentional test update (domain-logic.mdc).
+// Expected advance-tax amounts on a PKR 10,000,000 taxable value, derived
+// directly from CURRENT_FISCAL_YEAR_RATES. Kept here as plain literals so a
+// rate change forces an intentional test update (domain-logic.mdc).
 const EXPECTED_SECTION_236C_BY_SELLER: Record<AtlStatusValue, number> = {
   [AtlStatus.FILER]: 300_000, // 3%
   [AtlStatus.LATE_FILER]: 600_000, // 6%
@@ -69,7 +69,7 @@ describe("calculateTransferTax — seller/buyer ATL combinations", () => {
         expect(breakdown.section236K).toBe(expectedSection236K);
         expect(breakdown.stampDuty).toBe(EXPECTED_STAMP_DUTY);
         expect(breakdown.regulatoryFee).toBe(EXPECTED_REGULATORY_FEE);
-        // 10,000,000 paisa (PKR 100,000) is far below the 7E threshold.
+        // PKR 10,000,000 is far below the 7E threshold.
         expect(breakdown.section7E).toBe(0);
         expect(breakdown.total).toBe(
           expectedSection236C +
@@ -87,28 +87,28 @@ describe("calculateTransferTax — seller/buyer ATL combinations", () => {
 });
 
 describe("calculateTransferTax — Section 7E threshold boundary", () => {
-  // PKR 25,000,000 = 2,500,000,000 paisa. One rupee = 100 paisa.
-  const thresholdPaisa = CURRENT_FISCAL_YEAR_RATES.section7eThreshold as number;
+  // PKR 25,000,000 (whole rupees).
+  const threshold = CURRENT_FISCAL_YEAR_RATES.section7eThreshold as number;
 
   it("does NOT charge 7E when value is exactly at the threshold", () => {
     const breakdown = calculateTransferTax(
-      makeInput({ salePrice: thresholdPaisa, fbrTableValue: thresholdPaisa }),
+      makeInput({ salePrice: threshold, fbrTableValue: threshold }),
     );
     expect(breakdown.section7E).toBe(0);
   });
 
   it("charges 7E when value is one rupee above the threshold", () => {
-    const oneRupeeAbove = thresholdPaisa + 100;
+    const oneRupeeAbove = threshold + 1;
     const breakdown = calculateTransferTax(
       makeInput({ salePrice: oneRupeeAbove, fbrTableValue: oneRupeeAbove }),
     );
-    // 1% of 2,500,000,100 paisa.
-    expect(breakdown.section7E).toBe(25_000_001);
+    // 1% of PKR 25,000,001 = PKR 250,000.01, rounded half-up to whole rupees.
+    expect(breakdown.section7E).toBe(250_000);
     expect(breakdown.section7E).toBeGreaterThan(0);
   });
 
   it("does NOT charge 7E when value is one rupee below the threshold", () => {
-    const oneRupeeBelow = thresholdPaisa - 100;
+    const oneRupeeBelow = threshold - 1;
     const breakdown = calculateTransferTax(
       makeInput({ salePrice: oneRupeeBelow, fbrTableValue: oneRupeeBelow }),
     );
@@ -118,8 +118,8 @@ describe("calculateTransferTax — Section 7E threshold boundary", () => {
 
 describe("calculateTransferTax — FBR table value floor", () => {
   it("taxes the FBR table value, not the lower agreed sale price", () => {
-    const salePrice = 10_000_000; // PKR 100,000
-    const fbrTableValue = 20_000_000; // PKR 200,000 — the higher of the two
+    const salePrice = 10_000_000; // PKR 10,000,000
+    const fbrTableValue = 20_000_000; // PKR 20,000,000 — the higher of the two
     const breakdown = calculateTransferTax(
       makeInput({ salePrice, fbrTableValue }),
     );

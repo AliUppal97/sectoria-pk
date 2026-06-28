@@ -592,16 +592,15 @@ async function main(): Promise<void> {
       i % 2 === 0 ? requireDefined(dealerProfiles[i % dealerProfiles.length], "dealer") : null;
 
     // Real tax snapshot via the production tax engine (max of sale/FBR value).
-    const salePriceRupees = Math.round(
-      category.sizeSqft * category.pricePerSqftRupees,
+    const salePriceRupees = pkrAmountSchema.parse(
+      Math.round(category.sizeSqft * category.pricePerSqftRupees),
     );
-    const salePricePaisa = pkrAmountSchema.parse(salePriceRupees * 100);
-    const fbrTableValuePaisa = pkrAmountSchema.parse(
-      Math.round(salePriceRupees * 0.85) * 100,
+    const fbrTableValueRupees = pkrAmountSchema.parse(
+      Math.round(salePriceRupees * 0.85),
     );
     const taxBreakdown = calculateTransferTax({
-      salePrice: salePricePaisa,
-      fbrTableValue: fbrTableValuePaisa,
+      salePrice: salePriceRupees,
+      fbrTableValue: fbrTableValueRupees,
       sellerAtlStatus: AtlStatus.FILER,
       buyerAtlStatus: buyer.atlStatus,
       plotType: category.plotType,
@@ -632,7 +631,7 @@ async function main(): Promise<void> {
         payload: {
           categoryId: category.id,
           paymentPlanId,
-          taxTotalPaisa: taxBreakdown.total,
+          taxTotalRupees: taxBreakdown.total,
         },
         actor: { actorId: idSchema.parse(buyer.id), actorRole: UserRole.BUYER },
         createdAt: nextTimestamp(),

@@ -17,7 +17,7 @@ export const transferPayloadSchema = z.object({
   societyName: z.string().min(1),
   /** Human-readable plot reference, e.g. "Phase 2, Block C, Plot 145". */
   plotReference: z.string().min(1),
-  /** Final sale price as a paisa integer. */
+  /** Final sale price as a whole-rupee integer. */
   salePrice: pkrAmountSchema,
 });
 export type TransferPayload = z.infer<typeof transferPayloadSchema>;
