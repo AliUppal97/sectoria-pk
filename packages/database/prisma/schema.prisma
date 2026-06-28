@@ -1,0 +1,271 @@
+// Sectoria.pk database schema.
+//
+// Source of truth for the Postgres structure. Mirrors the Zod contracts in
+// @sectoria/types (enums here must match the `as const` enums there exactly —
+// see oop-and-domain-modeling.mdc). Conventions enforced (see database.mdc):
+//   - cuid() ids, never auto-increment (sequential ids leak volume).
+//   - Money is Decimal, never Float/Int.
+//   - Enums for any closed value set.
+//   - @@index on foreign keys used in frequent lookups, on every model.
+//   - LedgerEvent is append-only; UPDATE/DELETE are blocked by a Postgres
+//     trigger installed in a migration (see ADR-004).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── IDENTITY & ACCESS ─────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  SOCIETY_ADMIN
+  DEALER_PARTNER
+  BUYER
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String?   @unique
+  phone           String    @unique
+  cnicEncrypted   String? // field-level encrypted, see ADR-005
+  ntnEncrypted    String?
+  name            String
+  role            UserRole  @default(BUYER)
+  atlStatus       AtlStatus @default(NON_FILER)
+  atlVerifiedAt   DateTime?
+  nadraVerified   Boolean   @default(false)
+  trustScore      Float?    @default(0)
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  societyId       String?
+  society         Society?  @relation(fields: [societyId], references: [id])
+  bookings        Booking[]
+  dealerProfile   DealerProfile?
+  reviewsGiven    Review[]  @relation("ReviewAuthor")
+  reviewsReceived Review[]  @relation("ReviewSubject")
+
+  @@index([societyId])
+  @@index([role])
+}
+
+enum AtlStatus {
+  FILER
+  LATE_FILER
+  NON_FILER
+}
+
+// ── SOCIETY & INVENTORY ───────────────────────────────────────────
+
+model Society {
+  id                    String           @id @default(cuid())
+  slug                  String           @unique // for SEO-friendly URLs
+  name                  String
+  city                  String
+  citySlug              String
+  authority             String // CDA, LDA, RDA, etc.
+  lopReferenceNo        String?
+  nocReferenceNo        String?
+  hsmsLinked            Boolean          @default(false)
+  verificationTier      VerificationTier @default(PENDING)
+  description           String           @db.Text
+  amenities             String[]
+  latitude              Float?
+  longitude             Float?
+  developmentStage      String // e.g. "Under Development", "Possession Underway"
+  developmentPct        Int              @default(0)
+  heroImageUrl          String?
+  createdAt             DateTime         @default(now())
+
+  categories            InventoryCategory[]
+  partnerAuthorizations SocietyPartnerAuthorization[]
+  users                 User[]
+  reviews               Review[]                      @relation("ReviewSubjectSociety")
+
+  @@index([citySlug])
+}
+
+enum VerificationTier {
+  PENDING
+  VERIFIED // LOP + NOC confirmed
+  HSMS_LINKED // + live HSMS integration
+}
+
+model InventoryCategory {
+  id                 String             @id @default(cuid())
+  societyId          String
+  society            Society            @relation(fields: [societyId], references: [id])
+  slug               String // SEO-friendly, e.g. "phase-2-block-c-5-marla-residential"
+  phase              String
+  block              String
+  plotType           PlotType
+  sizeLabel          String // "5 Marla", "10 Marla", "1 Kanal", "4 Marla Commercial"
+  sizeSqft           Int
+  pricePerSqft       Decimal
+  totalUnits         Int
+  availableUnits     Int
+  allocationStrategy AllocationStrategy @default(FIFO)
+  fbrValuationZone   String
+
+  paymentPlans       PaymentPlan[]
+  plots              Plot[]
+  bookings           Booking[]
+
+  @@unique([societyId, slug])
+  @@index([societyId])
+}
+
+enum PlotType {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+enum AllocationStrategy {
+  FIFO
+  BALLOT
+}
+
+model PaymentPlan {
+  id                  String            @id @default(cuid())
+  categoryId          String
+  category            InventoryCategory @relation(fields: [categoryId], references: [id])
+  label               String // "Lump Sum (5% discount)", "3-Year Installments"
+  downPaymentPct      Decimal
+  installmentCount    Int
+  installmentInterval String // "monthly", "quarterly"
+
+  @@index([categoryId])
+}
+
+model Plot {
+  id         String            @id @default(cuid())
+  categoryId String
+  category   InventoryCategory @relation(fields: [categoryId], references: [id])
+  serialNo   String            @unique
+  plotNo     String?
+  status     PlotStatus        @default(AVAILABLE)
+  bookingId  String?           @unique
+  booking    Booking?          @relation(fields: [bookingId], references: [id])
+
+  @@index([categoryId])
+}
+
+enum PlotStatus {
+  AVAILABLE
+  RESERVED
+  ALLOCATED
+  TRANSFERRED
+}
+
+// ── BOOKINGS & ESCROW ──────────────────────────────────────────────
+
+model Booking {
+  id            String            @id @default(cuid())
+  buyerId       String
+  buyer         User              @relation(fields: [buyerId], references: [id])
+  categoryId    String
+  category      InventoryCategory @relation(fields: [categoryId], references: [id])
+  paymentPlanId String
+  dealerId      String?
+  dealer        DealerProfile?    @relation(fields: [dealerId], references: [id])
+
+  status        EscrowState @default(BOOKING_TOKEN_PAID)
+  taxBreakdown  Json // snapshot from domain/tax at booking time
+  allocatedPlot Plot?
+
+  createdAt     DateTime      @default(now())
+  events        LedgerEvent[]
+
+  @@index([categoryId])
+  @@index([buyerId])
+  @@index([dealerId])
+}
+
+enum EscrowState {
+  BOOKING_TOKEN_PAID
+  ALLOCATED
+  INSTALLMENT_DUE
+  INSTALLMENT_PAID
+  FULLY_PAID
+  DOCUMENTS_ISSUED
+  COMMISSION_RELEASED
+  CANCELLED
+}
+
+// ── DEALERS / PARTNERS ─────────────────────────────────────────────
+
+model DealerProfile {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id])
+  slug            String  @unique
+  agencyName      String
+  dnfbpCertNumber String?
+  dnfbpVerified   Boolean @default(false)
+  completedDeals  Int     @default(0)
+
+  authorizations  SocietyPartnerAuthorization[]
+  bookings        Booking[]
+}
+
+model SocietyPartnerAuthorization {
+  id                 String              @id @default(cuid())
+  societyId          String
+  society            Society             @relation(fields: [societyId], references: [id])
+  dealerId           String
+  dealer             DealerProfile       @relation(fields: [dealerId], references: [id])
+  categoryId         String? // null = authorized for all categories
+  commissionSplitPct Decimal
+  status             AuthorizationStatus @default(ACTIVE)
+
+  @@unique([societyId, dealerId, categoryId])
+  @@index([dealerId])
+}
+
+enum AuthorizationStatus {
+  ACTIVE
+  REVOKED
+}
+
+// ── REVIEWS ─────────────────────────────────────────────────────────
+
+model Review {
+  id               String   @id @default(cuid())
+  authorId         String
+  author           User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+  subjectUserId    String?
+  subjectUser      User?    @relation("ReviewSubject", fields: [subjectUserId], references: [id])
+  subjectSocietyId String?
+  subjectSociety   Society? @relation("ReviewSubjectSociety", fields: [subjectSocietyId], references: [id])
+  bookingId        String // reviews ONLY allowed against a real booking
+  rating           Int // 1-5
+  comment          String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  @@index([authorId])
+  @@index([subjectUserId])
+  @@index([subjectSocietyId])
+  @@index([bookingId])
+}
+
+// ── AUDIT LEDGER (append-only — enforce via DB trigger, ADR-004) ────
+
+model LedgerEvent {
+  id        String   @id @default(cuid())
+  type      String
+  entityId  String
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  payload   Json
+  actorId   String?
+  actorRole String?
+  createdAt DateTime @default(now())
+
+  @@index([entityId])
+  @@index([bookingId])
+}

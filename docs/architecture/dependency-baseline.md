@@ -28,7 +28,8 @@ against npm before relying on this table if significant time has passed.
 
 | Package | Version | Notes |
 |---|---|---|
-| `prisma` / `@prisma/client` | `^6.0.0` | Check generated SQL on every migration before committing |
+| `prisma` / `@prisma/client` | `^6.0.0` | Check generated SQL on every migration before committing. Stay on the pinned v6 major (resolves to latest 6.x) — do not drift to v7 without a deliberate upgrade + ADR. |
+| `tsx` | `^4.22.4` | TypeScript runner used to execute `packages/database/prisma/seed.ts` (`prisma db seed`). Dev-only. |
 
 ## Auth
 
