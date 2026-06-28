@@ -1,0 +1,47 @@
+{
+  "name": "@sectoria/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./encryption": {
+      "types": "./src/encryption.ts",
+      "default": "./src/encryption.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "seed": "prisma db seed",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "catalog:",
+    "@sectoria/domain-escrow": "workspace:*",
+    "@sectoria/domain-ledger": "workspace:*",
+    "@sectoria/domain-tax": "workspace:*",
+    "@sectoria/types": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@sectoria/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prisma": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
