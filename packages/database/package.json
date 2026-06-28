@@ -24,7 +24,7 @@
     "db:studio": "prisma studio",
     "seed": "prisma db seed",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
