@@ -51,7 +51,7 @@ const certificate = await adapters.plra.issueCertificate("transfer_abc", {
   sellerName: "Capital Smart City (Pvt) Ltd",
   societyName: "Capital Smart City",
   plotReference: "Overseas Block, Plot 145",
-  salePrice: 1_250_000_000, // paisa
+  salePrice: 12_500_000, // whole rupees
 });
 // → { certificateNumber: "PLRA-2026-012345", documentUrl, ... }
 ```

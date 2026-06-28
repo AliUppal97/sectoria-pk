@@ -10,7 +10,7 @@
  * Thrown when a tax calculation is asked to run on input that cannot
  * represent a real transfer — a non-positive sale price or FBR table value,
  * or a value that fails the `TaxCalculationInput` schema (e.g. a negative or
- * non-integer paisa amount).
+ * non-integer rupee amount).
  */
 export class InvalidTaxInputError extends Error {
   /**

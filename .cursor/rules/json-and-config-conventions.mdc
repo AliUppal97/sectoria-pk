@@ -40,10 +40,11 @@ alwaysApply: false
   (e.g., a government API that returns `snake_case` gets normalized to
   `camelCase` immediately inside its adapter, per `verification-adapters.mdc`,
   not carried through the rest of the app in its original casing).
-- Money values in JSON are represented as integers in the smallest unit
-  (paisa) or as explicit decimal strings, never as floating-point numbers
-  — same rationale as the `Decimal` requirement in `database.mdc`; JSON
-  numbers lose precision guarantees that matter for tax/escrow amounts.
+- Money values in JSON are represented as whole-rupee integers (`PkrAmount`
+  — paisa are not used) or, for genuinely fractional values like prices and
+  percentages, as explicit decimal strings — never as floating-point numbers.
+  Same rationale as the `Decimal` requirement in `database.mdc`; JSON numbers
+  lose precision guarantees that matter for tax/escrow amounts.
 - Dates/timestamps are ISO 8601 strings, never ambiguous formats like
   `"12/06/2026"` that depend on locale to interpret correctly.
 

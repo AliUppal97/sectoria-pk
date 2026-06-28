@@ -150,8 +150,8 @@ inventory-category.ts, plot.ts, payment-plan.ts, booking.ts, escrow.ts,
 user.ts, dealer-profile.ts, society-partner-authorization.ts, review.ts,
 ledger-event.ts, tax.ts, verification.ts), all re-exported from index.ts.
 Derive EVERY TypeScript type from its Zod schema via z.infer — no
-hand-written parallel interfaces. Money fields are integers in the smallest
-unit (paisa) or decimal strings, never floats. Dates are ISO 8601 strings.
+hand-written parallel interfaces. Money fields are whole-rupee integers
+(paisa are not used) or decimal strings, never floats. Dates are ISO 8601 strings.
 ```
 
 **Test Gate:**

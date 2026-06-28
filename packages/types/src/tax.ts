@@ -4,7 +4,7 @@ import { atlStatusSchema } from "./user.js";
 import { plotTypeSchema } from "./inventory-category.js";
 
 /**
- * Inputs to a property-transfer tax calculation. Amounts are paisa
+ * Inputs to a property-transfer tax calculation. Amounts are whole-rupee
  * integers (`PkrAmount`); the engine taxes whichever of `salePrice` and
  * `fbrTableValue` is higher, per FBR rules. ATL statuses determine the
  * advance-tax rate for each party.
@@ -74,7 +74,7 @@ export const taxRateTableSchema = z.object({
    * baked into the calculation. Surfaces as `TaxBreakdown.regulatoryFee`.
    */
   regulatoryFee: decimalStringSchema,
-  /** Section 7E only applies above this property value (paisa). */
+  /** Section 7E only applies above this property value (whole rupees). */
   section7eThreshold: pkrAmountSchema,
   section7eRate: decimalStringSchema,
 });

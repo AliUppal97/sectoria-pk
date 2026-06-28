@@ -17,8 +17,8 @@ import { taxRateTableSchema, type TaxRateTable } from "@sectoria/types";
  * change is a one-line edit to a new table here, with a matching test update.
  */
 
-/** Section 7E exemption threshold: PKR 25,000,000, expressed in paisa. */
-const SECTION_7E_THRESHOLD_PAISA = 2_500_000_000;
+/** Section 7E exemption threshold: PKR 25,000,000 (whole rupees). */
+const SECTION_7E_THRESHOLD_RUPEES = 25_000_000;
 
 /**
  * FY 2025-26 rates.
@@ -45,7 +45,7 @@ export const FISCAL_YEAR_2025_26_RATES: TaxRateTable = taxRateTableSchema.parse(
   },
   stampDuty: "0.02",
   regulatoryFee: "0.01",
-  section7eThreshold: SECTION_7E_THRESHOLD_PAISA,
+  section7eThreshold: SECTION_7E_THRESHOLD_RUPEES,
   section7eRate: "0.01",
 });
 

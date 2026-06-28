@@ -14,9 +14,10 @@ change propagates everywhere with compile errors at every stale call site.
 - **Enums** use the `as const` object + derived-union pattern (not TS
   `enum`), with a matching `z.nativeEnum` schema. They mirror the Prisma
   enums in `packages/database` exactly.
-- **Money is never a float.** Amounts are whole paisa integers
-  (`PkrAmount`); values Prisma stores as `Decimal` (prices, percentages)
-  are carried as decimal strings (`DecimalString`).
+- **Money is never a float.** Amounts are whole-rupee integers (`PkrAmount`
+  — paisa are not used); genuinely fractional values Prisma stores as
+  `Decimal` (prices, percentages) are carried as decimal strings
+  (`DecimalString`).
 - **Dates are ISO 8601 strings** (`IsoDateTime`), never `Date` objects.
 - **Sensitive identifiers are branded** (`Cnic`, `Ntn`, `Slug`, `Id`) so a
   raw string can't be passed where a validated value is required.
@@ -44,8 +45,8 @@ Parsing a branded scalar yields a branded value:
 ```ts
 import { pkrAmountSchema, type PkrAmount } from "@sectoria/types";
 
-// 1,500,000 PKR expressed in paisa
-const bookingToken: PkrAmount = pkrAmountSchema.parse(150_000_000);
+// PKR 1,500,000 (whole rupees)
+const bookingToken: PkrAmount = pkrAmountSchema.parse(1_500_000);
 ```
 
 ## Modules

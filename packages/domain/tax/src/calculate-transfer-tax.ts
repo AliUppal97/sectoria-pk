@@ -29,11 +29,11 @@ import { InvalidTaxInputError } from "./errors.js";
  * @see Section 236K — advance tax on purchase of immovable property (buyer)
  * @see Section 7E   — tax on deemed income from immovable property
  *
- * @param input - The transfer's prices (paisa), each party's ATL status, and plot type.
+ * @param input - The transfer's prices (whole rupees), each party's ATL status, and plot type.
  * @param rates - The fiscal-year rate table to price against. Defaults to
  *   {@link CURRENT_FISCAL_YEAR_RATES}; pass an older table to re-price a
  *   historical transfer.
- * @returns The itemized {@link TaxBreakdown}, with every amount in whole paisa.
+ * @returns The itemized {@link TaxBreakdown}, with every amount in whole rupees.
  * @throws {InvalidTaxInputError} if the input fails schema validation, or if the
  *   sale price or FBR table value is not a positive amount.
  */
@@ -55,40 +55,40 @@ export function calculateTransferTax(
 
   if (salePrice <= 0) {
     throw new InvalidTaxInputError(
-      "salePrice must be a positive amount of paisa.",
+      "salePrice must be a positive whole-rupee amount.",
       "salePrice",
     );
   }
   if (fbrTableValue <= 0) {
     throw new InvalidTaxInputError(
-      "fbrTableValue must be a positive amount of paisa.",
+      "fbrTableValue must be a positive whole-rupee amount.",
       "fbrTableValue",
     );
   }
 
   // FBR taxes whichever is higher — a below-table sale price never lowers tax.
-  const taxableValuePaisa = Math.max(salePrice, fbrTableValue);
+  const taxableValue = Math.max(salePrice, fbrTableValue);
 
   const sellerRate = rateForAtlStatus(rates.section236C, sellerAtlStatus);
   const buyerRate = rateForAtlStatus(rates.section236K, buyerAtlStatus);
 
-  const section236C = applyRate(taxableValuePaisa, sellerRate);
-  const section236K = applyRate(taxableValuePaisa, buyerRate);
-  const stampDuty = applyRate(taxableValuePaisa, rates.stampDuty);
-  const regulatoryFee = applyRate(taxableValuePaisa, rates.regulatoryFee);
+  const section236C = applyRate(taxableValue, sellerRate);
+  const section236K = applyRate(taxableValue, buyerRate);
+  const stampDuty = applyRate(taxableValue, rates.stampDuty);
+  const regulatoryFee = applyRate(taxableValue, rates.regulatoryFee);
 
   // Section 7E is a deemed-income tax that applies only above the exemption
   // threshold; at or below the threshold the property is exempt.
-  const isAboveSection7eThreshold = taxableValuePaisa > rates.section7eThreshold;
+  const isAboveSection7eThreshold = taxableValue > rates.section7eThreshold;
   const section7E = isAboveSection7eThreshold
-    ? applyRate(taxableValuePaisa, rates.section7eRate)
+    ? applyRate(taxableValue, rates.section7eRate)
     : 0;
 
   const total =
     section236C + section236K + section7E + stampDuty + regulatoryFee;
 
   // Plain numbers here; `taxBreakdownSchema.parse` below brands every amount
-  // to `PkrAmount` and validates the whole-paisa, non-negative invariants.
+  // to `PkrAmount` and validates the whole-rupee, non-negative invariants.
   const breakdown = [
     {
       label: `Advance Tax — Section 236C (Seller, ${sellerAtlStatus})`,
@@ -120,7 +120,7 @@ export function calculateTransferTax(
   ];
 
   // Re-validate the assembled breakdown so the output's invariants (whole,
-  // non-negative paisa) are guaranteed at the boundary, not merely assumed.
+  // non-negative rupees) are guaranteed at the boundary, not merely assumed.
   return taxBreakdownSchema.parse({
     section236C,
     section236K,
@@ -156,16 +156,16 @@ function rateForAtlStatus(
 }
 
 /**
- * Applies a decimal-string rate to a whole-paisa amount and returns whole
- * paisa, rounded half-up. Uses `BigInt` integer arithmetic so the result is
+ * Applies a decimal-string rate to a whole-rupee amount and returns whole
+ * rupees, rounded half-up. Uses `BigInt` integer arithmetic so the result is
  * exact and deterministic — never subject to binary floating-point drift,
  * which matters for amounts that must reconcile to the rupee.
  */
-function applyRate(amountPaisa: number, rate: DecimalString): number {
+function applyRate(amountRupees: number, rate: DecimalString): number {
   const [integerDigits, fractionDigits = ""] = (rate as string).split(".");
   const denominator = 10n ** BigInt(fractionDigits.length);
   const scaledRate = BigInt(`${integerDigits}${fractionDigits}`);
-  const numerator = BigInt(amountPaisa) * scaledRate;
+  const numerator = BigInt(amountRupees) * scaledRate;
   const roundedHalfUp = (numerator + denominator / 2n) / denominator;
   return Number(roundedHalfUp);
 }

@@ -23,7 +23,7 @@ Ordinance 2001, as amended).
   database — it takes plain data in and returns plain data out. Pure functions
   only; no imports from Next.js, Prisma, or React. Persistence and lookups are
   the caller's job (see `packages/api-client`).
-- **No display formatting of money.** Amounts are whole paisa integers; format
+- **No display formatting of money.** Amounts are whole-rupee integers; format
   to "PKR X,XXX,XXX" at the UI boundary.
 
 ## Usage
@@ -35,10 +35,10 @@ import {
 } from "@sectoria/domain-tax";
 import { taxCalculationInputSchema, AtlStatus, PlotType } from "@sectoria/types";
 
-// Amounts are whole paisa: PKR 30,000,000 = 3,000,000,000 paisa.
+// Amounts are whole rupees: PKR 30,000,000.
 const input = taxCalculationInputSchema.parse({
-  salePrice: 3_000_000_000,
-  fbrTableValue: 3_200_000_000, // higher → this is what gets taxed
+  salePrice: 30_000_000,
+  fbrTableValue: 32_000_000, // higher → this is what gets taxed
   sellerAtlStatus: AtlStatus.FILER,
   buyerAtlStatus: AtlStatus.NON_FILER,
   plotType: PlotType.RESIDENTIAL,
@@ -78,8 +78,8 @@ test update in the same PR (see `domain-logic.mdc` and `testing.mdc`).
 
 - **Pure & deterministic** — same input + rate table always yields the same
   breakdown.
-- **Money is integer paisa**, never a float. Rate application uses `BigInt`
-  arithmetic and rounds half-up to the nearest whole paisa.
+- **Money is integer rupees**, never a float. Rate application uses `BigInt`
+  arithmetic and rounds half-up to the nearest whole rupee.
 - **Section 7E** applies only when the taxable value is **strictly above** the
   configured threshold (PKR 25,000,000); at or below it, the property is exempt.
 
