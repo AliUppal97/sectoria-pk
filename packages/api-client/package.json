@@ -13,8 +13,8 @@
   "types": "./src/index.ts",
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "pnpm --filter @sectoria/database db:generate && tsc --noEmit",
+    "test": "pnpm --filter @sectoria/database db:generate && vitest run"
   },
   "dependencies": {
     "@sectoria/database": "workspace:*",
