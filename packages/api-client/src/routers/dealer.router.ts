@@ -22,6 +22,27 @@ import { mapDomainError } from "../lib/map-domain-error.js";
  * signals — never re-implemented here.
  */
 export const dealerRouter = router({
+  /**
+   * Public dealer directory. Reads are public so the verified-dealer list is
+   * crawlable. Optionally narrows to DNFBP-verified dealers only; ordered by
+   * completed deals (the strongest trust signal) then agency name.
+   */
+  list: publicProcedure
+    .input(
+      z
+        .object({
+          verifiedOnly: z.boolean().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.dealerProfile.findMany({
+        where:
+          input?.verifiedOnly === true ? { dnfbpVerified: true } : undefined,
+        orderBy: [{ completedDeals: "desc" }, { agencyName: "asc" }],
+      });
+    }),
+
   /** Public dealer profile by slug. */
   getBySlug: publicProcedure
     .input(z.object({ slug: slugSchema }))

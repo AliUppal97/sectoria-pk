@@ -1,0 +1,43 @@
+/*
+ * apps/web global stylesheet.
+ *
+ * The design tokens (the Tailwind v4 `@theme` block) are owned by
+ * `@sectoria/ui/theme.css` — imported here once so every token becomes a
+ * utility. NEVER add a hex/px/rgba value here; add a token to theme.css first.
+ *
+ * `@source` explicitly registers the workspace UI package's source so Tailwind
+ * generates the utility classes those components reference (auto-detection
+ * skips node_modules, and the package is symlinked there in the monorepo).
+ */
+@import "@sectoria/ui/theme.css";
+@source "../../../packages/ui/src";
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background-color: var(--color-surface-base);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  /* Design spec §9: focus is never removed, only styled. Apply a consistent
+   * visible ring to every keyboard-focused interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Design spec §4.3 — the subtle Vercel-style background grid, used only on
+ * marketplace hero/section backgrounds. Kept here (not a component) because it
+ * is a decorative page-level texture, not a reusable UI primitive. */
+.bg-grid {
+  background-image:
+    linear-gradient(var(--color-border-base) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-base) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
