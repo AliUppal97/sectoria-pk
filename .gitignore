@@ -9,6 +9,7 @@ dist/
 out/
 .turbo/
 storybook-static/
+*.tsbuildinfo
 
 # Environment
 .env
