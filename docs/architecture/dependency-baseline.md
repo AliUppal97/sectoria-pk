@@ -16,6 +16,12 @@ against npm before relying on this table if significant time has passed.
 | `react` / `react-dom` | `^19.0.0` | |
 | `typescript` | `^5.7.0` | `strict: true` everywhere |
 
+## Web app (`apps/web`)
+
+| Package | Version | Notes |
+|---|---|---|
+| `server-only` | `0.0.1` | Build-time guard that errors if a server-only module (the tRPC server caller, DB-touching query helpers) is imported into a Client Component. Single published version. Direct dep of `apps/web`. |
+
 ## API & validation
 
 | Package | Version | Notes |

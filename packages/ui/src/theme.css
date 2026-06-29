@@ -68,9 +68,13 @@
   --color-cert-glass:        rgba(255, 255, 255, 0.06);  /* glass card on cert */
 
   /* ─── Typography ────────────────────────────────────────── */
-  --font-sans:     'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  --font-display:  'Inter', system-ui, sans-serif;
+  /* The `var(--font-*, …)` indirection lets a host app inject a self-hosted
+   * webfont via next/font (it sets --font-inter / --font-jetbrains-mono on
+   * <html>) while Storybook and any other consumer fall back to the named
+   * family. The token set here stays the single source of truth. */
+  --font-sans:     var(--font-inter, 'Inter'), system-ui, -apple-system, sans-serif;
+  --font-mono:     var(--font-jetbrains-mono, 'JetBrains Mono'), 'Fira Code', 'Courier New', monospace;
+  --font-display:  var(--font-inter, 'Inter'), system-ui, sans-serif;
 
   /* ─── Type scale ─────────────────────────────────────────── */
   /* Two micro sizes below the Section 2 scale, required by the component
