@@ -495,6 +495,7 @@ async function main(): Promise<void> {
   for (let d = 0; d < 9; d += 1) {
     userSeq += 1;
     const isVerified = d % 3 !== 0; // ~2/3 verified, ~1/3 pending
+    const pendingAdminReview = d === 2; // one dealer awaiting platform sign-off
     const dealerUser = await prisma.user.create({
       data: {
         name: `Dealer ${d + 1} (${["Estate", "Properties", "Marketing", "Associates"][d % 4]})`,
@@ -512,7 +513,11 @@ async function main(): Promise<void> {
         userId: dealerUser.id,
         slug: slugify(`dealer-${d + 1}-${["estate", "properties", "marketing", "associates"][d % 4]}`),
         agencyName: `${["Skyline", "Premier", "Metro", "Capital", "Pioneer"][d % 5]} ${["Estate", "Properties", "Marketing", "Associates"][d % 4]}`,
-        dnfbpCertNumber: isVerified ? `DNFBP-${2025}-${4000 + d}` : null,
+        dnfbpCertNumber: isVerified
+          ? `DNFBP-${2025}-${4000 + d}`
+          : pendingAdminReview
+            ? `DNFBP-${2025}-${4999 + d}`
+            : null,
         dnfbpVerified: isVerified,
         completedDeals: isVerified ? (d * 3) % 25 : 0,
       },

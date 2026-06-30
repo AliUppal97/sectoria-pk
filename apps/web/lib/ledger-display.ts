@@ -14,4 +14,8 @@ export const LEDGER_LABEL: Record<LedgerEventTypeT, string> = {
   [LedgerEventType.COMMISSION_RELEASED]: "Commission released",
   [LedgerEventType.VERIFICATION_COMPLETED]: "Identity verified",
   [LedgerEventType.REVIEW_SUBMITTED]: "Review submitted",
+  [LedgerEventType.SOCIETY_VERIFICATION_REVIEWED]: "Society verification reviewed",
+  [LedgerEventType.DEALER_VERIFICATION_REVIEWED]: "Dealer verification reviewed",
+  [LedgerEventType.PLOT_DISPUTE_FLAGGED]: "Plot dispute flagged",
+  [LedgerEventType.PLOT_DISPUTE_RESOLVED]: "Plot dispute resolved",
 };
