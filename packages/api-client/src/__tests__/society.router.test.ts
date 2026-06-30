@@ -68,4 +68,14 @@ describe("societyRouter", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(store.societies.get(SOCIETY_ID)?.developmentPct).toBe(80);
   });
+
+  it("denies portal overview for another society id in the input", async () => {
+    const caller = createTestCaller({
+      db,
+      session: societyAdminSession("usr_admin", SOCIETY_ID),
+    });
+    await expect(
+      caller.society.getPortalOverview({ societyId: "soc_other" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
 });

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, DEV_OTP_CODE } from "@/auth";
 import { homeForRole } from "@/lib/auth/roles";
-import { listDemoBuyers } from "@/lib/auth/demo-accounts";
+import { listDemoBuyers, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
@@ -34,7 +34,11 @@ export default async function LoginPage({
   }
 
   const { callbackUrl } = await searchParams;
-  const [demoAccounts] = await Promise.all([listDemoBuyers()]);
+  const [demoBuyers, demoSocietyAdmins] = await Promise.all([
+    listDemoBuyers(),
+    listDemoSocietyAdmins(),
+  ]);
+  const demoAccounts = [...demoSocietyAdmins.slice(0, 3), ...demoBuyers.slice(0, 5)];
   const isDev = process.env.NODE_ENV !== "production";
 
   return (
