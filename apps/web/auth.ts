@@ -30,9 +30,12 @@ const credentialsSchema = z.object({
 /**
  * Whether `otp` is acceptable for `phone`. In production this must call the real
  * OTP verification service; until then, only the dev code is accepted and only
- * outside production.
+ * outside production — except when `E2E_TEST=1` for the Playwright suite.
  */
 function isOtpValid(otp: string): boolean {
+  if (process.env.E2E_TEST === "1") {
+    return otp === DEV_OTP_CODE;
+  }
   if (process.env.NODE_ENV === "production") {
     // No real OTP backend is wired yet — refuse rather than accept a dev code.
     return false;
