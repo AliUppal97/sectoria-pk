@@ -18,4 +18,10 @@ export const LEDGER_LABEL: Record<LedgerEventTypeT, string> = {
   [LedgerEventType.DEALER_VERIFICATION_REVIEWED]: "Dealer verification reviewed",
   [LedgerEventType.PLOT_DISPUTE_FLAGGED]: "Plot dispute flagged",
   [LedgerEventType.PLOT_DISPUTE_RESOLVED]: "Plot dispute resolved",
+  [LedgerEventType.LEAD_CREATED]: "Quote request received",
+  [LedgerEventType.QUOTE_SENT]: "Quote sent",
+  [LedgerEventType.QUOTE_ACCEPTED]: "Quote accepted",
+  [LedgerEventType.QUOTE_PAYMENT_CONFIRMED]: "Payment confirmed",
+  [LedgerEventType.FULFILLMENT_UPDATED]: "Fulfillment updated",
+  [LedgerEventType.PLATFORM_REMITTANCE]: "Platform remittance recorded",
 };

@@ -115,6 +115,27 @@ export function societyOrganizationSchema(
   };
 }
 
+/** schema.org `Place` with geo coordinates for a society map pin. */
+export function placeSchema(input: {
+  readonly name: string;
+  readonly path: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly address?: string;
+}): JsonLdSchema {
+  return {
+    "@type": "Place",
+    name: input.name,
+    url: absoluteUrl(input.path),
+    ...(input.address ? { address: input.address } : {}),
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: input.latitude,
+      longitude: input.longitude,
+    },
+  };
+}
+
 interface RealEstateListingInput {
   readonly name: string;
   readonly path: string;

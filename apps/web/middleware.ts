@@ -18,11 +18,18 @@ import { homeForRole } from "@/lib/auth/roles";
 const { auth } = NextAuth(authConfig);
 
 /** The role each protected route-group prefix requires. */
-const PROTECTED_PREFIXES: ReadonlyArray<{ prefix: string; role: UserRole }> = [
-  { prefix: "/dashboard", role: UserRole.BUYER },
-  { prefix: "/society-portal", role: UserRole.SOCIETY_ADMIN },
-  { prefix: "/dealer-portal", role: UserRole.DEALER_PARTNER },
-  { prefix: "/admin", role: UserRole.SUPER_ADMIN },
+const PROTECTED_PREFIXES: ReadonlyArray<{
+  prefix: string;
+  roles: readonly UserRole[];
+}> = [
+  { prefix: "/dashboard", roles: [UserRole.BUYER] },
+  { prefix: "/society-portal", roles: [UserRole.SOCIETY_ADMIN] },
+  { prefix: "/dealer-portal", roles: [UserRole.DEALER_PARTNER] },
+  {
+    prefix: "/ops-portal",
+    roles: [UserRole.SALES_ADVISOR, UserRole.SUPER_ADMIN],
+  },
+  { prefix: "/admin", roles: [UserRole.SUPER_ADMIN] },
 ];
 
 export default auth((req) => {
@@ -48,9 +55,12 @@ export default auth((req) => {
 
   const role = session.user.role;
 
-  // SUPER_ADMIN may traverse any portal; everyone else is pinned to their group.
-  if (role !== UserRole.SUPER_ADMIN && role !== match.role) {
-    return NextResponse.redirect(new URL(homeForRole(role), nextUrl));
+  if (role === UserRole.SUPER_ADMIN) {
+    return NextResponse.next();
+  }
+
+  if (role === undefined || !match.roles.includes(role)) {
+    return NextResponse.redirect(new URL(homeForRole(role ?? UserRole.BUYER), nextUrl));
   }
 
   return NextResponse.next();
@@ -61,6 +71,7 @@ export const config = {
     "/dashboard/:path*",
     "/society-portal/:path*",
     "/dealer-portal/:path*",
+    "/ops-portal/:path*",
     "/admin/:path*",
   ],
 };

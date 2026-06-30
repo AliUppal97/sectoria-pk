@@ -1,5 +1,5 @@
 import "server-only";
-import type { Society, VerificationTier } from "@sectoria/database";
+import type { SocietyBookingStatus, VerificationTier } from "@sectoria/types";
 import { getApi } from "./trpc/server";
 import { isNotFound } from "./fetch";
 import {
@@ -43,9 +43,26 @@ function averageRating(
 
 /** Maps a society row + its categories/reviews into a serializable summary. */
 function summarizeSociety(
-  society: Society,
+  society: {
+    id: string;
+    slug: string;
+    name: string;
+    city: string;
+    citySlug: string;
+    authority: string;
+    verificationTier: VerificationTier;
+    hsmsLinked: boolean;
+    developmentStage: string;
+    developmentPct: number;
+    latitude?: number | null;
+    longitude?: number | null;
+    totalLandKanal?: string | null;
+    developedLandKanal?: string | null;
+    bookingStatus?: SocietyBookingStatus;
+  },
   categories: readonly PricedCategory[],
   reviews: readonly RatingRow[],
+  latestUpdateTitle?: string | null,
 ): SocietySummary {
   return {
     id: society.id,
@@ -61,6 +78,12 @@ function summarizeSociety(
     categoryCount: categories.length,
     startingPrice: startingPrice(categories),
     rating: averageRating(reviews),
+    latitude: society.latitude ?? null,
+    longitude: society.longitude ?? null,
+    totalLandKanal: society.totalLandKanal ?? null,
+    developedLandKanal: society.developedLandKanal ?? null,
+    bookingStatus: society.bookingStatus ?? "OPEN",
+    latestUpdateTitle: latestUpdateTitle ?? null,
   };
 }
 
@@ -92,7 +115,12 @@ export async function getSocietySummaryBySlug(
   try {
     const society = await api.society.getBySlug({ slug });
     const reviews = await api.review.listForSociety({ societyId: society.id });
-    return summarizeSociety(society, society.categories, reviews);
+    return summarizeSociety(
+      society,
+      society.categories,
+      reviews,
+      society.updates[0]?.title ?? null,
+    );
   } catch (error) {
     if (isNotFound(error)) return null;
     throw error;

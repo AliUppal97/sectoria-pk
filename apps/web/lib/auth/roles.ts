@@ -13,6 +13,7 @@ export const ROLE_HOME: Record<UserRole, string> = {
   [UserRole.BUYER]: "/dashboard",
   [UserRole.SOCIETY_ADMIN]: "/society-portal",
   [UserRole.DEALER_PARTNER]: "/dealer-portal",
+  [UserRole.SALES_ADVISOR]: "/ops-portal",
   [UserRole.SUPER_ADMIN]: "/admin",
 };
 

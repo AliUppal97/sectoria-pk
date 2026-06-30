@@ -35,6 +35,9 @@ import {
   AtlStatus,
   EscrowAction,
   EscrowState,
+  LeadSource,
+  LeadStatus,
+  QuoteStatus,
   UserRole,
   idSchema,
   pkrAmountSchema,
@@ -120,6 +123,12 @@ interface SocietySpec {
   readonly longitude: number;
   readonly categoryCount: number;
   readonly basePricePerSqft: number; // rupees per sqft
+  readonly totalLandKanal: number;
+  readonly developedLandKanal: number;
+  readonly bookingStatus: "OPEN" | "CLOSED" | "UPCOMING";
+  readonly addressLine: string;
+  readonly district: string;
+  readonly withBoundary?: boolean;
 }
 
 const SOCIETY_SPECS: readonly SocietySpec[] = [
@@ -136,6 +145,12 @@ const SOCIETY_SPECS: readonly SocietySpec[] = [
     longitude: 74.4117,
     categoryCount: 6,
     basePricePerSqft: 32000,
+    totalLandKanal: 4500,
+    developedLandKanal: 3825,
+    bookingStatus: "OPEN",
+    addressLine: "Main Boulevard, DHA Phase 6",
+    district: "Lahore Cantonment",
+    withBoundary: true,
   },
   {
     slug: "bahria-town-lahore",
@@ -150,6 +165,11 @@ const SOCIETY_SPECS: readonly SocietySpec[] = [
     longitude: 74.1875,
     categoryCount: 5,
     basePricePerSqft: 21000,
+    totalLandKanal: 6000,
+    developedLandKanal: 3600,
+    bookingStatus: "OPEN",
+    addressLine: "Bahria Town Main Gate, Raiwind Road",
+    district: "Raiwind",
   },
   {
     slug: "capital-smart-city",
@@ -164,6 +184,12 @@ const SOCIETY_SPECS: readonly SocietySpec[] = [
     longitude: 72.8214,
     categoryCount: 4,
     basePricePerSqft: 18000,
+    totalLandKanal: 8000,
+    developedLandKanal: 3600,
+    bookingStatus: "UPCOMING",
+    addressLine: "M-2 Motorway, Near New Islamabad Airport",
+    district: "Attock",
+    withBoundary: true,
   },
   {
     slug: "dha-islamabad",
@@ -178,6 +204,11 @@ const SOCIETY_SPECS: readonly SocietySpec[] = [
     longitude: 73.1568,
     categoryCount: 5,
     basePricePerSqft: 38000,
+    totalLandKanal: 3200,
+    developedLandKanal: 2880,
+    bookingStatus: "OPEN",
+    addressLine: "DHA Phase 2, G.T. Road",
+    district: "Islamabad",
   },
   {
     slug: "bahria-town-karachi",
@@ -192,6 +223,11 @@ const SOCIETY_SPECS: readonly SocietySpec[] = [
     longitude: 67.3,
     categoryCount: 4,
     basePricePerSqft: 15000,
+    totalLandKanal: 10000,
+    developedLandKanal: 3000,
+    bookingStatus: "CLOSED",
+    addressLine: "Super Highway, Bahria Town Karachi",
+    district: "Malir",
   },
 ];
 
@@ -209,6 +245,51 @@ const AMENITY_POOL = [
   "Wide Carpeted Roads",
   "School & Hospital",
 ];
+
+/** Approximate square boundary (~2 km) for map overlay demos. */
+function boundaryAround(lat: number, lng: number): Prisma.InputJsonValue {
+  const delta = 0.009;
+  return {
+    type: "Polygon",
+    coordinates: [
+      [
+        [lng - delta, lat - delta],
+        [lng + delta, lat - delta],
+        [lng + delta, lat + delta],
+        [lng - delta, lat + delta],
+        [lng - delta, lat - delta],
+      ],
+    ],
+  };
+}
+
+const SOCIETY_UPDATE_TEMPLATES = [
+  {
+    category: "NOC" as const,
+    title: "NOC renewed by development authority",
+    body: "The society's No Objection Certificate has been renewed for the current fiscal year. Reference numbers are listed in the compliance section.",
+  },
+  {
+    category: "POSSESSION" as const,
+    title: "Possession started in Phase 2",
+    body: "Physical possession has commenced for Phase 2 residential blocks. Buyers with fully paid bookings may schedule handover through Sectoria.",
+  },
+  {
+    category: "BOOKING" as const,
+    title: "New inventory released for booking",
+    body: "Additional residential and commercial categories are now open for booking through Sectoria's verified escrow flow.",
+  },
+  {
+    category: "DEVELOPMENT" as const,
+    title: "Road infrastructure milestone completed",
+    body: "Main boulevard carpeting and underground utilities have been completed ahead of schedule in the latest development phase.",
+  },
+  {
+    category: "LICENSE" as const,
+    title: "Commercial license approved",
+    body: "The society has received commercial development license approval for the designated commercial hub zone.",
+  },
+] as const;
 
 const ATL_CYCLE: readonly AtlStatusType[] = [
   AtlStatus.FILER,
@@ -319,9 +400,10 @@ async function main(): Promise<void> {
   console.log("Resetting database (TRUNCATE … RESTART IDENTITY CASCADE)…");
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE
+       "FulfillmentOrder","QuotePayment","Quote","DealerNetSheet","Lead",
        "LedgerEvent","Review","SocietyPartnerAuthorization","Plot",
        "Booking","PaymentPlan","InventoryCategory","DealerProfile",
-       "User","Society"
+       "User","SocietyUpdate","Society"
      RESTART IDENTITY CASCADE;`,
   );
 
@@ -331,6 +413,17 @@ async function main(): Promise<void> {
       phone: fakePhone(1),
       email: "admin@sectoria.pk",
       role: UserRole.SUPER_ADMIN,
+      atlStatus: AtlStatus.FILER,
+      nadraVerified: true,
+    },
+  });
+
+  const salesAdvisor = await prisma.user.create({
+    data: {
+      name: "Sectoria Sales Advisor",
+      phone: fakePhone(2),
+      email: "advisor@sectoria.pk",
+      role: UserRole.SALES_ADVISOR,
       atlStatus: AtlStatus.FILER,
       nadraVerified: true,
     },
@@ -364,8 +457,41 @@ async function main(): Promise<void> {
         developmentStage: spec.developmentStage,
         developmentPct: spec.developmentPct,
         heroImageUrl: `https://images.sectoria.pk/societies/${spec.slug}.jpg`,
+        addressLine: spec.addressLine,
+        district: spec.district,
+        totalLandKanal: new Prisma.Decimal(spec.totalLandKanal.toFixed(2)),
+        developedLandKanal: new Prisma.Decimal(spec.developedLandKanal.toFixed(2)),
+        boundaryGeoJson: spec.withBoundary
+          ? boundaryAround(spec.latitude, spec.longitude)
+          : Prisma.JsonNull,
+        bookingStatus: spec.bookingStatus,
+        bookingOpensAt:
+          spec.bookingStatus === "UPCOMING"
+            ? new Date("2026-08-01T00:00:00.000Z")
+            : null,
+        bookingClosesAt:
+          spec.bookingStatus === "CLOSED"
+            ? new Date("2026-05-15T00:00:00.000Z")
+            : null,
       },
     });
+
+    for (let u = 0; u < 3; u += 1) {
+      const template = requireDefined(
+        SOCIETY_UPDATE_TEMPLATES[(societyIndex + u) % SOCIETY_UPDATE_TEMPLATES.length],
+        "society update template",
+      );
+      await prisma.societyUpdate.create({
+        data: {
+          societyId: society.id,
+          title: template.title,
+          body: template.body,
+          category: template.category,
+          publishedAt: new Date(SEED_EPOCH + (societyIndex * 3 + u) * 86400000),
+          isPublished: true,
+        },
+      });
+    }
 
     userSeq += 1;
     const admin = await prisma.user.create({
@@ -815,6 +941,84 @@ async function main(): Promise<void> {
     }
   }
 
+  // ── Concierge CRM seed (ADR-007) ─────────────────────────────────
+  const dhaSociety = requireDefined(seededSocieties[0], "dha society");
+  const dhaCategory = requireDefined(dhaSociety.categories[1], "dha category");
+  const firstDealer = requireDefined(dealerProfiles[0], "first dealer");
+  const sampleBuyer = requireDefined(buyers[0], "sample buyer");
+
+  const listPricePkr = Math.round(
+    dhaCategory.sizeSqft * dhaCategory.pricePerSqftRupees,
+  );
+  const dealerNetPkr = Math.round(listPricePkr * 0.96);
+  const quotedPricePkr = Math.round(listPricePkr * 0.98);
+  const spreadPkr = quotedPricePkr - dealerNetPkr;
+  const tokenAmountPkr = Math.round(quotedPricePkr * 0.1);
+
+  await prisma.dealerNetSheet.create({
+    data: {
+      dealerId: firstDealer.id,
+      categoryId: dhaCategory.id,
+      netPricePkr: dealerNetPkr,
+      paymentPlanTerms: "20% down, 36 monthly installments",
+      refreshedAt: new Date(SEED_EPOCH),
+    },
+  });
+
+  const sampleLead = await prisma.lead.create({
+    data: {
+      name: "Sample Concierge Buyer",
+      phone: fakePhone(999),
+      email: "concierge-buyer@example.pk",
+      societyIds: [dhaSociety.id],
+      categoryId: dhaCategory.id,
+      budgetPkr: quotedPricePkr,
+      paymentPlanPreference: "3-year installments",
+      source: LeadSource.COMPARE,
+      status: LeadStatus.QUOTED,
+      assignedAdvisorId: salesAdvisor.id,
+      buyerUserId: sampleBuyer.id,
+    },
+  });
+
+  await prisma.quote.create({
+    data: {
+      leadId: sampleLead.id,
+      societyId: dhaSociety.id,
+      categoryId: dhaCategory.id,
+      dealerId: firstDealer.id,
+      dealerNetPkr,
+      quotedPricePkr,
+      spreadPkr,
+      tokenAmountPkr,
+      validUntil: new Date(SEED_EPOCH + 72 * 60 * 60 * 1000),
+      status: QuoteStatus.SENT,
+      paymentPlanLabel: "3-Year Installments",
+      createdById: salesAdvisor.id,
+      buyerUserId: sampleBuyer.id,
+    },
+  });
+
+  // Second quote: accepted with installments direct (legacy comparison fixture).
+  await prisma.quote.create({
+    data: {
+      leadId: sampleLead.id,
+      societyId: dhaSociety.id,
+      categoryId: dhaCategory.id,
+      dealerId: firstDealer.id,
+      dealerNetPkr,
+      quotedPricePkr,
+      spreadPkr,
+      tokenAmountPkr,
+      validUntil: new Date(SEED_EPOCH + 72 * 60 * 60 * 1000),
+      status: QuoteStatus.ACCEPTED,
+      paymentPlanLabel: "3-Year Installments",
+      installmentsDirect: true,
+      createdById: salesAdvisor.id,
+      buyerUserId: sampleBuyer.id,
+    },
+  });
+
   const counts = {
     societies: await prisma.society.count(),
     categories: await prisma.inventoryCategory.count(),
@@ -826,6 +1030,9 @@ async function main(): Promise<void> {
     completedBookings: completedBookings.length,
     reviews: await prisma.review.count(),
     ledgerEvents: ledgerCount,
+    leads: await prisma.lead.count(),
+    quotes: await prisma.quote.count(),
+    dealerNetSheets: await prisma.dealerNetSheet.count(),
   };
   console.log("Seed complete:", JSON.stringify(counts, null, 2));
 }

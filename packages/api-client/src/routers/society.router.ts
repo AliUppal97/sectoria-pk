@@ -1,19 +1,94 @@
 import { z } from "zod";
 import {
   EscrowState,
+  decimalStringSchema,
+  geoJsonBoundarySchema,
   idSchema,
+  isoDateTimeSchema,
   latitudeSchema,
   longitudeSchema,
   slugSchema,
+  societyBookingStatusSchema,
   VerificationTier,
   verificationTierSchema,
 } from "@sectoria/types";
 import { calculateTrustScore } from "@sectoria/domain-trust-score";
+import { Prisma } from "@sectoria/database";
 import { router, TRPCError } from "../trpc.js";
 import { publicProcedure, societyAdminProcedure } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
 import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
+
+function toSocietyDto<T extends Record<string, unknown>>(society: T) {
+  const createdAt =
+    society.createdAt instanceof Date
+      ? society.createdAt.toISOString()
+      : typeof society.createdAt === "string"
+        ? society.createdAt
+        : new Date().toISOString();
+  const toIso = (value: unknown) => {
+    if (value === null || value === undefined) return null;
+    return value instanceof Date ? value.toISOString() : String(value);
+  };
+  const totalLandKanal =
+    society.totalLandKanal !== null &&
+    society.totalLandKanal !== undefined &&
+    typeof society.totalLandKanal === "object" &&
+    "toString" in society.totalLandKanal
+      ? String(society.totalLandKanal)
+      : (society.totalLandKanal as string | null | undefined) ?? null;
+  const developedLandKanal =
+    society.developedLandKanal !== null &&
+    society.developedLandKanal !== undefined &&
+    typeof society.developedLandKanal === "object" &&
+    "toString" in society.developedLandKanal
+      ? String(society.developedLandKanal)
+      : (society.developedLandKanal as string | null | undefined) ?? null;
+  return {
+    ...society,
+    totalLandKanal,
+    developedLandKanal,
+    bookingOpensAt: toIso(society.bookingOpensAt),
+    bookingClosesAt: toIso(society.bookingClosesAt),
+    createdAt,
+  };
+}
+
+function toPaymentPlanDto<T extends { downPaymentPct: { toString(): string } }>(
+  plan: T,
+) {
+  return {
+    ...plan,
+    downPaymentPct: plan.downPaymentPct.toString(),
+  };
+}
+
+function toCategoryWithPlansDto<
+  T extends { pricePerSqft: { toString(): string }; paymentPlans: Array<{ downPaymentPct: { toString(): string } }> },
+>(category: T) {
+  return {
+    ...category,
+    pricePerSqft: category.pricePerSqft.toString(),
+    paymentPlans: category.paymentPlans.map(toPaymentPlanDto),
+  };
+}
+
+function toSocietyUpdateDto<T extends Record<string, unknown>>(update: T) {
+  const publishedAt =
+    update.publishedAt instanceof Date
+      ? update.publishedAt.toISOString()
+      : String(update.publishedAt);
+  const createdAt =
+    update.createdAt instanceof Date
+      ? update.createdAt.toISOString()
+      : String(update.createdAt);
+  return {
+    ...update,
+    publishedAt,
+    createdAt,
+  };
+}
 
 /**
  * Society procedures. Reads are public (the marketplace must be crawlable); the
@@ -33,7 +108,7 @@ export const societyRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      return ctx.db.society.findMany({
+      const societies = await ctx.db.society.findMany({
         where: {
           ...(input?.citySlug !== undefined
             ? { citySlug: input.citySlug }
@@ -47,15 +122,26 @@ export const societyRouter = router({
         },
         orderBy: { name: "asc" },
       });
+      return societies.map(toSocietyDto);
     }),
 
-  /** Public society profile by slug, including its inventory categories. */
+  /** Public society profile by slug, including categories, payment plans, and updates. */
   getBySlug: publicProcedure
     .input(z.object({ slug: slugSchema }))
     .query(async ({ ctx, input }) => {
       const society = await ctx.db.society.findUnique({
         where: { slug: input.slug },
-        include: { categories: true },
+        include: {
+          categories: {
+            orderBy: [{ phase: "asc" }, { sizeSqft: "asc" }],
+            include: { paymentPlans: true },
+          },
+          updates: {
+            where: { isPublished: true },
+            orderBy: { publishedAt: "desc" },
+            take: 10,
+          },
+        },
       });
       if (society === null) {
         throw new TRPCError({
@@ -63,7 +149,12 @@ export const societyRouter = router({
           message: "Society not found.",
         });
       }
-      return society;
+      const { categories, updates, ...rest } = society;
+      return {
+        ...toSocietyDto(rest),
+        categories: categories.map(toCategoryWithPlansDto),
+        updates: updates.map(toSocietyUpdateDto),
+      };
     }),
 
   /** Updates editable profile fields. Restricted to the owning administrator. */
@@ -79,6 +170,14 @@ export const societyRouter = router({
           heroImageUrl: z.string().url().nullable().optional(),
           latitude: latitudeSchema.nullable().optional(),
           longitude: longitudeSchema.nullable().optional(),
+          addressLine: z.string().min(1).nullable().optional(),
+          district: z.string().min(1).nullable().optional(),
+          totalLandKanal: decimalStringSchema.nullable().optional(),
+          developedLandKanal: decimalStringSchema.nullable().optional(),
+          boundaryGeoJson: geoJsonBoundarySchema.nullable().optional(),
+          bookingStatus: societyBookingStatusSchema.optional(),
+          bookingOpensAt: isoDateTimeSchema.nullable().optional(),
+          bookingClosesAt: isoDateTimeSchema.nullable().optional(),
         }),
       }),
     )
@@ -95,10 +194,37 @@ export const societyRouter = router({
       }
       assertSocietyOwnership(ctx.session, society.id);
 
-      return ctx.db.society.update({
-        where: { id: society.id },
-        data: input.data,
-      });
+      const { boundaryGeoJson, bookingOpensAt, bookingClosesAt, ...restData } =
+        input.data;
+
+      return toSocietyDto(
+        await ctx.db.society.update({
+          where: { id: society.id },
+          data: {
+            ...restData,
+            ...(boundaryGeoJson !== undefined
+              ? {
+                  boundaryGeoJson:
+                    boundaryGeoJson === null
+                      ? Prisma.JsonNull
+                      : (boundaryGeoJson as Prisma.InputJsonValue),
+                }
+              : {}),
+            bookingOpensAt:
+              bookingOpensAt !== undefined
+                ? bookingOpensAt === null
+                  ? null
+                  : new Date(bookingOpensAt)
+                : undefined,
+            bookingClosesAt:
+              bookingClosesAt !== undefined
+                ? bookingClosesAt === null
+                  ? null
+                  : new Date(bookingClosesAt)
+                : undefined,
+          },
+        }),
+      );
     }),
 
   /**

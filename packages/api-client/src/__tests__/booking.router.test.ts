@@ -7,6 +7,10 @@ import {
   societyAdminSession,
 } from "./helpers/test-context.js";
 
+beforeEach(() => {
+  process.env.FEATURE_LEGACY_SELF_SERVE_BOOKING = "true";
+});
+
 const SOCIETY_ID = "soc_1";
 const OTHER_SOCIETY_ID = "soc_2";
 const CATEGORY_ID = "cat_1";

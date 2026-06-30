@@ -3,6 +3,7 @@ import {
   allocationStrategySchema,
   decimalStringSchema,
   idSchema,
+  installmentIntervalSchema,
   plotTypeSchema,
   slugSchema,
 } from "@sectoria/types";
@@ -22,6 +23,34 @@ import { assertSocietyOwnership } from "../middleware/require-society-ownership.
  */
 function toCategoryDto(row: CategoryRow) {
   return { ...row, pricePerSqft: row.pricePerSqft.toString() };
+}
+
+function toPaymentPlanDto(plan: {
+  downPaymentPct: { toString(): string };
+  [key: string]: unknown;
+}) {
+  return {
+    ...plan,
+    downPaymentPct: plan.downPaymentPct.toString(),
+  };
+}
+
+async function assertCategoryOwnership(
+  db: { inventoryCategory: { findUnique: (args: { where: { id: string }; select: { societyId: true } }) => Promise<{ societyId: string } | null> } },
+  categoryId: string,
+  session: Parameters<typeof assertSocietyOwnership>[0],
+): Promise<void> {
+  const category = await db.inventoryCategory.findUnique({
+    where: { id: categoryId },
+    select: { societyId: true },
+  });
+  if (category === null) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Inventory category not found.",
+    });
+  }
+  assertSocietyOwnership(session, category.societyId);
 }
 
 export const inventoryCategoryRouter = router({
@@ -129,5 +158,78 @@ export const inventoryCategoryRouter = router({
         data: input.data,
       });
       return toCategoryDto(updated);
+    }),
+
+  createPaymentPlan: societyAdminProcedure
+    .input(
+      z.object({
+        categoryId: idSchema,
+        label: z.string().min(1),
+        downPaymentPct: decimalStringSchema,
+        installmentCount: z.number().int().nonnegative(),
+        installmentInterval: installmentIntervalSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCategoryOwnership(ctx.db, input.categoryId, ctx.session);
+      const created = await ctx.db.paymentPlan.create({
+        data: {
+          categoryId: input.categoryId,
+          label: input.label,
+          downPaymentPct: input.downPaymentPct,
+          installmentCount: input.installmentCount,
+          installmentInterval: input.installmentInterval,
+        },
+      });
+      return toPaymentPlanDto(created);
+    }),
+
+  updatePaymentPlan: societyAdminProcedure
+    .input(
+      z.object({
+        paymentPlanId: idSchema,
+        data: z.object({
+          label: z.string().min(1).optional(),
+          downPaymentPct: decimalStringSchema.optional(),
+          installmentCount: z.number().int().nonnegative().optional(),
+          installmentInterval: installmentIntervalSchema.optional(),
+        }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const plan = await ctx.db.paymentPlan.findUnique({
+        where: { id: input.paymentPlanId },
+        select: { categoryId: true },
+      });
+      if (plan === null) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Payment plan not found.",
+        });
+      }
+      await assertCategoryOwnership(ctx.db, plan.categoryId, ctx.session);
+      const updated = await ctx.db.paymentPlan.update({
+        where: { id: input.paymentPlanId },
+        data: input.data,
+      });
+      return toPaymentPlanDto(updated);
+    }),
+
+  deletePaymentPlan: societyAdminProcedure
+    .input(z.object({ paymentPlanId: idSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const plan = await ctx.db.paymentPlan.findUnique({
+        where: { id: input.paymentPlanId },
+        select: { categoryId: true },
+      });
+      if (plan === null) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Payment plan not found.",
+        });
+      }
+      await assertCategoryOwnership(ctx.db, plan.categoryId, ctx.session);
+      await ctx.db.paymentPlan.delete({ where: { id: input.paymentPlanId } });
+      return { ok: true as const };
     }),
 });

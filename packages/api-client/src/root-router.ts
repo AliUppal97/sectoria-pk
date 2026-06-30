@@ -6,6 +6,11 @@ import { dealerRouter } from "./routers/dealer.router.js";
 import { verificationRouter } from "./routers/verification.router.js";
 import { reviewRouter } from "./routers/review.router.js";
 import { adminRouter } from "./routers/admin.router.js";
+import { leadRouter } from "./routers/lead.router.js";
+import { quoteRouter } from "./routers/quote.router.js";
+import { dealerNetSheetRouter } from "./routers/dealer-net-sheet.router.js";
+import { fulfillmentRouter } from "./routers/fulfillment.router.js";
+import { societyUpdateRouter } from "./routers/society-update.router.js";
 
 /**
  * The application's root tRPC router — the single merged surface the Next.js
@@ -20,6 +25,11 @@ export const appRouter = router({
   verification: verificationRouter,
   review: reviewRouter,
   admin: adminRouter,
+  lead: leadRouter,
+  quote: quoteRouter,
+  dealerNetSheet: dealerNetSheetRouter,
+  fulfillment: fulfillmentRouter,
+  societyUpdate: societyUpdateRouter,
 });
 
 /**

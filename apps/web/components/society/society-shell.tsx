@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Megaphone,
   Package,
   Settings,
   Users,
@@ -34,6 +35,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     exact: true,
   },
   { href: "/society-portal/inventory", label: "Inventory", icon: Package },
+  { href: "/society-portal/updates", label: "Updates", icon: Megaphone },
   { href: "/society-portal/partners", label: "Partners", icon: Users },
   {
     href: "/society-portal/bookings",

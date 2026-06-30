@@ -21,6 +21,10 @@ against npm before relying on this table if significant time has passed.
 | Package | Version | Notes |
 |---|---|---|
 | `server-only` | `0.0.1` | Build-time guard that errors if a server-only module (the tRPC server caller, DB-touching query helpers) is imported into a Client Component. Single published version. Direct dep of `apps/web`. |
+| `leaflet` | `^1.9.4` | Society location map (OpenStreetMap tiles, no API key). Client-only via `next/dynamic`. |
+| `react-leaflet` | `^5.0.0` | React bindings for Leaflet on society profile pages. |
+| `@types/leaflet` | `^1.9.21` | Type definitions for Leaflet (dev dep of `apps/web`). |
+| `@turf/area` | `^7.3.4` | Approximate kanal from GeoJSON boundary polygons on society profiles. |
 
 ## API & validation
 

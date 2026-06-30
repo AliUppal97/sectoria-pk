@@ -13,6 +13,7 @@ import {
   Menu,
   Scale,
   TrendingUp,
+  Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin/ledger", label: "Audit ledger", icon: BookOpen },
   { href: "/admin/disputes", label: "Disputes", icon: Scale },
   { href: "/admin/revenue", label: "Revenue", icon: TrendingUp },
+  { href: "/admin/remittance", label: "Remittance", icon: Wallet },
 ];
 
 interface AdminShellUser {

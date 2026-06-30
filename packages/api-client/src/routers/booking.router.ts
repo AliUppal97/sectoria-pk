@@ -29,6 +29,7 @@ import { rateLimit } from "../middleware/rate-limit.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 import { persistLedgerEvent } from "../lib/persist-ledger-event.js";
 import { toId } from "../lib/ids.js";
+import { isLegacySelfServeBookingEnabled } from "../lib/feature-flags.js";
 import { toBookingDto, toLedgerEventDto } from "../lib/serialize.js";
 
 /**
@@ -93,6 +94,13 @@ export const bookingRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (!isLegacySelfServeBookingEnabled()) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Self-serve booking is disabled. Request a quote through Sectoria instead.",
+        });
+      }
       try {
         const buyerId = ctx.session.user.id;
         const [buyer, category, paymentPlan] = await Promise.all([

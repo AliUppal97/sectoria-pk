@@ -61,6 +61,10 @@ jobs:
       AUTH_URL: http://localhost:3000
       E2E_TEST: "1"
       CI: true
+      FEATURE_LEGACY_SELF_SERVE_BOOKING: "false"
+      FEATURE_PUBLIC_DEALER_DIRECTORY: "false"
+      FEATURE_LEGACY_SOCIETY_BOOKING_QUEUE: "false"
+      ESCROW_WEBHOOK_SECRET: e2e-ci-escrow-webhook-secret-min-32-chars
     steps:
       - name: Checkout
         uses: actions/checkout@v4

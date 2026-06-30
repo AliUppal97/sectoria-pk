@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { EscrowState, idSchema } from "@sectoria/types";
 import { lookupFbrValuation } from "@sectoria/domain-tax";
 import { PageHeader } from "@/components/buyer/page-header";
 import { getAuthedApi } from "@/lib/trpc/server";
 import { getCurrentBuyer } from "@/lib/buyer/current-user";
+import { isLegacySelfServeBookingEnabled } from "@/lib/feature-flags";
 import {
   BookingWizard,
   type WizardPlan,
@@ -22,6 +23,10 @@ export default async function BookingWizardPage({
 }: {
   params: Promise<{ categoryId: string }>;
 }) {
+  if (!isLegacySelfServeBookingEnabled()) {
+    redirect("/dashboard/quotes");
+  }
+
   const { categoryId } = await params;
   const api = await getAuthedApi();
   const buyer = await getCurrentBuyer();

@@ -1,0 +1,42 @@
+---
+description: Concierge product model — quote requests, ops CRM, dealer supply, platform payments. Apply when touching leads, quotes, fulfillment, feature flags, or public buyer/dealer UX.
+globs:
+  - apps/web/app/(marketplace)/**
+  - apps/web/app/(buyer)/**
+  - apps/web/app/(ops)/**
+  - apps/web/app/(dealer)/dealer-portal/**
+  - packages/api-client/src/routers/lead.router.ts
+  - packages/api-client/src/routers/quote.router.ts
+  - packages/api-client/src/routers/dealer-net-sheet.router.ts
+  - packages/api-client/src/routers/fulfillment.router.ts
+  - packages/types/src/lead.ts
+  - packages/types/src/quote.ts
+---
+
+# Concierge Model (ADR-007)
+
+Sectoria's default public UX is **concierge**, not self-serve booking.
+
+## Product rules
+
+1. **Public site:** compare societies → request best price → Sectoria advisor negotiates with authorized dealers. No public dealer directory or buyer↔dealer contact by default.
+2. **Dealer net is ops-only.** Never expose `dealerNetPkr` or `spreadPkr` in buyer-facing API responses or UI.
+3. **Dealer portal is supply-side:** net price sheets + fulfillment orders. No buyer name, phone, CNIC, or email on dealer views/APIs.
+4. **Payments:** token on platform first (Option A); installments on platform when `installmentsDirect` is false (Option B). Legacy self-serve booking wizard stays behind `FEATURE_LEGACY_SELF_SERVE_BOOKING=true`.
+
+## Feature flags (default off)
+
+- `FEATURE_LEGACY_SELF_SERVE_BOOKING` — self-serve NADRA/tax/booking wizard
+- `FEATURE_PUBLIC_DEALER_DIRECTORY` — `/dealers` public directory
+- `FEATURE_LEGACY_SOCIETY_BOOKING_QUEUE` — society booking confirmation queue
+
+When adding UX that touches booking or dealers, gate legacy paths with these flags; do not delete legacy domain code.
+
+## Enforcement
+
+- Ops mutations: `opsProcedure` (`SALES_ADVISOR`, `SUPER_ADMIN`)
+- Buyer quote actions: `protectedProcedure` + ownership check on `buyerUserId`
+- Dealer net sheets: `dealerProcedure` + authorized category assert
+- Remittance: `superAdminProcedure` + `LedgerEventType.PLATFORM_REMITTANCE`
+
+Update `docs/architecture/access-rights-matrix.md` when adding a new concierge action.
