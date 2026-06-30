@@ -49,6 +49,7 @@ export class MockDnfbpAdapter implements DnfbpVerificationAdapter {
 
     await simulateLatency(this.options);
 
+    const rejected = trimmed.toUpperCase().startsWith("REJECT-");
     const agencyName = DEMO_AGENCIES[pickIndex(trimmed, DEMO_AGENCIES.length)]!;
 
     const now = this.options.now();
@@ -57,7 +58,7 @@ export class MockDnfbpAdapter implements DnfbpVerificationAdapter {
 
     const result: DnfbpVerificationResult = {
       certNumber: trimmed,
-      verified: true,
+      verified: !rejected,
       agencyName,
       expiresAt: expiresAt.toISOString() as IsoDateTime,
       checkedAt: now.toISOString() as IsoDateTime,

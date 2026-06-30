@@ -6,7 +6,7 @@ import {
   slugSchema,
 } from "@sectoria/types";
 import { calculateTrustScore } from "@sectoria/domain-trust-score";
-import { router, TRPCError } from "../trpc.js";
+import { router, TRPCError, type TRPCContext } from "../trpc.js";
 import {
   dealerProcedure,
   publicProcedure,
@@ -15,6 +15,7 @@ import {
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
 import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
+import { resolveAuthorizedCategoryIds } from "../lib/dealer-authorization.js";
 
 /**
  * Dealer procedures: public profile + trust score, the dealer's own DNFBP
@@ -66,41 +67,194 @@ export const dealerRouter = router({
     .input(z.object({ dealerId: idSchema }))
     .query(async ({ ctx, input }) => {
       try {
-        const dealer = await ctx.db.dealerProfile.findUnique({
-          where: { id: input.dealerId },
-          select: { userId: true, dnfbpVerified: true, completedDeals: true },
-        });
-        if (dealer === null) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Dealer not found.",
-          });
-        }
-
-        const ratings = await ctx.db.review.aggregate({
-          where: { subjectUserId: dealer.userId },
-          _avg: { rating: true },
-        });
-
-        return calculateTrustScore({
-          verifiedTransactionCount: dealer.completedDeals,
-          averageBuyerRating: ratings._avg.rating ?? null,
-          // Response-time tracking isn't wired yet; a neutral percentile avoids
-          // unfairly crediting or penalising a dealer for an unmeasured signal.
-          responseTimePercentile: 50,
-          verificationCompleteness: dealer.dnfbpVerified ? 1 : 0,
-          disputes: { resolved: 0, unresolved: 0 },
-        });
+        return await loadDealerTrustScore(ctx, input.dealerId);
       } catch (error) {
         throw mapDomainError(error);
       }
     }),
 
+  /** The calling dealer's profile. Scoped to the session user — never from input. */
+  getMyProfile: dealerProcedure.query(async ({ ctx }) => {
+    const dealer = await ctx.db.dealerProfile.findUnique({
+      where: { userId: ctx.session.user.id },
+    });
+    if (dealer === null) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "You do not have a dealer profile.",
+      });
+    }
+    return dealer;
+  }),
+
   /**
-   * Spot-checks the calling dealer's own DNFBP certificate via the adapter and
-   * stores the verified flag. A dealer can only verify their own profile — the
-   * profile is looked up by the session user id, never taken from input.
+   * Trust score for the calling dealer, computed by the pure domain function from
+   * persisted signals — same output as the public `trustScore` procedure.
    */
+  getMyTrustScore: dealerProcedure.query(async ({ ctx }) => {
+    const dealer = await ctx.db.dealerProfile.findUnique({
+      where: { userId: ctx.session.user.id },
+      select: { id: true },
+    });
+    if (dealer === null) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "You do not have a dealer profile.",
+      });
+    }
+
+    try {
+      return await loadDealerTrustScore(ctx, dealer.id);
+    } catch (error) {
+      throw mapDomainError(error);
+    }
+  }),
+
+  /**
+   * Dashboard metrics for the dealer portal: authorization scope, lead count,
+   * DNFBP status, and trust score.
+   */
+  getPortalOverview: dealerProcedure.query(async ({ ctx }) => {
+    const dealer = await ctx.db.dealerProfile.findUnique({
+      where: { userId: ctx.session.user.id },
+      select: {
+        id: true,
+        slug: true,
+        agencyName: true,
+        dnfbpCertNumber: true,
+        dnfbpVerified: true,
+        completedDeals: true,
+        authorizations: {
+          where: { status: AuthorizationStatus.ACTIVE },
+          select: {
+            society: { select: { id: true, name: true, slug: true, citySlug: true } },
+          },
+        },
+      },
+    });
+    if (dealer === null) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "You do not have a dealer profile.",
+      });
+    }
+
+    const authorizedCategoryIds = await resolveAuthorizedCategoryIds(
+      ctx.db,
+      dealer.id,
+    );
+
+    const leadCount =
+      authorizedCategoryIds.length === 0
+        ? 0
+        : await ctx.db.booking.count({
+            where: {
+              categoryId: { in: authorizedCategoryIds },
+              OR: [{ dealerId: null }, { dealerId: dealer.id }],
+            },
+          });
+
+    let trustScore: Awaited<
+      ReturnType<typeof calculateTrustScore>
+    > | null = null;
+    try {
+      trustScore = await loadDealerTrustScore(ctx, dealer.id);
+    } catch {
+      trustScore = null;
+    }
+
+    return {
+      dealer: {
+        id: dealer.id,
+        slug: dealer.slug,
+        agencyName: dealer.agencyName,
+        dnfbpCertNumber: dealer.dnfbpCertNumber,
+        dnfbpVerified: dealer.dnfbpVerified,
+        completedDeals: dealer.completedDeals,
+      },
+      authorizedSocieties: dealer.authorizations.map((auth) => auth.society),
+      metrics: {
+        leadCount,
+        authorizedSocietyCount: dealer.authorizations.length,
+        completedDeals: dealer.completedDeals,
+      },
+      trustScore,
+    };
+  }),
+
+  /**
+   * Buyer enquiries (bookings) in societies the dealer is authorized for.
+   * Excludes bookings assigned to other dealers.
+   */
+  listLeads: dealerProcedure.query(async ({ ctx }) => {
+    const dealer = await ctx.db.dealerProfile.findUnique({
+      where: { userId: ctx.session.user.id },
+      select: { id: true },
+    });
+    if (dealer === null) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "You do not have a dealer profile.",
+      });
+    }
+
+    const authorizedCategoryIds = await resolveAuthorizedCategoryIds(
+      ctx.db,
+      dealer.id,
+    );
+
+    if (authorizedCategoryIds.length === 0) {
+      return [];
+    }
+
+    const categories = await ctx.db.inventoryCategory.findMany({
+      where: { id: { in: authorizedCategoryIds } },
+      select: {
+        id: true,
+        phase: true,
+        block: true,
+        sizeLabel: true,
+        society: { select: { id: true, name: true, slug: true, citySlug: true } },
+      },
+    });
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+    const bookings = await ctx.db.booking.findMany({
+      where: {
+        categoryId: { in: authorizedCategoryIds },
+        OR: [{ dealerId: null }, { dealerId: dealer.id }],
+      },
+      include: {
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+            nadraVerified: true,
+            atlStatus: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return bookings.map((booking) => {
+      const category = categoryById.get(booking.categoryId);
+      return {
+        booking: {
+          id: booking.id,
+          status: booking.status,
+          createdAt: booking.createdAt,
+          dealerId: booking.dealerId,
+        },
+        buyer: booking.buyer,
+        society: category?.society ?? null,
+        categoryLabel: category
+          ? `${category.phase} · ${category.block} · ${category.sizeLabel}`
+          : null,
+      };
+    });
+  }),
+
   submitDnfbpCertificate: dealerProcedure
     .input(z.object({ certNumber: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -256,3 +410,35 @@ export const dealerRouter = router({
       });
     }),
 });
+
+/** Loads persisted dealer signals and delegates scoring to the domain package. */
+async function loadDealerTrustScore(
+  ctx: Pick<TRPCContext, "db">,
+  dealerId: string,
+) {
+  const dealer = await ctx.db.dealerProfile.findUnique({
+    where: { id: dealerId },
+    select: { userId: true, dnfbpVerified: true, completedDeals: true },
+  });
+  if (dealer === null) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Dealer not found.",
+    });
+  }
+
+  const ratings = await ctx.db.review.aggregate({
+    where: { subjectUserId: dealer.userId },
+    _avg: { rating: true },
+  });
+
+  return calculateTrustScore({
+    verifiedTransactionCount: dealer.completedDeals,
+    averageBuyerRating: ratings._avg.rating ?? null,
+    // Response-time tracking isn't wired yet; a neutral percentile avoids
+    // unfairly crediting or penalising a dealer for an unmeasured signal.
+    responseTimePercentile: 50,
+    verificationCompleteness: dealer.dnfbpVerified ? 1 : 0,
+    disputes: { resolved: 0, unresolved: 0 },
+  });
+}
