@@ -70,6 +70,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Required for `forbidden()` / `unauthorized()` and matching `forbidden.tsx` UI
+  // in authenticated portal route groups (see nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts).
+  experimental: {
+    authInterrupts: true,
+  },
   // Workspace packages are published as raw TS source (their `exports` map to
   // `src/index.ts`) and use NodeNext-style `.js` import specifiers. Listing them
   // here routes them through Next's loader so Turbopack transpiles the source and
