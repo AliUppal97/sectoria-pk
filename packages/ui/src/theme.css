@@ -137,10 +137,30 @@
   --animate-shimmer:    shimmer 1.5s var(--ease-default) infinite;
   --animate-stamp:      stamp 400ms var(--ease-spring);
   --animate-pill-in:    pill-in 200ms var(--ease-out);
+  --animate-scan-bar:   scan-bar 1.5s linear infinite;
+  --animate-step-in:    step-in 250ms var(--ease-out);
 
   @keyframes pulse-dot {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.4; }
+  }
+
+  /* NADRA scan bar (design spec §7.2): a thin bar sweeping top→bottom over the
+   * scanned surface, repeating — the identity-verification "processing" state,
+   * deliberately NOT a generic spinner. The host element is positioned; the bar
+   * is absolutely placed and animates its `top` across the container. */
+  @keyframes scan-bar {
+    0%   { top: 0%;   opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Wizard step change (design spec §7.2): entering step slides in from the
+   * right. Pairs with prefers-reduced-motion (below) for an instant fallback. */
+  @keyframes step-in {
+    0%   { opacity: 0; transform: translateX(12px); }
+    100% { opacity: 1; transform: translateX(0); }
   }
 
   @keyframes shimmer {

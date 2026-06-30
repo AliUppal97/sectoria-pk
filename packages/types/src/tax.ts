@@ -79,3 +79,33 @@ export const taxRateTableSchema = z.object({
   section7eRate: decimalStringSchema,
 });
 export type TaxRateTable = z.infer<typeof taxRateTableSchema>;
+
+/**
+ * FBR notified valuation for a single zone, in whole rupees **per square foot**,
+ * split by plot type. The FBR publishes a value per area/zone that sets the
+ * floor a transfer is taxed on — the engine taxes `max(salePrice, fbrTableValue)`,
+ * so this is never used to *raise* tax beyond a genuine sale price, only to stop
+ * an under-declared one from lowering it.
+ */
+export const fbrZoneValuationSchema = z.object({
+  /** Notified per-sqft value for residential plots (whole rupees). */
+  residentialPerSqft: pkrAmountSchema,
+  /** Notified per-sqft value for commercial plots (whole rupees). */
+  commercialPerSqft: pkrAmountSchema,
+});
+export type FbrZoneValuation = z.infer<typeof fbrZoneValuationSchema>;
+
+/**
+ * A versioned FBR valuation table: the notified per-sqft value for each
+ * valuation zone, keyed by `InventoryCategory.fbrValuationZone`. Versioned by
+ * fiscal year for the same reason as {@link taxRateTableSchema} — a new FBR
+ * notification is a new table entry, never an edited literal inside the engine.
+ * See `json-and-config-conventions.mdc`.
+ */
+export const fbrValuationTableSchema = z.object({
+  /** Fiscal year the valuation applies to, e.g. "2025-26". */
+  fiscalYear: z.string().regex(/^\d{4}-\d{2}$/, "Use the form YYYY-YY"),
+  /** Zone key (matching `InventoryCategory.fbrValuationZone`) → per-sqft values. */
+  zones: z.record(z.string().min(1), fbrZoneValuationSchema),
+});
+export type FbrValuationTable = z.infer<typeof fbrValuationTableSchema>;

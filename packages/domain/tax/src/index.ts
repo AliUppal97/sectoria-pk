@@ -12,4 +12,10 @@ export {
   FISCAL_YEAR_2025_26_RATES,
   TAX_RATE_TABLE_HISTORY,
 } from "./tax-rate-table.js";
+export {
+  CURRENT_FBR_VALUATION,
+  FISCAL_YEAR_2025_26_FBR_VALUATION,
+  FBR_VALUATION_TABLE_HISTORY,
+  lookupFbrValuation,
+} from "./fbr-valuation-table.js";
 export { InvalidTaxInputError } from "./errors.js";

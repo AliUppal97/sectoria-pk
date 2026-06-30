@@ -41,7 +41,7 @@ against npm before relying on this table if significant time has passed.
 
 | Package | Version | Notes |
 |---|---|---|
-| `next-auth` | `5.0.0-beta.25` | This is Auth.js v5 — still published under the `next-auth` npm name. High churn — verify exact current tag before installing. |
+| `next-auth` | `5.0.0-beta.31` | This is Auth.js v5 — still published under the `next-auth` npm name. `beta.31` is the first beta whose `next` peer range includes `^16.0.0` (earlier betas, incl. `beta.25`, cap at `^15`). High churn — verify exact current tag before installing. |
 | `@auth/prisma-adapter` | `^2.7.0` | NOT `@next-auth/prisma-adapter` (deprecated v4 package) |
 
 ## Styling
