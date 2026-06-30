@@ -26,10 +26,16 @@ export type TransferPayload = z.infer<typeof transferPayloadSchema>;
  * Contract for issuing a PLRA property certificate once a transfer completes.
  * Unlike the other adapters this *produces* a document rather than checking a
  * record, but it follows the same interface + mock + real pattern.
+ *
+ * @see Punjab Land Revenue Act 1967 — digitized property transfer records and
+ *   certificates issued through PLRA (Punjab Land Records Authority).
  */
 export interface PlraCertificateAdapter {
   /**
    * Generates a PLRA property certificate for a completed transfer.
+   *
+   * @see Punjab Land Revenue Act 1967 — statutory property certificate for a
+   *   completed society plot/file transfer.
    *
    * @param transferId - The id of the completed transfer/booking.
    * @param payload - The transfer details to print on the certificate.

@@ -43,6 +43,9 @@ const WEIGHT_SUM_EPSILON = 1e-9;
  * (≤ 50/100) regardless of how strong every other input is — the anti-gaming
  * guarantee the score exists to provide. See `domain-logic.mdc`.
  *
+ * @see Anti-Money Laundering Act 2010 — DNFBP verification completeness is one
+ *   scored signal for dealer profiles; PLRA-completed transfers dominate the weight.
+ *
  * Pure function: no I/O, no persistence, no framework code, no clock or RNG.
  * Given the same inputs and weights it always returns the same result.
  *

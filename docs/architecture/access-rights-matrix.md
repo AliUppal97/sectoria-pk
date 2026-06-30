@@ -33,6 +33,19 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | Resolve a dispute | ❌ | ❌ | ❌ | ✅ |
 | Modify tax rate table / fiscal year config | ❌ | ❌ | ❌ | ✅ |
 | View revenue dashboard | ❌ | 🔶 own commission only | 🔶 own society only | ✅ all |
+| View society portal dashboard (compliance, HSMS, booking metrics) | ❌ | ❌ | 🔶 own society only | ✅ all |
+| Update LOP/NOC references and HSMS link status | ❌ | ❌ | 🔶 own society only | ✅ |
+| View booking confirmation queue (awaiting society action) | ❌ | ❌ | 🔶 own society's bookings only | ✅ all |
+| List partner authorizations for a society | ❌ | ❌ | 🔶 own society only | ✅ all |
+| View dealer portal dashboard (metrics, authorized societies) | ❌ | 🔶 own profile only | ❌ | ✅ all |
+| View own trust score breakdown | ❌ | 🔶 own profile only | ❌ | ✅ all |
+| View admin dashboard overview | ❌ | ❌ | ❌ | ✅ |
+| View verification queue (pending societies/dealers) | ❌ | ❌ | ❌ | ✅ |
+| Approve/reject society verification tier (with reason) | ❌ | ❌ | ❌ | ✅ |
+| Approve/reject dealer DNFBP verification (with reason) | ❌ | ❌ | ❌ | ✅ |
+| Search/filter full platform ledger | ❌ | ❌ | ❌ | ✅ |
+| Flag a plot as disputed (with reason) | ❌ | ❌ | ❌ | ✅ |
+| View booking funnel by escrow state | ❌ | ❌ | ❌ | ✅ |
 
 ## Notes
 
@@ -46,3 +59,7 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
   fill in all four columns explicitly (don't leave a cell blank/assumed),
   and note in this file if the enforcement point is route-group
   middleware, procedure-level guard, or both.
+- Session 8–10 portal actions (society/dealer/admin dashboards, verification
+  queue, ledger search, plot disputes) are enforced in `packages/api-client`
+  via `societyAdminProcedure`, `dealerProcedure`, and `superAdminProcedure`
+  plus resource-ownership asserts — route-group middleware alone is not sufficient.

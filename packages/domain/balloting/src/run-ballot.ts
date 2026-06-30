@@ -35,6 +35,9 @@ import {
  * writes to no database — persistence is the caller's job. See
  * `domain-logic.mdc`.
  *
+ * @see Sectoria fair-balloting policy — deterministic, seed-published draws for
+ *   oversubscribed `BALLOT`-strategy inventory (HSMS transparency requirement).
+ *
  * @param entries - The pool of bookings competing in the draw. Must be non-empty.
  * @param availablePlots - The plot slots up for allocation, identified by serial.
  * @param seed - The published seed driving the draw; the sole source of randomness.

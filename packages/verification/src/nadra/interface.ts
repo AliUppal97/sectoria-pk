@@ -5,11 +5,15 @@ import type { NadraVerificationResult } from "@sectoria/types";
  * check. The interface is the stable boundary: swapping the mock for the real
  * integration means writing a new class that implements this, and nothing else
  * in the app changes (see `verification-adapters.mdc`).
+ *
+ * @see NADRA Ordinance 2000 — CNIC identity verification before money-moving actions.
  */
 export interface NadraVerificationAdapter {
   /**
    * Verifies a CNIC and returns the matched identity details plus a biometric
    * match confidence score.
+   *
+   * @see NADRA Ordinance 2000 — statutory identity verification for CNIC holders.
    *
    * @param cnic - A CNIC in canonical hyphenated form, e.g. `35202-1234567-1`.
    * @returns A schema-valid {@link NadraVerificationResult}.
