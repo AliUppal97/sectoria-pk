@@ -37,7 +37,7 @@ test.describe("Concierge critical path", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: "DHA Lahore" }),
       ).toBeVisible();
-      await expect(page.getByText("Booking open")).toBeVisible();
+      await expect(page.getByText("Booking open").first()).toBeVisible();
       await expect(page.getByRole("heading", { name: "Plans by category" })).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Society news & milestones" }),
