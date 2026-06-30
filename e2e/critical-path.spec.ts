@@ -19,6 +19,8 @@ function societyCardLink(page: Page, societyName: string) {
 
 test.describe("Concierge critical path", () => {
   test.setTimeout(120_000);
+  // Mutates seeded quotes; CI reuses one DB across Playwright retries.
+  test.describe.configure({ retries: 0 });
 
   test("browse → compare → quote request → accept → pay token → dealer fulfillment", async ({
     page,
@@ -65,8 +67,12 @@ test.describe("Concierge critical path", () => {
       await page.goto("/login?callbackUrl=/dashboard/quotes");
       await loginAsBuyerWithQuote(page);
       await expect(page).toHaveURL(/\/dashboard\/quotes/, { timeout: 15_000 });
-      await expect(page.getByRole("button", { name: "Accept quote" })).toBeVisible();
-      await page.getByRole("button", { name: "Accept quote" }).click();
+      await expect(page.getByText("Awaiting your response")).toBeVisible({
+        timeout: 15_000,
+      });
+      const acceptQuote = page.getByRole("button", { name: "Accept quote" });
+      await expect(acceptQuote).toBeVisible();
+      await acceptQuote.click();
       await expect(page.getByRole("button", { name: "Pay booking token" })).toBeVisible({
         timeout: 15_000,
       });

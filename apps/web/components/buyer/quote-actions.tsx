@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { QuoteStatus } from "@sectoria/types";
 import {
   Button,
@@ -36,15 +37,16 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
+  const router = useRouter();
   const utils = api.useUtils();
-  const accept = api.quote.accept.useMutation({
-    onSuccess: () => void utils.quote.listForBuyer.invalidate(),
-  });
-  const payToken = api.quote.payToken.useMutation({
-    onSuccess: () => void utils.quote.listForBuyer.invalidate(),
-  });
+  const refreshQuotes = () => {
+    void utils.quote.listForBuyer.invalidate();
+    router.refresh();
+  };
+  const accept = api.quote.accept.useMutation({ onSuccess: refreshQuotes });
+  const payToken = api.quote.payToken.useMutation({ onSuccess: refreshQuotes });
   const payInstallment = api.quote.payInstallment.useMutation({
-    onSuccess: () => void utils.quote.listForBuyer.invalidate(),
+    onSuccess: refreshQuotes,
   });
 
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);

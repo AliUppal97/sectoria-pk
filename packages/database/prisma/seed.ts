@@ -981,6 +981,8 @@ async function main(): Promise<void> {
     },
   });
 
+  const quoteValidUntil = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
   await prisma.quote.create({
     data: {
       leadId: sampleLead.id,
@@ -991,7 +993,7 @@ async function main(): Promise<void> {
       quotedPricePkr,
       spreadPkr,
       tokenAmountPkr,
-      validUntil: new Date(SEED_EPOCH + 72 * 60 * 60 * 1000),
+      validUntil: quoteValidUntil,
       status: QuoteStatus.SENT,
       paymentPlanLabel: "3-Year Installments",
       createdById: salesAdvisor.id,
@@ -999,7 +1001,8 @@ async function main(): Promise<void> {
     },
   });
 
-  // Second quote: accepted with installments direct (legacy comparison fixture).
+  // Second buyer fixture: accepted quote with direct installments (not Buyer 1 — keeps E2E deterministic).
+  const secondBuyer = requireDefined(buyers[1], "second buyer");
   await prisma.quote.create({
     data: {
       leadId: sampleLead.id,
@@ -1010,12 +1013,12 @@ async function main(): Promise<void> {
       quotedPricePkr,
       spreadPkr,
       tokenAmountPkr,
-      validUntil: new Date(SEED_EPOCH + 72 * 60 * 60 * 1000),
+      validUntil: quoteValidUntil,
       status: QuoteStatus.ACCEPTED,
       paymentPlanLabel: "3-Year Installments",
       installmentsDirect: true,
       createdById: salesAdvisor.id,
-      buyerUserId: sampleBuyer.id,
+      buyerUserId: secondBuyer.id,
     },
   });
 
