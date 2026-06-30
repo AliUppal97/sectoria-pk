@@ -8,6 +8,7 @@ import {
 import { prisma } from "@sectoria/database";
 import { createVerificationAdapters } from "@sectoria/verification";
 import { auth } from "@/auth";
+import { getRateLimiter } from "@/lib/rate-limit";
 import { sessionFromUserId } from "./context";
 
 /**
@@ -35,6 +36,7 @@ export const getApi = cache(() =>
       session: null,
       db: prisma,
       verification: createVerificationAdapters(),
+      rateLimiter: getRateLimiter(),
     }),
   ),
 );
@@ -53,6 +55,7 @@ export const getAuthedApi = cache(async () => {
       session,
       db: prisma,
       verification: createVerificationAdapters(),
+      rateLimiter: getRateLimiter(),
     }),
   );
 });
