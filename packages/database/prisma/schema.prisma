@@ -160,6 +160,7 @@ enum PlotStatus {
   RESERVED
   ALLOCATED
   TRANSFERRED
+  DISPUTED
 }
 
 // ── BOOKINGS & ESCROW ──────────────────────────────────────────────

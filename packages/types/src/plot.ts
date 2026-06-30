@@ -7,6 +7,7 @@ export const PlotStatus = {
   RESERVED: "RESERVED",
   ALLOCATED: "ALLOCATED",
   TRANSFERRED: "TRANSFERRED",
+  DISPUTED: "DISPUTED",
 } as const;
 export type PlotStatus = (typeof PlotStatus)[keyof typeof PlotStatus];
 export const plotStatusSchema = z.nativeEnum(PlotStatus);
