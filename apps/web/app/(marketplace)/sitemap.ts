@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getApi } from "@/lib/trpc/server";
 import { absoluteUrl, SITE_URL } from "@/lib/site";
+import { isPublicDealerDirectoryEnabled } from "@/lib/feature-flags";
 import { categoryPath, dealerPath, societyPath } from "@/lib/marketplace";
 
 /**
@@ -24,7 +25,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     { url: absoluteUrl("/compare"), changeFrequency: "weekly", priority: 0.6 },
-    { url: absoluteUrl("/dealers"), changeFrequency: "daily", priority: 0.7 },
+    { url: absoluteUrl("/support"), changeFrequency: "weekly", priority: 0.7 },
+    ...(isPublicDealerDirectoryEnabled()
+      ? [{ url: absoluteUrl("/dealers"), changeFrequency: "daily" as const, priority: 0.7 }]
+      : []),
   ];
 
   try {
@@ -55,12 +59,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       )
     ).flat();
 
-    const dealers = await api.dealer.list();
-    const dealerEntries: MetadataRoute.Sitemap = dealers.map((dealer) => ({
-      url: absoluteUrl(dealerPath(dealer.slug)),
-      changeFrequency: "weekly",
-      priority: 0.5,
-    }));
+    const dealerEntries: MetadataRoute.Sitemap = isPublicDealerDirectoryEnabled()
+      ? (await api.dealer.list()).map((dealer) => ({
+          url: absoluteUrl(dealerPath(dealer.slug)),
+          changeFrequency: "weekly" as const,
+          priority: 0.5,
+        }))
+      : [];
 
     return [
       ...staticEntries,

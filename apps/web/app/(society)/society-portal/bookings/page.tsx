@@ -20,6 +20,7 @@ import { bookingRef } from "@/lib/buyer/bookings";
 import { BookingQueueActions } from "@/components/society/booking-queue-actions";
 import { confirmableAmountPkr } from "@/lib/society/booking-amounts";
 import { getAuthedApi } from "@/lib/trpc/server";
+import { isLegacySocietyBookingQueueEnabled } from "@/lib/feature-flags";
 import { ESCROW_BADGE, ESCROW_LABEL } from "@/lib/escrow-display";
 
 export const metadata: Metadata = {
@@ -38,6 +39,24 @@ function isActionable(status: EscrowState): boolean {
 }
 
 export default async function SocietyBookingsPage() {
+  if (!isLegacySocietyBookingQueueEnabled()) {
+    return (
+      <div>
+        <PageHeader
+          title="Booking queue"
+          description="Self-serve booking confirmation is disabled. Sectoria coordinates fulfillment through the concierge model."
+        />
+        <Card className="py-6">
+          <EmptyState
+            icon={ClipboardList}
+            heading="Queue unavailable"
+            description="New bookings flow through Sectoria advisors and authorized dealers. Contact platform support if you need legacy booking access."
+          />
+        </Card>
+      </div>
+    );
+  }
+
   const api = await getAuthedApi();
   const rows = await api.booking.listForSociety({});
 

@@ -41,7 +41,7 @@ export function ComplianceSettingsForm({
       setSuccess("Compliance settings saved.");
       router.refresh();
     },
-    onError: (err) => setError(err.message),
+    onError: (err: { message: string }) => setError(err.message),
   });
 
   function handleSubmit(event: FormEvent) {

@@ -9,6 +9,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   [UserRole.BUYER]: "Buyer",
   [UserRole.SOCIETY_ADMIN]: "Society admin",
   [UserRole.DEALER_PARTNER]: "Dealer partner",
+  [UserRole.SALES_ADVISOR]: "Sales advisor",
   [UserRole.SUPER_ADMIN]: "Platform admin",
 };
 

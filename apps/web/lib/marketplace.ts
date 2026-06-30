@@ -1,4 +1,4 @@
-import type { VerificationTier } from "@sectoria/database";
+import type { SocietyBookingStatus, VerificationTier } from "@sectoria/types";
 
 /**
  * Marketplace display helpers shared across the public routes. These translate
@@ -103,6 +103,12 @@ export interface SocietySummary {
   readonly categoryCount: number;
   readonly startingPrice: number | null;
   readonly rating: { readonly value: number; readonly count: number } | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly totalLandKanal: string | null;
+  readonly developedLandKanal: string | null;
+  readonly bookingStatus: SocietyBookingStatus;
+  readonly latestUpdateTitle: string | null;
 }
 
 /** Canonical, SEO-friendly path to a society profile. */

@@ -22,9 +22,20 @@ export async function loginViaDemoAccount(
     .click();
   await page.getByLabel("One-time code").fill(DEV_OTP);
   await page.getByRole("button", { name: "Verify & sign in" }).click();
-  await expect(page).toHaveURL(/\/(dashboard|society-portal|dealer-portal|admin)/, {
-    timeout: 15_000,
-  });
+  await expect(page).toHaveURL(
+    /\/(dashboard|society-portal|dealer-portal|admin|ops-portal)/,
+    { timeout: 15_000 },
+  );
+}
+
+/** Seeded buyer with a SENT concierge quote (Buyer 1). */
+export async function loginAsBuyerWithQuote(page: Page): Promise<void> {
+  await loginViaDemoAccount(page, /Buyer 1\b/);
+}
+
+/** First seeded dealer — Skyline Estate. */
+export async function loginAsSkylineDealer(page: Page): Promise<void> {
+  await loginViaDemoAccount(page, /Skyline Estate/i);
 }
 
 /** Signs in as a seeded buyer flagged Unverified on the demo picker. */
@@ -35,4 +46,9 @@ export async function loginAsUnverifiedBuyer(page: Page): Promise<void> {
 /** Signs in as the DHA Lahore society administrator. */
 export async function loginAsDhaLahoreAdmin(page: Page): Promise<void> {
   await loginViaDemoAccount(page, /DHA Lahore Admin/i);
+}
+
+/** Signs in as the seeded sales advisor. */
+export async function loginAsSalesAdvisor(page: Page): Promise<void> {
+  await loginViaDemoAccount(page, /Sales Advisor/i);
 }

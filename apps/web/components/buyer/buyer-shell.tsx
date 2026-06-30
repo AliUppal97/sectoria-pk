@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageSquareQuote,
   User as UserIcon,
   X,
   type LucideIcon,
@@ -27,9 +28,16 @@ interface NavItem {
   external?: boolean;
 }
 
-const NAV_ITEMS: readonly NavItem[] = [
+const LEGACY_NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/bookings", label: "My bookings", icon: FileText },
+  { href: "/dashboard/profile", label: "Profile", icon: UserIcon },
+  { href: "/societies", label: "Browse societies", icon: Building2, external: true },
+];
+
+const CONCIERGE_NAV_ITEMS: readonly NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/quotes", label: "My quotes", icon: MessageSquareQuote },
   { href: "/dashboard/profile", label: "Profile", icon: UserIcon },
   { href: "/societies", label: "Browse societies", icon: Building2, external: true },
 ];
@@ -47,18 +55,21 @@ interface BuyerUser {
  */
 export function BuyerShell({
   user,
+  conciergeMode = true,
   children,
 }: {
   user: BuyerUser;
+  conciergeMode?: boolean;
   children: ReactNode;
 }) {
+  const navItems = conciergeMode ? CONCIERGE_NAV_ITEMS : LEGACY_NAV_ITEMS;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <div className="flex min-h-dvh bg-surface-base">
       {/* Desktop / tablet sidebar */}
       <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col bg-brand-navy md:flex md:w-16 lg:w-55">
-        <SidebarContent user={user} />
+        <SidebarContent user={user} navItems={navItems} />
       </aside>
 
       {/* Mobile drawer */}
@@ -82,6 +93,7 @@ export function BuyerShell({
             </div>
             <SidebarContent
               user={user}
+              navItems={navItems}
               forceLabels
               onNavigate={() => setIsDrawerOpen(false)}
             />
@@ -115,10 +127,12 @@ export function BuyerShell({
 
 function SidebarContent({
   user,
+  navItems,
   forceLabels = false,
   onNavigate,
 }: {
   user: BuyerUser;
+  navItems: readonly NavItem[];
   forceLabels?: boolean;
   onNavigate?: () => void;
 }) {
@@ -152,7 +166,7 @@ function SidebarContent({
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3">
         <ul className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive =
               isClient &&
               (item.exact

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Users } from "lucide-react";
@@ -6,6 +7,7 @@ import { DealerCard } from "@/components/marketplace/dealer-card";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { getApi } from "@/lib/trpc/server";
 import { load } from "@/lib/fetch";
+import { isPublicDealerDirectoryEnabled } from "@/lib/feature-flags";
 import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
@@ -21,6 +23,10 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function DealersPage() {
+  if (!isPublicDealerDirectoryEnabled()) {
+    redirect("/support");
+  }
+
   const dealers = await load(() => getApi().dealer.list());
 
   return (

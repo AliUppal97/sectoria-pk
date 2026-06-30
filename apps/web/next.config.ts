@@ -39,7 +39,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' ws:",
+  "connect-src 'self' ws: https:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -55,7 +55,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    value: "camera=(), microphone=(), geolocation=(self)",
   },
   ...(isProduction
     ? [
@@ -92,6 +92,7 @@ const nextConfig: NextConfig = {
     "@sectoria/domain-allocation",
     "@sectoria/domain-balloting",
     "@sectoria/domain-trust-score",
+    "@sectoria/domain-land",
   ],
   // Every workspace package is consumed as raw TS source and follows the repo's
   // ESM convention of writing explicit `.js` import specifiers that actually

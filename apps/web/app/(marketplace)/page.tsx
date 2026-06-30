@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Building2,
-  Fingerprint,
+  Headphones,
   Lock,
-  Receipt,
+  MapPin,
   Scale,
   ShieldCheck,
 } from "lucide-react";
@@ -45,24 +45,24 @@ export function generateMetadata(): Metadata {
 
 const FEATURES = [
   {
-    icon: Fingerprint,
-    title: "NADRA & FBR verified",
-    body: "Every buyer is identity-checked against NADRA and tax status confirmed against the FBR Active Taxpayer List before a booking completes.",
+    icon: Scale,
+    title: "Compare like-for-like",
+    body: "Put societies side by side on price, approvals, development stage and location — no guesswork, no sales pressure.",
+  },
+  {
+    icon: Headphones,
+    title: "Best price via Sectoria",
+    body: "Our advisors negotiate with authorized dealers on your behalf. You never deal with dealers directly on the public site.",
   },
   {
     icon: Lock,
-    title: "Escrow on every booking",
-    body: "Your token and instalments are held in escrow and only released as the transfer reaches each verified milestone.",
+    title: "Token payment on platform",
+    body: "Reserve your plot with a booking token paid safely through Sectoria before allocation proceeds.",
   },
   {
-    icon: Scale,
-    title: "Compare like-for-like",
-    body: "Put societies side by side on price, approvals, development stage and buyer ratings — no guesswork, no sales pressure.",
-  },
-  {
-    icon: Receipt,
-    title: "Tax made clear",
-    body: "See your exact 236C / 236K liability for your filer status before you commit — the number no other platform shows you upfront.",
+    icon: MapPin,
+    title: "Verified society data",
+    body: "LOP/NOC references, development stage, payment plan types and map locations — checked before listing.",
   },
 ] as const;
 
@@ -99,7 +99,7 @@ export default async function HomePage() {
               <Link href="/societies">Explore societies</Link>
             </Button>
             <Button asChild size="lg" variant="ghost">
-              <Link href="/compare">Compare side by side</Link>
+              <Link href="/support">Get best price</Link>
             </Button>
           </div>
         </div>

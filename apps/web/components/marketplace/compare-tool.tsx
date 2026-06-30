@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
@@ -15,6 +15,8 @@ import {
   formatPKR,
 } from "@sectoria/ui";
 import type { SocietySummary } from "@/lib/marketplace";
+import { formatLandKanal, parseKanalString } from "@sectoria/domain-land";
+import { distanceKm, formatDistanceKm } from "@/lib/marketplace-geo";
 
 /**
  * Society comparison tool (design spec §5.2, §8.3). Dynamically imported by the
@@ -50,6 +52,12 @@ interface CompareRow {
   readonly score?: (society: SocietySummary) => number | null;
 }
 
+const BOOKING_LABEL: Record<SocietySummary["bookingStatus"], string> = {
+  OPEN: "Booking open",
+  CLOSED: "Booking closed",
+  UPCOMING: "Booking upcoming",
+};
+
 const ROWS: readonly CompareRow[] = [
   { label: "City", value: (s) => s.city },
   { label: "Authority", value: (s) => s.authority },
@@ -74,6 +82,38 @@ const ROWS: readonly CompareRow[] = [
       s.startingPrice !== null ? formatPKR(s.startingPrice) : "—",
     // Lower price is better; negate so "higher score" stays "best".
     score: (s) => (s.startingPrice !== null ? -s.startingPrice : null),
+  },
+  {
+    label: "Total land",
+    value: (s) =>
+      s.totalLandKanal !== null
+        ? formatLandKanal(parseKanalString(s.totalLandKanal) ?? 0)
+        : "—",
+    score: (s) =>
+      s.totalLandKanal !== null
+        ? parseKanalString(s.totalLandKanal)
+        : null,
+  },
+  {
+    label: "Developed land",
+    value: (s) =>
+      s.developedLandKanal !== null
+        ? formatLandKanal(parseKanalString(s.developedLandKanal) ?? 0)
+        : "—",
+    score: (s) =>
+      s.developedLandKanal !== null
+        ? parseKanalString(s.developedLandKanal)
+        : null,
+  },
+  {
+    label: "Booking status",
+    value: (s) => BOOKING_LABEL[s.bookingStatus],
+    score: (s) =>
+      s.bookingStatus === "OPEN" ? 2 : s.bookingStatus === "UPCOMING" ? 1 : 0,
+  },
+  {
+    label: "Latest update",
+    value: (s) => s.latestUpdateTitle ?? "—",
   },
   {
     label: "Inventory",
@@ -124,6 +164,64 @@ export function CompareTool({ societies, options }: CompareToolProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [userCoords, setUserCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    "idle" | "loading" | "denied"
+  >("idle");
+
+  const distances = useMemo(() => {
+    if (userCoords === null) return null;
+    return societies.map((society) => {
+      if (society.latitude === null || society.longitude === null) return null;
+      return distanceKm(
+        userCoords.lat,
+        userCoords.lng,
+        society.latitude,
+        society.longitude,
+      );
+    });
+  }, [societies, userCoords]);
+
+  const nearestDistanceIndex = useMemo(() => {
+    if (distances === null) return null;
+    let bestIdx = -1;
+    let best = Number.POSITIVE_INFINITY;
+    let tie = false;
+    distances.forEach((distance, index) => {
+      if (distance === null) return;
+      if (distance < best) {
+        best = distance;
+        bestIdx = index;
+        tie = false;
+      } else if (distance === best) {
+        tie = true;
+      }
+    });
+    if (bestIdx === -1 || tie) return null;
+    return bestIdx;
+  }, [distances]);
+
+  function requestLocation() {
+    if (!navigator.geolocation) {
+      setLocationStatus("denied");
+      return;
+    }
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationStatus("idle");
+      },
+      () => setLocationStatus("denied"),
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
+  }
 
   const selectedSlugs = useMemo(
     () => societies.map((society) => society.slug),
@@ -180,6 +278,27 @@ export function CompareTool({ societies, options }: CompareToolProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      ) : null}
+
+      {societies.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={locationStatus === "loading"}
+            onClick={requestLocation}
+          >
+            {locationStatus === "loading"
+              ? "Getting location…"
+              : "Show distance from me"}
+          </Button>
+          {locationStatus === "denied" ? (
+            <span className="font-sans text-xs text-text-tertiary">
+              Location unavailable — enable it to compare distances.
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -260,6 +379,37 @@ export function CompareTool({ societies, options }: CompareToolProps) {
                 })}
               </tr>
             ))}
+            <tr className="even:bg-surface-subtle/40">
+              <th
+                scope="row"
+                className="sticky left-0 z-10 bg-inherit p-3 font-sans text-xs font-medium text-text-secondary"
+              >
+                Distance from you
+              </th>
+              {societies.map((society, columnIndex) => {
+                const distance =
+                  distances !== null ? (distances[columnIndex] ?? null) : null;
+                const isNearest = nearestDistanceIndex === columnIndex;
+                return (
+                  <td
+                    key={`distance-${society.slug}`}
+                    className={cn(
+                      "border-l border-border-base p-3 font-sans text-sm",
+                      isNearest
+                        ? "bg-success-bg font-semibold text-success-text"
+                        : "text-text-primary",
+                    )}
+                  >
+                    {distance !== null && distance !== undefined
+                      ? formatDistanceKm(distance)
+                      : "—"}
+                    {isNearest ? (
+                      <span className="sr-only"> (nearest to you)</span>
+                    ) : null}
+                  </td>
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>

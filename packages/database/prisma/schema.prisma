@@ -25,6 +25,7 @@ enum UserRole {
   SUPER_ADMIN
   SOCIETY_ADMIN
   DEALER_PARTNER
+  SALES_ADVISOR
   BUYER
 }
 
@@ -49,6 +50,10 @@ model User {
   dealerProfile   DealerProfile?
   reviewsGiven    Review[]  @relation("ReviewAuthor")
   reviewsReceived Review[]  @relation("ReviewSubject")
+  assignedLeads   Lead[]    @relation("AssignedAdvisor")
+  buyerLeads      Lead[]    @relation("LeadBuyer")
+  quotesCreated   Quote[]   @relation("QuoteCreator")
+  buyerQuotes     Quote[]   @relation("QuoteBuyer")
 
   @@index([societyId])
   @@index([role])
@@ -80,14 +85,53 @@ model Society {
   developmentStage      String // e.g. "Under Development", "Possession Underway"
   developmentPct        Int              @default(0)
   heroImageUrl          String?
+  addressLine           String?
+  district              String?
+  totalLandKanal        Decimal?
+  developedLandKanal    Decimal?
+  boundaryGeoJson       Json?
+  bookingStatus         SocietyBookingStatus @default(OPEN)
+  bookingOpensAt        DateTime?
+  bookingClosesAt       DateTime?
   createdAt             DateTime         @default(now())
 
   categories            InventoryCategory[]
   partnerAuthorizations SocietyPartnerAuthorization[]
   users                 User[]
   reviews               Review[]                      @relation("ReviewSubjectSociety")
+  quotes                Quote[]
+  updates               SocietyUpdate[]
 
   @@index([citySlug])
+}
+
+enum SocietyBookingStatus {
+  OPEN
+  CLOSED
+  UPCOMING
+}
+
+enum SocietyUpdateCategory {
+  NOC
+  LICENSE
+  POSSESSION
+  BOOKING
+  DEVELOPMENT
+  GENERAL
+}
+
+model SocietyUpdate {
+  id          String                @id @default(cuid())
+  societyId   String
+  society     Society               @relation(fields: [societyId], references: [id])
+  title       String
+  body        String                @db.Text
+  category    SocietyUpdateCategory
+  publishedAt DateTime
+  isPublished Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+
+  @@index([societyId, publishedAt])
 }
 
 enum VerificationTier {
@@ -115,6 +159,8 @@ model InventoryCategory {
   paymentPlans       PaymentPlan[]
   plots              Plot[]
   bookings           Booking[]
+  dealerNetSheets    DealerNetSheet[]
+  quotes             Quote[]
 
   @@unique([societyId, slug])
   @@index([societyId])
@@ -212,6 +258,9 @@ model DealerProfile {
 
   authorizations  SocietyPartnerAuthorization[]
   bookings        Booking[]
+  netSheets       DealerNetSheet[]
+  quotes          Quote[]
+  fulfillments    FulfillmentOrder[]
 }
 
 model SocietyPartnerAuthorization {
@@ -269,4 +318,155 @@ model LedgerEvent {
 
   @@index([entityId])
   @@index([bookingId])
+}
+
+// ── CONCIERGE CRM (ADR-007) ─────────────────────────────────────────
+
+enum LeadSource {
+  compare
+  category
+  support
+  society
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  WON
+  LOST
+}
+
+model Lead {
+  id                    String     @id @default(cuid())
+  name                  String
+  phone                 String
+  email                 String?
+  societyIds            String[]
+  categoryId            String?
+  budgetPkr             Int?
+  paymentPlanPreference String?
+  source                LeadSource
+  status                LeadStatus @default(NEW)
+  notes                 String?    @db.Text
+  buyerUserId           String?
+  buyerUser             User?      @relation("LeadBuyer", fields: [buyerUserId], references: [id])
+  assignedAdvisorId     String?
+  assignedAdvisor       User?      @relation("AssignedAdvisor", fields: [assignedAdvisorId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  quotes Quote[]
+
+  @@index([status])
+  @@index([buyerUserId])
+  @@index([assignedAdvisorId])
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model Quote {
+  id                String      @id @default(cuid())
+  leadId            String
+  lead              Lead        @relation(fields: [leadId], references: [id])
+  societyId         String
+  society           Society     @relation(fields: [societyId], references: [id])
+  categoryId        String
+  category          InventoryCategory @relation(fields: [categoryId], references: [id])
+  dealerId          String
+  dealer            DealerProfile @relation(fields: [dealerId], references: [id])
+  dealerNetPkr      Int
+  quotedPricePkr    Int
+  spreadPkr         Int
+  tokenAmountPkr    Int
+  validUntil        DateTime
+  status            QuoteStatus @default(DRAFT)
+  paymentPlanLabel  String?
+  installmentsDirect Boolean    @default(false)
+  createdById       String
+  createdBy         User        @relation("QuoteCreator", fields: [createdById], references: [id])
+  buyerUserId       String?
+  buyerUser         User?       @relation("QuoteBuyer", fields: [buyerUserId], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  payments          QuotePayment[]
+  fulfillment       FulfillmentOrder?
+
+  @@index([leadId])
+  @@index([status])
+  @@index([buyerUserId])
+  @@index([dealerId])
+}
+
+model DealerNetSheet {
+  id               String            @id @default(cuid())
+  dealerId         String
+  dealer           DealerProfile     @relation(fields: [dealerId], references: [id])
+  categoryId       String
+  category         InventoryCategory @relation(fields: [categoryId], references: [id])
+  netPricePkr      Int
+  paymentPlanTerms String?
+  refreshedAt      DateTime
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([dealerId, categoryId])
+  @@index([categoryId])
+}
+
+enum QuotePaymentType {
+  TOKEN
+  INSTALLMENT
+}
+
+enum QuotePaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+model QuotePayment {
+  id                String             @id @default(cuid())
+  quoteId           String
+  quote             Quote              @relation(fields: [quoteId], references: [id])
+  type              QuotePaymentType
+  amountPkr         Int
+  installmentIndex  Int?
+  status            QuotePaymentStatus @default(PENDING)
+  externalEventId   String?
+  createdAt         DateTime           @default(now())
+
+  @@index([quoteId])
+  @@index([externalEventId])
+}
+
+enum FulfillmentStatus {
+  PENDING
+  ALLOCATED
+  COMPLETED
+  CANCELLED
+}
+
+model FulfillmentOrder {
+  id        String            @id @default(cuid())
+  quoteId   String            @unique
+  quote     Quote             @relation(fields: [quoteId], references: [id])
+  dealerId  String
+  dealer    DealerProfile     @relation(fields: [dealerId], references: [id])
+  orderRef  String            @unique
+  status    FulfillmentStatus @default(PENDING)
+  plotRef   String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([dealerId])
+  @@index([status])
 }

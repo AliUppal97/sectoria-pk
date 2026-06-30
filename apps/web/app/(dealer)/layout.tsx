@@ -3,6 +3,7 @@ import { UserRole } from "@sectoria/types";
 import { auth } from "@/auth";
 import { homeForRole } from "@/lib/auth/roles";
 import { getCurrentDealer } from "@/lib/dealer/current-dealer";
+import { isConciergeMode } from "@/lib/feature-flags";
 import { TRPCReactProvider } from "@/lib/trpc/react";
 import { DealerShell } from "@/components/dealer/dealer-shell";
 
@@ -10,6 +11,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   [UserRole.BUYER]: "Buyer",
   [UserRole.SOCIETY_ADMIN]: "Society admin",
   [UserRole.DEALER_PARTNER]: "Dealer partner",
+  [UserRole.SALES_ADVISOR]: "Sales advisor",
   [UserRole.SUPER_ADMIN]: "Platform admin",
 };
 
@@ -41,6 +43,7 @@ export default async function DealerLayout({
   return (
     <TRPCReactProvider>
       <DealerShell
+        conciergeMode={isConciergeMode()}
         user={{
           name: dealer.name,
           roleLabel: ROLE_LABEL[dealer.role],

@@ -3,6 +3,7 @@ import { notFound, forbidden } from "next/navigation";
 import { Card } from "@sectoria/ui";
 import { PageHeader } from "@/components/buyer/page-header";
 import { InventoryCategoryForm } from "@/components/society/inventory-category-form";
+import { PaymentPlanPanel } from "@/components/society/payment-plan-panel";
 import { getCurrentSocietyAdmin } from "@/lib/society/current-admin";
 import { isForbiddenError } from "@/lib/society/trpc-errors";
 import { getAuthedApi } from "@/lib/trpc/server";
@@ -56,6 +57,16 @@ export default async function EditCategoryPage({
             allocationStrategy: category.allocationStrategy,
             fbrValuationZone: category.fbrValuationZone,
           }}
+        />
+      </Card>
+      <Card className="mt-6 p-6">
+        <PageHeader
+          title="Payment plans"
+          description="Plans shown on the public society profile and category pages."
+        />
+        <PaymentPlanPanel
+          categoryId={categoryId}
+          plans={category.paymentPlans}
         />
       </Card>
     </div>

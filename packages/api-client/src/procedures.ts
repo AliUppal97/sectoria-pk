@@ -45,3 +45,8 @@ export const dealerProcedure = publicProcedure.use(
 export const superAdminProcedure = publicProcedure.use(
   requireRole(UserRole.SUPER_ADMIN),
 );
+
+/** Ops CRM — sales advisors and platform admins. */
+export const opsProcedure = publicProcedure.use(
+  requireRole(UserRole.SALES_ADVISOR, UserRole.SUPER_ADMIN),
+);

@@ -1,11 +1,16 @@
 import { z } from "zod";
 import {
+  decimalStringSchema,
   idSchema,
   isoDateTimeSchema,
   latitudeSchema,
   longitudeSchema,
   slugSchema,
 } from "./common.js";
+import {
+  geoJsonBoundarySchema,
+  societyBookingStatusSchema,
+} from "./society-update.js";
 
 /**
  * Trust ladder for a society. `VERIFIED` means LOP + NOC documents are
@@ -48,6 +53,15 @@ export const societySchema = z.object({
   /** Completion percentage, 0–100. */
   developmentPct: z.number().int().min(0).max(100),
   heroImageUrl: z.string().url().nullable().optional(),
+  addressLine: z.string().nullable().optional(),
+  district: z.string().nullable().optional(),
+  /** Official total project land in kanal (Punjab standard: 1 kanal = 5445 sq ft). */
+  totalLandKanal: decimalStringSchema.nullable().optional(),
+  developedLandKanal: decimalStringSchema.nullable().optional(),
+  boundaryGeoJson: geoJsonBoundarySchema.nullable().optional(),
+  bookingStatus: societyBookingStatusSchema,
+  bookingOpensAt: isoDateTimeSchema.nullable().optional(),
+  bookingClosesAt: isoDateTimeSchema.nullable().optional(),
   createdAt: isoDateTimeSchema,
 });
 export type Society = z.infer<typeof societySchema>;

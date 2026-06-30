@@ -10,6 +10,8 @@ import {
 import type { SocietySummary } from "@/lib/marketplace";
 import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
+import { QuoteRequestForm } from "@/components/marketplace/quote-request-form";
+import { LeadSource } from "@sectoria/types";
 
 // SSR: the compared set lives in `?ids=` so a comparison is shareable. Each
 // combination is a legitimate distinct page, so the canonical points to itself
@@ -98,6 +100,17 @@ export default async function ComparePage({
           options={options.status === "success" ? options.data : []}
         />
       </div>
+
+      {societies.length > 0 ? (
+        <div className="mt-10">
+          <QuoteRequestForm
+            societyIds={societies.map((s) => s.id)}
+            source={LeadSource.COMPARE}
+            heading="Get best price for this comparison"
+            description="Tell us how to reach you — we'll negotiate the best authorized-dealer rate across these societies."
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

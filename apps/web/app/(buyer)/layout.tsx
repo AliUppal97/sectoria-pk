@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { UserRole } from "@sectoria/types";
 import { auth } from "@/auth";
 import { homeForRole } from "@/lib/auth/roles";
+import { isConciergeMode } from "@/lib/feature-flags";
 import { TRPCReactProvider } from "@/lib/trpc/react";
 import { BuyerShell } from "@/components/buyer/buyer-shell";
 
@@ -9,6 +10,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   [UserRole.BUYER]: "Buyer",
   [UserRole.SOCIETY_ADMIN]: "Society admin",
   [UserRole.DEALER_PARTNER]: "Dealer partner",
+  [UserRole.SALES_ADVISOR]: "Sales advisor",
   [UserRole.SUPER_ADMIN]: "Platform admin",
 };
 
@@ -35,6 +37,7 @@ export default async function BuyerLayout({
   return (
     <TRPCReactProvider>
       <BuyerShell
+        conciergeMode={isConciergeMode()}
         user={{
           name: session.user.name ?? "Your account",
           roleLabel: ROLE_LABEL[UserRole.BUYER],

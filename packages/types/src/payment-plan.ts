@@ -9,6 +9,7 @@ import { decimalStringSchema, idSchema } from "./common.js";
 export const InstallmentInterval = {
   MONTHLY: "monthly",
   QUARTERLY: "quarterly",
+  LUMP_SUM: "lump-sum",
 } as const;
 export type InstallmentInterval =
   (typeof InstallmentInterval)[keyof typeof InstallmentInterval];

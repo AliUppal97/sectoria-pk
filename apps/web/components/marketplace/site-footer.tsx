@@ -7,7 +7,7 @@ const FOOTER_SECTIONS = [
     links: [
       { href: "/societies", label: "All societies" },
       { href: "/compare", label: "Compare societies" },
-      { href: "/dealers", label: "Verified dealers" },
+      { href: "/support", label: "Get best price" },
     ],
   },
   {
@@ -35,7 +35,7 @@ export function SiteFooter() {
           </span>
           <p className="max-w-xs font-sans text-sm text-text-tertiary">
             {SITE.tagline}. Every listing is checked against development-authority
-            and NADRA/FBR records before it goes live.
+            approvals and verified data before listing — not dealer contact details.
           </p>
         </div>
 

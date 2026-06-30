@@ -64,6 +64,20 @@ export async function listDemoDealers(): Promise<DemoAccount[]> {
   }));
 }
 
+/** Seeded sales-advisor accounts for the dev login picker. */
+export async function listDemoSalesAdvisors(): Promise<DemoAccount[]> {
+  if (!allowDemoFixtures()) return [];
+
+  const users = await prisma.user.findMany({
+    where: { role: UserRole.SALES_ADVISOR },
+    orderBy: { phone: "asc" },
+    take: 3,
+    select: { name: true, phone: true, nadraVerified: true, atlStatus: true },
+  });
+
+  return users;
+}
+
 /** Seeded society-admin accounts for the dev login picker. */
 export async function listDemoSocietyAdmins(): Promise<DemoAccount[]> {
   if (!allowDemoFixtures()) return [];

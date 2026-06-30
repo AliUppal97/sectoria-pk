@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, DEV_OTP_CODE } from "@/auth";
 import { homeForRole } from "@/lib/auth/roles";
-import { listDemoBuyers, listDemoDealers, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
+import { listDemoBuyers, listDemoDealers, listDemoSalesAdvisors, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
@@ -13,7 +13,13 @@ export const metadata: Metadata = {
 };
 
 /** Known authenticated portal callback paths (open-redirect safe). */
-const SAFE_CALLBACKS = ["/dashboard", "/society-portal", "/dealer-portal", "/admin"];
+const SAFE_CALLBACKS = [
+  "/dashboard",
+  "/society-portal",
+  "/dealer-portal",
+  "/admin",
+  "/ops-portal",
+];
 
 function resolveCallbackUrl(raw: string | undefined): string {
   // Only accept internal, known-prefix paths to avoid open-redirects.
@@ -34,12 +40,15 @@ export default async function LoginPage({
   }
 
   const { callbackUrl } = await searchParams;
-  const [demoBuyers, demoSocietyAdmins, demoDealers] = await Promise.all([
+  const [demoBuyers, demoSocietyAdmins, demoDealers, demoAdvisors] =
+    await Promise.all([
     listDemoBuyers(),
     listDemoSocietyAdmins(),
     listDemoDealers(),
+    listDemoSalesAdvisors(),
   ]);
   const demoAccounts = [
+    ...demoAdvisors.slice(0, 2),
     ...demoDealers.slice(0, 3),
     ...demoSocietyAdmins.slice(0, 2),
     ...demoBuyers.slice(0, 4),

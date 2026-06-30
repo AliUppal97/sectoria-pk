@@ -16,6 +16,7 @@ import { assertSocietyOwnership } from "../middleware/require-society-ownership.
 import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 import { resolveAuthorizedCategoryIds } from "../lib/dealer-authorization.js";
+import { isLegacySelfServeBookingEnabled } from "../lib/feature-flags.js";
 
 /**
  * Dealer procedures: public profile + trust score, the dealer's own DNFBP
@@ -182,11 +183,42 @@ export const dealerRouter = router({
     };
   }),
 
+  /** Categories this dealer may supply net pricing for. */
+  listAuthorizedCategories: dealerProcedure.query(async ({ ctx }) => {
+    const dealer = await ctx.db.dealerProfile.findUnique({
+      where: { userId: ctx.session.user.id },
+      select: { id: true },
+    });
+    if (dealer === null) return [];
+
+    const categoryIds = await resolveAuthorizedCategoryIds(ctx.db, dealer.id);
+    if (categoryIds.length === 0) return [];
+
+    const categories = await ctx.db.inventoryCategory.findMany({
+      where: { id: { in: categoryIds } },
+      select: {
+        id: true,
+        phase: true,
+        block: true,
+        sizeLabel: true,
+        society: { select: { name: true } },
+      },
+    });
+
+    return categories.map((cat) => ({
+      id: cat.id,
+      label: `${cat.society.name} · ${cat.phase} · ${cat.block} · ${cat.sizeLabel}`,
+    }));
+  }),
+
   /**
    * Buyer enquiries (bookings) in societies the dealer is authorized for.
    * Excludes bookings assigned to other dealers.
    */
   listLeads: dealerProcedure.query(async ({ ctx }) => {
+    if (!isLegacySelfServeBookingEnabled()) {
+      return [];
+    }
     const dealer = await ctx.db.dealerProfile.findUnique({
       where: { userId: ctx.session.user.id },
       select: { id: true },

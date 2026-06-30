@@ -17,7 +17,7 @@ export const SITE = {
   legalName: "Sectoria.pk",
   tagline: "Pakistan's verified housing-society marketplace",
   description:
-    "Browse verified housing societies across Pakistan, compare phases, pricing and payment plans side by side, and book through NADRA/FBR-verified, escrow-protected transactions.",
+    "Compare verified housing societies across Pakistan, request the best price through Sectoria advisors, and pay your booking token on-platform — without dealing with dealers directly.",
   url: SITE_URL,
   supportEmail: "support@sectoria.pk",
   supportPath: "/support",

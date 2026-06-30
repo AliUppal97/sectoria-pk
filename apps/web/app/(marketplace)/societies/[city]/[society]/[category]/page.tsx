@@ -25,6 +25,9 @@ import {
   realEstateListingSchema,
 } from "@/lib/seo";
 import { SITE } from "@/lib/site";
+import { isLegacySelfServeBookingEnabled } from "@/lib/feature-flags";
+import { QuoteRequestForm } from "@/components/marketplace/quote-request-form";
+import { LeadSource } from "@sectoria/types";
 
 export const revalidate = 21600;
 
@@ -269,17 +272,32 @@ export default async function CategoryDetailPage({
             <Button size="lg" className="w-full" disabled>
               Sold out
             </Button>
-          ) : (
+          ) : isLegacySelfServeBookingEnabled() ? (
             <Button asChild size="lg" className="w-full">
               <Link href={`/dashboard/booking/${detail.id}`}>
                 Start booking
               </Link>
             </Button>
+          ) : (
+            <QuoteRequestForm
+              societyIds={[society.id]}
+              categoryId={detail.id}
+              source={LeadSource.CATEGORY}
+              heading="Get best price"
+              description="Our advisor will call you with the best authorized-dealer rate for this category."
+            />
           )}
-          <p className="font-sans text-xs text-text-tertiary">
-            You&apos;ll verify your identity (NADRA), review your exact tax, and
-            pay a token into escrow — nothing is charged before you confirm.
-          </p>
+          {!isLegacySelfServeBookingEnabled() ? (
+            <p className="font-sans text-xs text-text-tertiary">
+              From {formatPKR(totalPrice)} list price. Exact quote provided by
+              a Sectoria advisor — no dealer contact on this page.
+            </p>
+          ) : (
+            <p className="font-sans text-xs text-text-tertiary">
+              You&apos;ll verify your identity (NADRA), review your exact tax, and
+              pay a token into escrow — nothing is charged before you confirm.
+            </p>
+          )}
 
           <div className="border-t border-border-base pt-4">
             <Button asChild variant="ghost" size="sm" className="w-full">
