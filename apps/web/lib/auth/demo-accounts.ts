@@ -14,13 +14,18 @@ export interface DemoAccount {
   readonly atlStatus: AtlStatusType;
 }
 
+/** True when demo/E2E fixtures should be available (never in real production). */
+function allowDemoFixtures(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.E2E_TEST === "1";
+}
+
 /**
  * Lists a handful of seeded BUYER accounts for the dev login picker. Returns an
  * empty list in production. Surfaces a mix of NADRA-verified and not-yet-verified
  * buyers so the full wizard (including the NADRA step) can be walked end to end.
  */
 export async function listDemoBuyers(): Promise<DemoAccount[]> {
-  if (process.env.NODE_ENV === "production") return [];
+  if (!allowDemoFixtures()) return [];
 
   const users = await prisma.user.findMany({
     where: { role: UserRole.BUYER },
@@ -34,7 +39,7 @@ export async function listDemoBuyers(): Promise<DemoAccount[]> {
 
 /** Seeded dealer-partner accounts for the dev login picker. */
 export async function listDemoDealers(): Promise<DemoAccount[]> {
-  if (process.env.NODE_ENV === "production") return [];
+  if (!allowDemoFixtures()) return [];
 
   const users = await prisma.user.findMany({
     where: { role: UserRole.DEALER_PARTNER },
@@ -61,7 +66,7 @@ export async function listDemoDealers(): Promise<DemoAccount[]> {
 
 /** Seeded society-admin accounts for the dev login picker. */
 export async function listDemoSocietyAdmins(): Promise<DemoAccount[]> {
-  if (process.env.NODE_ENV === "production") return [];
+  if (!allowDemoFixtures()) return [];
 
   const users = await prisma.user.findMany({
     where: { role: UserRole.SOCIETY_ADMIN },

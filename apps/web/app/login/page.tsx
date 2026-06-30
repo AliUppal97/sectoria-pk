@@ -44,7 +44,8 @@ export default async function LoginPage({
     ...demoSocietyAdmins.slice(0, 2),
     ...demoBuyers.slice(0, 4),
   ];
-  const isDev = process.env.NODE_ENV !== "production";
+  const isDev =
+    process.env.NODE_ENV !== "production" || process.env.E2E_TEST === "1";
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-base">
