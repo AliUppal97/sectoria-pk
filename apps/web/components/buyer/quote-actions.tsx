@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QuoteStatus } from "@sectoria/types";
 import {
@@ -39,13 +39,13 @@ const STATUS_LABEL: Record<string, string> = {
 export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
   const router = useRouter();
   const utils = api.useUtils();
-  const [status, setStatus] = useState(quote.status);
-  const [tokenPaid, setTokenPaid] = useState(quote.tokenPaid);
+  const [optimistic, setOptimistic] = useState<{
+    status?: string;
+    tokenPaid?: boolean;
+  }>({});
 
-  useEffect(() => {
-    setStatus(quote.status);
-    setTokenPaid(quote.tokenPaid);
-  }, [quote.status, quote.tokenPaid]);
+  const status = optimistic.status ?? quote.status;
+  const tokenPaid = optimistic.tokenPaid ?? quote.tokenPaid;
 
   const refreshQuotes = () => {
     void utils.quote.listForBuyer.invalidate();
@@ -53,13 +53,13 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
   };
   const accept = api.quote.accept.useMutation({
     onSuccess: () => {
-      setStatus(QuoteStatus.ACCEPTED);
+      setOptimistic((prev) => ({ ...prev, status: QuoteStatus.ACCEPTED }));
       refreshQuotes();
     },
   });
   const payToken = api.quote.payToken.useMutation({
     onSuccess: () => {
-      setTokenPaid(true);
+      setOptimistic((prev) => ({ ...prev, tokenPaid: true }));
       refreshQuotes();
     },
   });
