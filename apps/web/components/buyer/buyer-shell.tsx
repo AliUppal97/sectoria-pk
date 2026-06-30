@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@sectoria/ui";
+import { useIsClient } from "@/lib/use-is-client";
 
 interface NavItem {
   href: string;
@@ -122,6 +123,7 @@ function SidebarContent({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const isClient = useIsClient();
 
   return (
     <>
@@ -151,9 +153,11 @@ function SidebarContent({
       <nav className="flex-1 overflow-y-auto px-2.5 py-3">
         <ul className="flex flex-col gap-0.5">
           {NAV_ITEMS.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
+            const isActive =
+              isClient &&
+              (item.exact
+                ? pathname === item.href
+                : pathname.startsWith(item.href));
             const Icon = item.icon;
             return (
               <li key={item.href}>
