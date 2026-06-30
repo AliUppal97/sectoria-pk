@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, DEV_OTP_CODE } from "@/auth";
 import { homeForRole } from "@/lib/auth/roles";
-import { listDemoBuyers, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
+import { listDemoBuyers, listDemoDealers, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Only the buyer dashboard exists today; later sessions add the other portals. */
+/** Known authenticated portal callback paths (open-redirect safe). */
 const SAFE_CALLBACKS = ["/dashboard", "/society-portal", "/dealer-portal", "/admin"];
 
 function resolveCallbackUrl(raw: string | undefined): string {
@@ -34,11 +34,16 @@ export default async function LoginPage({
   }
 
   const { callbackUrl } = await searchParams;
-  const [demoBuyers, demoSocietyAdmins] = await Promise.all([
+  const [demoBuyers, demoSocietyAdmins, demoDealers] = await Promise.all([
     listDemoBuyers(),
     listDemoSocietyAdmins(),
+    listDemoDealers(),
   ]);
-  const demoAccounts = [...demoSocietyAdmins.slice(0, 3), ...demoBuyers.slice(0, 5)];
+  const demoAccounts = [
+    ...demoDealers.slice(0, 3),
+    ...demoSocietyAdmins.slice(0, 2),
+    ...demoBuyers.slice(0, 4),
+  ];
   const isDev = process.env.NODE_ENV !== "production";
 
   return (

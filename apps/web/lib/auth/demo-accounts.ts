@@ -32,6 +32,33 @@ export async function listDemoBuyers(): Promise<DemoAccount[]> {
   return users;
 }
 
+/** Seeded dealer-partner accounts for the dev login picker. */
+export async function listDemoDealers(): Promise<DemoAccount[]> {
+  if (process.env.NODE_ENV === "production") return [];
+
+  const users = await prisma.user.findMany({
+    where: { role: UserRole.DEALER_PARTNER },
+    orderBy: { phone: "asc" },
+    take: 5,
+    select: {
+      name: true,
+      phone: true,
+      nadraVerified: true,
+      atlStatus: true,
+      dealerProfile: { select: { agencyName: true, dnfbpVerified: true } },
+    },
+  });
+
+  return users.map((user) => ({
+    name: user.dealerProfile?.agencyName
+      ? `${user.dealerProfile.agencyName}`
+      : user.name,
+    phone: user.phone,
+    nadraVerified: user.nadraVerified,
+    atlStatus: user.atlStatus,
+  }));
+}
+
 /** Seeded society-admin accounts for the dev login picker. */
 export async function listDemoSocietyAdmins(): Promise<DemoAccount[]> {
   if (process.env.NODE_ENV === "production") return [];
