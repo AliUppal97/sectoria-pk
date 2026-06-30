@@ -37,7 +37,9 @@ function seedBaseFixtures(store: Store): void {
     totalUnits: 10,
     availableUnits: 10,
     allocationStrategy: "FIFO",
-    fbrValuationZone: "LHR-Z1",
+    // A zone present in the FBR valuation table → the server derives the table
+    // value (Zone-II residential = 8,000/sqft × 1125 sqft = 9,000,000).
+    fbrValuationZone: "Zone-II",
   });
   store.plots.set("plot_1", {
     id: "plot_1",
@@ -93,17 +95,33 @@ describe("bookingRouter.create", () => {
       categoryId: CATEGORY_ID,
       paymentPlanId: PAYMENT_PLAN_ID,
       agreedSalePrice: 12_000_000,
-      fbrTableValue: 10_000_000,
     });
 
     expect(booking.status).toBe(EscrowState.BOOKING_TOKEN_PAID);
     // The tax breakdown was computed by the domain package, not faked here.
     expect(booking.taxBreakdown.total).toBeGreaterThan(0);
+    // Sale price (12M) exceeds the zone-derived FBR value (9M), so it is the
+    // taxable base: 236K for a filer buyer = 3% of 12,000,000.
+    expect(booking.taxBreakdown.section236K).toBe(360_000);
 
     const events = [...store.ledgerEvents.values()];
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("BOOKING_CREATED");
     expect(events[0]?.actorId).toBe(BUYER_ID);
+  });
+
+  it("derives the FBR table value from the category's zone, not from the request — an under-declared sale price is taxed on the FBR floor", async () => {
+    const caller = createTestCaller({ db, session: buyerSession(BUYER_ID) });
+
+    // Sale price (5M) is below the zone-derived FBR value (9M), so the FBR
+    // floor becomes the taxable base: 236K for a filer buyer = 3% of 9,000,000.
+    const booking = await caller.booking.create({
+      categoryId: CATEGORY_ID,
+      paymentPlanId: PAYMENT_PLAN_ID,
+      agreedSalePrice: 5_000_000,
+    });
+
+    expect(booking.taxBreakdown.section236K).toBe(270_000);
   });
 
   it("rejects an unauthenticated caller with UNAUTHORIZED", async () => {
@@ -113,7 +131,6 @@ describe("bookingRouter.create", () => {
         categoryId: CATEGORY_ID,
         paymentPlanId: PAYMENT_PLAN_ID,
         agreedSalePrice: 12_000_000,
-        fbrTableValue: 10_000_000,
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
@@ -128,7 +145,6 @@ describe("bookingRouter.create", () => {
         categoryId: CATEGORY_ID,
         paymentPlanId: PAYMENT_PLAN_ID,
         agreedSalePrice: 12_000_000,
-        fbrTableValue: 10_000_000,
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
@@ -143,7 +159,6 @@ describe("bookingRouter.create", () => {
         categoryId: CATEGORY_ID,
         paymentPlanId: PAYMENT_PLAN_ID,
         agreedSalePrice: 12_000_000,
-        fbrTableValue: 10_000_000,
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

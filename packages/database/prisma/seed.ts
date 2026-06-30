@@ -25,7 +25,7 @@
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { calculateTransferTax } from "@sectoria/domain-tax";
+import { calculateTransferTax, lookupFbrValuation } from "@sectoria/domain-tax";
 import {
   createLedgerEvent,
   LedgerEventType,
@@ -303,6 +303,7 @@ interface SeededCategory {
   readonly plotType: PlotTypeType;
   readonly sizeSqft: number;
   readonly pricePerSqftRupees: number;
+  readonly fbrValuationZone: string;
   readonly paymentPlanIds: string[];
   readonly plotIds: string[];
   nextPlotIndex: number;
@@ -399,6 +400,10 @@ async function main(): Promise<void> {
         spec.basePricePerSqft *
         (isCommercial ? 1.8 : 1) *
         (1 + (size.sizeSqft > 3000 ? 0.1 : 0));
+      const fbrValuationZone = requireDefined(
+        FBR_ZONES[c % FBR_ZONES.length],
+        "fbr zone",
+      );
 
       const category = await prisma.inventoryCategory.create({
         data: {
@@ -413,10 +418,7 @@ async function main(): Promise<void> {
           totalUnits: 40,
           availableUnits: 40,
           allocationStrategy: c % 3 === 0 ? "BALLOT" : "FIFO",
-          fbrValuationZone: requireDefined(
-            FBR_ZONES[c % FBR_ZONES.length],
-            "fbr zone",
-          ),
+          fbrValuationZone,
         },
       });
 
@@ -474,6 +476,7 @@ async function main(): Promise<void> {
         plotType,
         sizeSqft: size.sizeSqft,
         pricePerSqftRupees,
+        fbrValuationZone,
         paymentPlanIds,
         plotIds,
         nextPlotIndex: 0,
@@ -595,9 +598,14 @@ async function main(): Promise<void> {
     const salePriceRupees = pkrAmountSchema.parse(
       Math.round(category.sizeSqft * category.pricePerSqftRupees),
     );
-    const fbrTableValueRupees = pkrAmountSchema.parse(
-      Math.round(salePriceRupees * 0.85),
-    );
+    // FBR table value is resolved from the category's valuation zone via the
+    // same domain lookup the booking flow uses — never a re-implemented formula.
+    const fbrTableValueRupees =
+      lookupFbrValuation({
+        zone: category.fbrValuationZone,
+        plotType: category.plotType,
+        sizeSqft: category.sizeSqft,
+      }) ?? salePriceRupees;
     const taxBreakdown = calculateTransferTax({
       salePrice: salePriceRupees,
       fbrTableValue: fbrTableValueRupees,

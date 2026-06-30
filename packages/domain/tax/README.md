@@ -15,14 +15,19 @@ Ordinance 2001, as amended).
   table value can **never** reduce the tax owed.
 - Selects advance-tax rates per party from a **versioned, fiscal-year-keyed
   rate table** — a rate change is a new table entry, never a code edit.
+- Resolves the **FBR table value** for a plot from its valuation zone, plot
+  type, and size via `lookupFbrValuation` — a pure lookup against a versioned,
+  fiscal-year-keyed **valuation table**, so the taxable floor is a government
+  figure derived from the zone, never a number typed in by a buyer.
 
 ## What it deliberately does NOT do
 
-- **No I/O, no persistence, no framework code.** It does not read the FBR
-  valuation tables, fetch ATL status, write a ledger event, or touch a
-  database — it takes plain data in and returns plain data out. Pure functions
-  only; no imports from Next.js, Prisma, or React. Persistence and lookups are
-  the caller's job (see `packages/api-client`).
+- **No I/O, no persistence, no framework code.** It does not fetch ATL status,
+  write a ledger event, or touch a database — it takes plain data in and returns
+  plain data out. (The FBR valuation table is a static, versioned constant read
+  in-memory by `lookupFbrValuation`, not an external fetch.) Pure functions
+  only; no imports from Next.js, Prisma, or React. Persistence is the caller's
+  job (see `packages/api-client`).
 - **No display formatting of money.** Amounts are whole-rupee integers; format
   to "PKR X,XXX,XXX" at the UI boundary.
 
@@ -51,6 +56,22 @@ const breakdown = calculateTransferTax(input);
 calculateTransferTax(input, CURRENT_FISCAL_YEAR_RATES);
 ```
 
+Resolve the FBR table value from a plot's valuation zone (the caller passes the
+result as `fbrTableValue` above; it is never trusted from client input):
+
+```ts
+import { lookupFbrValuation } from "@sectoria/domain-tax";
+
+// → notified per-sqft value for the zone × size, in whole rupees, or `null`
+//   when no valuation is on record (caller then falls back to the sale price).
+const fbrTableValue =
+  lookupFbrValuation({
+    zone: "Zone-II",
+    plotType: PlotType.RESIDENTIAL,
+    sizeSqft: 1125,
+  }) ?? salePrice;
+```
+
 Invalid input throws a typed `InvalidTaxInputError` (never a bare `Error`,
 never a silent `0`):
 
@@ -66,13 +87,15 @@ try {
 }
 ```
 
-## Rates & fiscal years
+## Rates, valuations & fiscal years
 
-Rates live in `src/tax-rate-table.ts`, keyed by fiscal year. The percentages
-shipped here are the **FY 2025-26 baseline of this demo build and must be
-re-verified against the current Finance Act / FBR valuation notifications
-before production use.** Changing any rate or threshold requires a matching
-test update in the same PR (see `domain-logic.mdc` and `testing.mdc`).
+Rates live in `src/tax-rate-table.ts` and FBR per-zone valuations in
+`src/fbr-valuation-table.ts`, both keyed by fiscal year. The percentages and
+per-sqft values shipped here are the **FY 2025-26 baseline of this demo build
+and must be re-verified against the current Finance Act / FBR valuation
+notifications before production use.** Changing any rate, threshold, or
+valuation requires a matching test update in the same PR (see `domain-logic.mdc`
+and `testing.mdc`).
 
 ## Constraints
 

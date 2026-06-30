@@ -12,7 +12,7 @@ import {
   pkrAmountSchema,
 } from "@sectoria/types";
 import { Prisma, type PrismaClient } from "@sectoria/database";
-import { calculateTransferTax } from "@sectoria/domain-tax";
+import { calculateTransferTax, lookupFbrValuation } from "@sectoria/domain-tax";
 import { transitionEscrowState } from "@sectoria/domain-escrow";
 import { allocatePlot } from "@sectoria/domain-allocation";
 import { createLedgerEvent } from "@sectoria/domain-ledger";
@@ -86,8 +86,6 @@ export const bookingRouter = router({
         dealerId: idSchema.optional(),
         /** The agreed sale price, in whole rupees. */
         agreedSalePrice: pkrAmountSchema,
-        /** The FBR table value for the plot's valuation zone, in whole rupees. */
-        fbrTableValue: pkrAmountSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -138,11 +136,22 @@ export const bookingRouter = router({
           }
         }
 
+        // The FBR table value is a government figure derived from the plot's
+        // valuation zone — never trusted from the request. Falls back to the
+        // agreed sale price when no valuation is on record for the zone (then
+        // the engine simply taxes the sale price). See `fbr-valuation-table`.
+        const fbrTableValue =
+          lookupFbrValuation({
+            zone: category.fbrValuationZone,
+            plotType: category.plotType,
+            sizeSqft: category.sizeSqft,
+          }) ?? input.agreedSalePrice;
+
         // Pure domain call: compute the tax snapshot. Buyer ATL comes from the
         // server-side record, never the request.
         const taxBreakdown = calculateTransferTax({
           salePrice: input.agreedSalePrice,
-          fbrTableValue: input.fbrTableValue,
+          fbrTableValue,
           sellerAtlStatus: SELLER_ATL_STATUS,
           buyerAtlStatus: buyer.atlStatus,
           plotType: category.plotType,
