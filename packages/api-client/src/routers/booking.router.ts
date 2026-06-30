@@ -8,6 +8,7 @@ import {
   PlotStatus,
   UserRole,
   escrowActionSchema,
+  escrowStateSchema,
   idSchema,
   pkrAmountSchema,
 } from "@sectoria/types";
@@ -23,6 +24,7 @@ import {
   verifiedBuyerProcedure,
 } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
+import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 import { persistLedgerEvent } from "../lib/persist-ledger-event.js";
 import { toId } from "../lib/ids.js";
@@ -233,6 +235,58 @@ export const bookingRouter = router({
       toBookingDto(booking, booking.allocatedPlot?.id ?? null),
     );
   }),
+
+  /**
+   * Lists bookings for a society's inventory categories. Restricted to the
+   * owning administrator (or platform staff). Used by the society-portal
+   * booking queue and dashboard.
+   */
+  listForSociety: societyAdminProcedure
+    .input(
+      z.object({
+        societyId: idSchema.optional(),
+        /** When set, only bookings in these escrow states are returned. */
+        statuses: z.array(escrowStateSchema).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const societyId = resolveOwnedSocietyId(ctx.session, input.societyId);
+
+      const categories = await ctx.db.inventoryCategory.findMany({
+        where: { societyId },
+        select: { id: true, phase: true, block: true, sizeLabel: true },
+      });
+      const categoryIds = categories.map((c) => c.id);
+      const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+      const bookings = await ctx.db.booking.findMany({
+        where: {
+          categoryId: { in: categoryIds },
+          ...(input.statuses !== undefined
+            ? { status: { in: input.statuses } }
+            : {}),
+        },
+        include: {
+          buyer: { select: { id: true, name: true, phone: true } },
+          allocatedPlot: { select: { id: true, serialNo: true, plotNo: true } },
+          dealer: { select: { id: true, agencyName: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return bookings.map((booking) => {
+        const category = categoryById.get(booking.categoryId);
+        return {
+          booking: toBookingDto(booking, booking.allocatedPlot?.id ?? null),
+          buyer: booking.buyer,
+          categoryLabel: category
+            ? `${category.phase} · ${category.block} · ${category.sizeLabel}`
+            : null,
+          plotSerial: booking.allocatedPlot?.serialNo ?? null,
+          dealerAgency: booking.dealer?.agencyName ?? null,
+        };
+      });
+    }),
 
   /**
    * Allocates a plot to a token-paid booking and advances escrow

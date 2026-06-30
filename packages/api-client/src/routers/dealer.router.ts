@@ -13,6 +13,7 @@ import {
   societyAdminProcedure,
 } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
+import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 
 /**
@@ -203,6 +204,55 @@ export const dealerRouter = router({
       return ctx.db.societyPartnerAuthorization.update({
         where: { id: authorization.id },
         data: { status: AuthorizationStatus.REVOKED },
+      });
+    }),
+
+  /**
+   * Lists dealer partner authorizations for a society, including dealer profile
+   * details and optional category scope. Restricted to the owning administrator.
+   */
+  listPartners: societyAdminProcedure
+    .input(z.object({ societyId: idSchema.optional() }))
+    .query(async ({ ctx, input }) => {
+      const societyId = resolveOwnedSocietyId(ctx.session, input.societyId);
+
+      const authorizations = await ctx.db.societyPartnerAuthorization.findMany({
+        where: { societyId },
+        include: {
+          dealer: {
+            select: {
+              id: true,
+              slug: true,
+              agencyName: true,
+              dnfbpVerified: true,
+              completedDeals: true,
+            },
+          },
+        },
+        orderBy: [{ status: "asc" }, { dealer: { agencyName: "asc" } }],
+      });
+
+      const categories = await ctx.db.inventoryCategory.findMany({
+        where: { societyId },
+        select: { id: true, phase: true, block: true, sizeLabel: true },
+      });
+      const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+      return authorizations.map((auth) => {
+        const category =
+          auth.categoryId !== null
+            ? categoryById.get(auth.categoryId)
+            : undefined;
+        return {
+          id: auth.id,
+          status: auth.status,
+          commissionSplitPct: auth.commissionSplitPct.toString(),
+          categoryId: auth.categoryId,
+          categoryLabel: category
+            ? `${category.phase} · ${category.block} · ${category.sizeLabel}`
+            : null,
+          dealer: auth.dealer,
+        };
       });
     }),
 });
