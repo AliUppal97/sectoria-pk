@@ -72,7 +72,12 @@ test.describe("Concierge critical path", () => {
       });
       const acceptQuote = page.getByRole("button", { name: "Accept quote" });
       await expect(acceptQuote).toBeVisible();
-      await acceptQuote.click();
+      await Promise.all([
+        page.waitForResponse(
+          (resp) => resp.url().includes("/api/trpc") && resp.ok(),
+        ),
+        acceptQuote.click(),
+      ]);
       await expect(page.getByRole("button", { name: "Pay booking token" })).toBeVisible({
         timeout: 15_000,
       });

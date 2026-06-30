@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QuoteStatus } from "@sectoria/types";
 import {
@@ -39,12 +39,30 @@ const STATUS_LABEL: Record<string, string> = {
 export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
   const router = useRouter();
   const utils = api.useUtils();
+  const [status, setStatus] = useState(quote.status);
+  const [tokenPaid, setTokenPaid] = useState(quote.tokenPaid);
+
+  useEffect(() => {
+    setStatus(quote.status);
+    setTokenPaid(quote.tokenPaid);
+  }, [quote.status, quote.tokenPaid]);
+
   const refreshQuotes = () => {
     void utils.quote.listForBuyer.invalidate();
     router.refresh();
   };
-  const accept = api.quote.accept.useMutation({ onSuccess: refreshQuotes });
-  const payToken = api.quote.payToken.useMutation({ onSuccess: refreshQuotes });
+  const accept = api.quote.accept.useMutation({
+    onSuccess: () => {
+      setStatus(QuoteStatus.ACCEPTED);
+      refreshQuotes();
+    },
+  });
+  const payToken = api.quote.payToken.useMutation({
+    onSuccess: () => {
+      setTokenPaid(true);
+      refreshQuotes();
+    },
+  });
   const payInstallment = api.quote.payInstallment.useMutation({
     onSuccess: refreshQuotes,
   });
@@ -53,21 +71,18 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
   const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
   const [installmentAmount, setInstallmentAmount] = useState("");
 
-  const canAccept = quote.status === QuoteStatus.SENT;
-  const canPayToken =
-    quote.status === QuoteStatus.ACCEPTED && !quote.tokenPaid;
+  const canAccept = status === QuoteStatus.SENT;
+  const canPayToken = status === QuoteStatus.ACCEPTED && !tokenPaid;
   const canPayInstallment =
-    quote.status === QuoteStatus.ACCEPTED &&
-    quote.tokenPaid &&
-    !quote.installmentsDirect;
+    status === QuoteStatus.ACCEPTED && tokenPaid && !quote.installmentsDirect;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge variant={quote.tokenPaid ? "success" : "info"}>
-          {quote.tokenPaid
+        <StatusBadge variant={tokenPaid ? "success" : "info"}>
+          {tokenPaid
             ? "Token paid"
-            : (STATUS_LABEL[quote.status] ?? quote.status)}
+            : (STATUS_LABEL[status] ?? status)}
         </StatusBadge>
         <span className="font-mono text-sm font-semibold text-text-primary">
           {formatPKR(quote.quotedPricePkr)}
@@ -81,7 +96,7 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
         </p>
       ) : null}
 
-      {quote.tokenPaid ? (
+      {tokenPaid ? (
         <p className="font-sans text-sm text-text-secondary">
           Sectoria is coordinating allocation with the authorized dealer. We will
           contact you when your plot reference is confirmed.
