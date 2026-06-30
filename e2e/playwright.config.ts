@@ -27,7 +27,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: `pnpm --filter @sectoria/web build && pnpm --filter @sectoria/web start --port ${PORT}`,
+    command: `pnpm --filter @sectoria/database exec prisma generate && pnpm --filter @sectoria/web build && pnpm --filter @sectoria/web start --port ${PORT}`,
     url: BASE_URL,
     cwd: ROOT,
     reuseExistingServer: false,
