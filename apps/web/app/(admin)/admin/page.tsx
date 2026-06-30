@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import type { LedgerEvent } from "@sectoria/types";
 import { Button, formatDate } from "@sectoria/ui";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
 import { PageHeader } from "@/components/buyer/page-header";
@@ -76,7 +77,7 @@ export default async function AdminDashboardPage() {
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-border-base">
-              {overview.recentEvents.map((event) => (
+              {overview.recentEvents.map((event: LedgerEvent) => (
                 <li key={event.id} className="flex flex-col gap-0.5 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-sans text-sm font-medium text-text-primary">
