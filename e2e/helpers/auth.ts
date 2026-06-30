@@ -30,7 +30,7 @@ export async function loginViaDemoAccount(
 
 /** Seeded buyer with a SENT concierge quote (Buyer 1). */
 export async function loginAsBuyerWithQuote(page: Page): Promise<void> {
-  await loginViaDemoAccount(page, /^Buyer 1$/);
+  await loginViaDemoAccount(page, /Buyer 1\b/);
 }
 
 /** First seeded dealer — Skyline Estate. */
