@@ -82,6 +82,8 @@ against npm before relying on this table if significant time has passed.
 | `zustand` | `^5.0.0` | |
 | `bullmq` | `^5.30.0` | |
 | `ioredis` | `^5.4.0` | |
+| `@upstash/ratelimit` | `^2.0.8` | Rate limiting for auth, booking, verification endpoints (`apps/web`). |
+| `@upstash/redis` | `^1.38.0` | Upstash Redis REST client for `@upstash/ratelimit`. |
 
 ## Tooling
 

@@ -25,6 +25,7 @@ import {
 } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
 import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
+import { rateLimit } from "../middleware/rate-limit.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 import { persistLedgerEvent } from "../lib/persist-ledger-event.js";
 import { toId } from "../lib/ids.js";
@@ -81,6 +82,7 @@ export const bookingRouter = router({
    * to NADRA-verified buyers — a money-moving action.
    */
   create: verifiedBuyerProcedure
+    .use(rateLimit({ scope: "booking:create" }))
     .input(
       z.object({
         categoryId: idSchema,

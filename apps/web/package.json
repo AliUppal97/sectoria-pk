@@ -22,6 +22,8 @@
     "@trpc/client": "catalog:",
     "@trpc/react-query": "catalog:",
     "@trpc/server": "catalog:",
+    "@upstash/ratelimit": "catalog:",
+    "@upstash/redis": "catalog:",
     "class-variance-authority": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",

@@ -3,6 +3,7 @@ import { appRouter, createTRPCContext } from "@sectoria/api-client";
 import { prisma } from "@sectoria/database";
 import { createVerificationAdapters } from "@sectoria/verification";
 import { auth } from "@/auth";
+import { getRateLimiter } from "@/lib/rate-limit";
 import { sessionFromUserId } from "@/lib/trpc/context";
 
 /**
@@ -28,6 +29,7 @@ async function handler(req: Request): Promise<Response> {
         session,
         db: prisma,
         verification: createVerificationAdapters(),
+        rateLimiter: getRateLimiter(),
         // Pre-auth abuse is keyed on IP; post-auth limits key on the user id.
         clientId: req.headers.get("x-forwarded-for") ?? null,
       }),
