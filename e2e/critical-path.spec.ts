@@ -35,7 +35,7 @@ test.describe("Concierge critical path", () => {
     await test.step("1b. Society profile shows map, plans, and updates", async () => {
       await page.goto(`/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}`);
       await expect(
-        page.getByRole("heading", { name: "DHA Lahore" }),
+        page.getByRole("heading", { level: 1, name: "DHA Lahore" }),
       ).toBeVisible();
       await expect(page.getByText("Booking open")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Plans by category" })).toBeVisible();
