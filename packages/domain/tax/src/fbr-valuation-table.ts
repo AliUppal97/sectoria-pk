@@ -26,6 +26,9 @@ import {
  * demo build and MUST be replaced with the actual FBR valuation notifications
  * for each real zone before production use — a one-table edit here, with a
  * matching test update.
+ *
+ * @see FBR valuation of immovable property (Income Tax Ordinance 2001) — the
+ *   notified per-zone values that form the taxable floor alongside Section 236C/236K.
  */
 export const FISCAL_YEAR_2025_26_FBR_VALUATION: FbrValuationTable =
   fbrValuationTableSchema.parse({
@@ -64,6 +67,9 @@ export const FBR_VALUATION_TABLE_HISTORY: readonly FbrValuationTable[] = [
  * the zone is not on the table or the size is not a positive whole number, so
  * callers can fall back deliberately (e.g. to the agreed sale price) instead of
  * failing a booking on a missing valuation entry.
+ *
+ * @see FBR valuation of immovable property (Income Tax Ordinance 2001) — used as
+ *   `max(salePrice, fbrTableValue)` in {@link calculateTransferTax}.
  *
  * @returns The notified value × size in whole rupees, or `null` if no valuation
  *   is on record for the zone.

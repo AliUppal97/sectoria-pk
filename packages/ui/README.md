@@ -55,7 +55,35 @@ The whole codebase stores and passes amounts as whole **rupees**
 as `PKR X,XXX,XXX`:
 
 ```ts
+import { formatPKR } from "@sectoria/ui";
+
 formatPKR(14_200_000); // "PKR 14,200,000"
+formatPKR(0);          // "PKR 0"
+```
+
+Never use `Rs.`, `₨`, or a raw number in UI copy.
+
+### Dates use `DD Mon YYYY`
+
+Timestamps cross boundaries as ISO 8601 strings (`@sectoria/types`). Render
+them with `formatDate` — never `MM/DD/YYYY` or bare `YYYY-MM-DD` in UI:
+
+```ts
+import { formatDate } from "@sectoria/ui";
+
+formatDate("2026-06-12T00:00:00.000Z"); // "12 Jun 2026"
+formatDate(new Date(2026, 5, 12));      // "12 Jun 2026"
+```
+
+### CNIC is masked by default
+
+Full CNICs are shown only in explicitly authorized admin/verification views.
+Everywhere else use `maskCnic` (see `security.mdc`):
+
+```ts
+import { maskCnic } from "@sectoria/ui";
+
+maskCnic("35202-1234567-1"); // "35202-XXXXX-1"
 ```
 
 ### Components

@@ -55,6 +55,8 @@ export interface CreateLedgerEventInput {
  *
  * Pure function: no I/O, no persistence, no framework code, no clock or RNG.
  *
+ * @see ADR-004 — append-only audit ledger; compensating events replace edits.
+ *
  * @param input - The event's id, type, subject, payload, actor, and timestamp.
  * @returns A schema-validated {@link LedgerEvent}.
  * @throws {InvalidLedgerEventError} if `input` is null/undefined or any field
