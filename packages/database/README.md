@@ -58,7 +58,10 @@ Generate a key with `openssl rand -base64 32`.
 ## Common commands
 
 ```bash
-# Create + apply a migration and regenerate the client
+# Apply pending migrations after pulling (no new migration created — use this day-to-day)
+pnpm --filter @sectoria/database db:deploy
+
+# Author a NEW migration when you change schema.prisma
 pnpm --filter @sectoria/database exec prisma migrate dev --name <name>
 
 # Regenerate the typed client only
@@ -73,6 +76,13 @@ pnpm --filter @sectoria/database exec prisma studio
 # Encryption round-trip tests
 pnpm --filter @sectoria/database test
 ```
+
+**After pulling schema changes:** run `db:deploy` so your local Postgres matches
+`schema.prisma`. Skipping this leaves the app querying columns that do not exist
+yet (e.g. `Society.publishStatus` after S0). Use `db:migrate` only when you are
+*authoring* a new migration. The M0 trigram GIN index on `Society.name` lives
+only in SQL (Prisma cannot express `gin_trgm_ops`); do not accept a drift
+migration that drops `Society_name_trgm_idx`.
 
 ## Seed data
 
