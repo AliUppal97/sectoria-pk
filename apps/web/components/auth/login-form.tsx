@@ -217,8 +217,10 @@ export function LoginForm({
             ))}
           </ul>
           <p className="mt-3 font-sans text-xs text-text-tertiary">
-            Pick an <span className="font-medium">Unverified</span> buyer to walk
-            the full NADRA verification step.
+            Pick <span className="font-medium">platform admin</span> for the
+            society onboarding console, or an{" "}
+            <span className="font-medium">Unverified</span> buyer to walk the
+            full NADRA verification step.
           </p>
         </div>
       ) : null}

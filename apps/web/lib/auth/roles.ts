@@ -20,6 +20,34 @@ export const ROLE_HOME: Record<UserRole, string> = {
 /** The route-group prefix each role is permitted to enter. */
 export const ROLE_ROUTE_PREFIX: Record<UserRole, string> = ROLE_HOME;
 
+/** Coarse route-group gates — shared with middleware and the login callback resolver. */
+export const PROTECTED_ROUTE_PREFIXES: ReadonlyArray<{
+  prefix: string;
+  roles: readonly UserRole[];
+}> = [
+  { prefix: "/dashboard", roles: [UserRole.BUYER] },
+  { prefix: "/society-portal", roles: [UserRole.SOCIETY_ADMIN] },
+  { prefix: "/dealer-portal", roles: [UserRole.DEALER_PARTNER] },
+  {
+    prefix: "/ops-portal",
+    roles: [UserRole.SALES_ADVISOR, UserRole.SUPER_ADMIN],
+  },
+  { prefix: "/admin", roles: [UserRole.SUPER_ADMIN] },
+];
+
+/** Whether a role may enter a path (mirrors middleware.ts coarse gating). */
+export function canAccessPath(
+  role: UserRole | undefined,
+  pathname: string,
+): boolean {
+  if (role === UserRole.SUPER_ADMIN) return true;
+  const match = PROTECTED_ROUTE_PREFIXES.find((entry) =>
+    pathname.startsWith(entry.prefix),
+  );
+  if (match === undefined) return true;
+  return role !== undefined && match.roles.includes(role);
+}
+
 /** The home path for a role, falling back to the buyer dashboard. */
 export function homeForRole(role: UserRole | undefined): string {
   if (role === undefined) return ROLE_HOME[UserRole.BUYER];

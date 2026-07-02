@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, DEV_OTP_CODE } from "@/auth";
-import { homeForRole } from "@/lib/auth/roles";
-import { listDemoBuyers, listDemoDealers, listDemoSalesAdvisors, listDemoSocietyAdmins } from "@/lib/auth/demo-accounts";
+import { listDemoBuyers, listDemoDealers, listDemoSalesAdvisors, listDemoSocietyAdmins, listDemoSuperAdmins } from "@/lib/auth/demo-accounts";
+import { canAccessPath, homeForRole } from "@/lib/auth/roles";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
@@ -35,19 +35,27 @@ export default async function LoginPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const session = await auth();
+  const { callbackUrl } = await searchParams;
+  const resolvedCallback = resolveCallbackUrl(callbackUrl);
+
   if (session?.user) {
-    redirect(homeForRole(session.user.role));
+    redirect(
+      canAccessPath(session.user.role, resolvedCallback)
+        ? resolvedCallback
+        : homeForRole(session.user.role),
+    );
   }
 
-  const { callbackUrl } = await searchParams;
-  const [demoBuyers, demoSocietyAdmins, demoDealers, demoAdvisors] =
+  const [demoSuperAdmins, demoBuyers, demoSocietyAdmins, demoDealers, demoAdvisors] =
     await Promise.all([
+    listDemoSuperAdmins(),
     listDemoBuyers(),
     listDemoSocietyAdmins(),
     listDemoDealers(),
     listDemoSalesAdvisors(),
   ]);
   const demoAccounts = [
+    ...demoSuperAdmins,
     ...demoAdvisors.slice(0, 2),
     ...demoDealers.slice(0, 3),
     ...demoSocietyAdmins.slice(0, 2),
@@ -68,7 +76,7 @@ export default async function LoginPage({
       </header>
       <main className="flex flex-1 items-center justify-center px-4 pb-16">
         <LoginForm
-          callbackUrl={resolveCallbackUrl(callbackUrl)}
+          callbackUrl={resolvedCallback}
           demoAccounts={demoAccounts}
           {...(isDev ? { devOtp: DEV_OTP_CODE } : {})}
         />

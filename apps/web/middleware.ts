@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { UserRole } from "@sectoria/types";
 import { authConfig } from "@/auth.config";
-import { homeForRole } from "@/lib/auth/roles";
+import { homeForRole, PROTECTED_ROUTE_PREFIXES } from "@/lib/auth/roles";
 
 /**
  * Route-group gating — the coarse, first-line authorization check
@@ -18,19 +18,7 @@ import { homeForRole } from "@/lib/auth/roles";
 const { auth } = NextAuth(authConfig);
 
 /** The role each protected route-group prefix requires. */
-const PROTECTED_PREFIXES: ReadonlyArray<{
-  prefix: string;
-  roles: readonly UserRole[];
-}> = [
-  { prefix: "/dashboard", roles: [UserRole.BUYER] },
-  { prefix: "/society-portal", roles: [UserRole.SOCIETY_ADMIN] },
-  { prefix: "/dealer-portal", roles: [UserRole.DEALER_PARTNER] },
-  {
-    prefix: "/ops-portal",
-    roles: [UserRole.SALES_ADVISOR, UserRole.SUPER_ADMIN],
-  },
-  { prefix: "/admin", roles: [UserRole.SUPER_ADMIN] },
-];
+const PROTECTED_PREFIXES = PROTECTED_ROUTE_PREFIXES;
 
 export default auth((req) => {
   const { nextUrl } = req;
