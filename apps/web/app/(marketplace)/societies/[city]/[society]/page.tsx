@@ -45,6 +45,31 @@ import { SITE } from "@/lib/site";
 // regenerate at most every 6 hours rather than on every request (seo.mdc).
 export const revalidate = 21600;
 
+// Non-prebuilt societies still render (and cache) on first request.
+export const dynamicParams = true;
+
+// SCALE (M0.7): only prebuild the first page of PUBLISHED societies at build
+// time — the long tail is served on-demand via ISR — so build time stays flat
+// as the directory grows (m0-onboarding-and-scale.md). `listSummaries` is
+// PUBLISHED-only, so drafts/archived are never prerendered.
+const PRERENDER_LIMIT = 50;
+
+export async function generateStaticParams(): Promise<
+  { city: string; society: string }[]
+> {
+  try {
+    const { items } = await getApi().society.listSummaries({
+      limit: PRERENDER_LIMIT,
+    });
+    return items.map((society) => ({
+      city: society.citySlug,
+      society: society.slug,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 type Params = Promise<{ city: string; society: string }>;
 
 type LoadResult =

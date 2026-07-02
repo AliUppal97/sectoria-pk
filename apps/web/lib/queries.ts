@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { SocietyBookingStatus, VerificationTier } from "@sectoria/types";
 import { getApi } from "./trpc/server";
 import { isNotFound } from "./fetch";
@@ -9,23 +10,25 @@ import {
 } from "./marketplace";
 
 /**
- * Composed read helpers for the marketplace pages. Each enriches the base
- * society record with its category count, starting price, and aggregate rating
- * — values the directory/comparison views need but that the single-purpose
- * routers don't bundle together.
+ * Composed read helpers for the marketplace pages.
  *
- * SCALE NOTE: this fans out one categories + reviews query per society, which is
- * fine at the current scale (a handful of societies). When the directory grows
- * past a page of results, replace this with a dedicated aggregate procedure /
- * paginated query in `@sectoria/api-client` rather than widening the fan-out
- * (scalability-and-performance.mdc).
+ * SCALE (M0.7): the directory list, facets, and search are served by the
+ * cursor-paginated `society.listSummaries` / `society.facets` procedures, which
+ * run a *bounded* number of queries (aggregates via `groupBy`, search via the
+ * pg_trgm trigram index) rather than the old N+1 fan-out + three full-table
+ * facet scans (`scalability-and-performance.mdc`, `m0-onboarding-and-scale.md`).
+ * Every read is PUBLISHED-only — drafts/archived never surface publicly.
  */
+
+/** The number of societies the directory shows on its first (SSR) page. */
+const DIRECTORY_PAGE_SIZE = 48;
 
 /** Filters accepted by the society directory, mirroring `society.list` input. */
 export interface SocietyFilters {
   readonly citySlug?: string;
   readonly verificationTier?: VerificationTier;
   readonly authority?: string;
+  readonly search?: string;
 }
 
 /** The reviewable shape used to derive an aggregate rating. */
@@ -87,21 +90,24 @@ function summarizeSociety(
   };
 }
 
-/** Lists societies matching the filters, each enriched into a `SocietySummary`. */
+/**
+ * Lists societies matching the filters, each enriched into a `SocietySummary`.
+ * Served by the bounded, cursor-paginated `society.listSummaries` procedure —
+ * the first page (SSR) is returned here; deeper pages are reachable via the
+ * procedure's cursor.
+ */
 export async function listSocietySummaries(
   filters?: SocietyFilters,
 ): Promise<SocietySummary[]> {
   const api = getApi();
-  const societies = await api.society.list(filters);
-  return Promise.all(
-    societies.map(async (society) => {
-      const [categories, reviews] = await Promise.all([
-        api.inventoryCategory.listBySociety({ societyId: society.id }),
-        api.review.listForSociety({ societyId: society.id }),
-      ]);
-      return summarizeSociety(society, categories, reviews);
-    }),
-  );
+  const { items } = await api.society.listSummaries({
+    limit: DIRECTORY_PAGE_SIZE,
+    citySlug: filters?.citySlug,
+    authority: filters?.authority,
+    verificationTier: filters?.verificationTier,
+    search: filters?.search,
+  });
+  return items;
 }
 
 /**
@@ -138,24 +144,25 @@ export async function listSocietyOptions(): Promise<
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Facet counts (city/authority/tier) for PUBLISHED societies, derived from a
+ * single `groupBy` in `society.facets`. `cache`d per request so the directory
+ * page's city and authority filters share one round-trip.
+ */
+const getFacets = cache(async () => getApi().society.facets());
+
 /** Distinct city facets (slug + display label) for the directory filter. */
 export async function listCityFacets(): Promise<
   { slug: string; label: string }[]
 > {
-  const api = getApi();
-  const societies = await api.society.list();
-  const byCitySlug = new Map<string, string>();
-  for (const society of societies) {
-    byCitySlug.set(society.citySlug, society.city);
-  }
-  return [...byCitySlug.entries()]
-    .map(([slug, label]) => ({ slug, label }))
+  const { cities } = await getFacets();
+  return cities
+    .map(({ slug, label }) => ({ slug, label }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /** Distinct authority facets (e.g. LDA, CDA) for the directory filter. */
 export async function listAuthorityFacets(): Promise<string[]> {
-  const api = getApi();
-  const societies = await api.society.list();
-  return [...new Set(societies.map((society) => society.authority))].sort();
+  const { authorities } = await getFacets();
+  return authorities.map((facet) => facet.value).sort();
 }

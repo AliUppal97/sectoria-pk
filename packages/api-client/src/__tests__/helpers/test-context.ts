@@ -53,6 +53,13 @@ export function superAdminSession(id: string): Session {
   };
 }
 
+/** Builds a sales-advisor (ops) session. */
+export function salesAdvisorSession(id: string): Session {
+  return {
+    user: { id: asId(id), role: UserRole.SALES_ADVISOR, nadraVerified: true },
+  };
+}
+
 const createCaller = createCallerFactory(appRouter);
 
 /**

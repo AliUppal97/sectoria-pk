@@ -62,6 +62,11 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | Search/filter full platform ledger | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Flag a plot as disputed (with reason) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | View booking funnel by escrow state | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Create a society (onboarding; starts DRAFT) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Publish / unpublish / archive a society (publish gated on completeness) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| View onboarding console (all statuses incl. DRAFT/ARCHIVED) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Assign / unassign a society administrator | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Bulk-import societies (idempotent upsert, dry-run) | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ## Notes
 
@@ -79,3 +84,12 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
   queue, ledger search, plot disputes) are enforced in `packages/api-client`
   via `societyAdminProcedure`, `dealerProcedure`, and `superAdminProcedure`
   plus resource-ownership asserts — route-group middleware alone is not sufficient.
+- M0 society lifecycle: `society.create`, `society.setPublishStatus`, and the
+  onboarding console reads (`society.listForAdmin`/`getForAdmin`) use
+  `opsProcedure` (SALES_ADVISOR + SUPER_ADMIN); `society.assignAdmin` and
+  `society.importBatch` use `superAdminProcedure`. Society creation is
+  ops/platform work — never self-service, never a buyer path. Publishing is
+  additionally gated on `calculateSocietyCompleteness`, and create/publish/
+  archive emit `SOCIETY_CREATED`/`SOCIETY_PUBLISHED`/`SOCIETY_ARCHIVED` ledger
+  events via the standard builder. Once an admin is linked, society-portal
+  writes stay gated by `assertSocietyOwnership`.
