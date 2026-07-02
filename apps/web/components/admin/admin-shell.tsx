@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import {
   AlertTriangle,
   BookOpen,
+  Building2,
   ClipboardCheck,
   LayoutDashboard,
   LogOut,
@@ -29,6 +30,7 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/admin/societies", label: "Societies", icon: Building2 },
   {
     href: "/admin/verification-queue",
     label: "Verification",

@@ -93,6 +93,12 @@ model Society {
   bookingStatus         SocietyBookingStatus @default(OPEN)
   bookingOpensAt        DateTime?
   bookingClosesAt       DateTime?
+  // Publication lifecycle (M0). New societies start as DRAFT; only PUBLISHED
+  // rows are visible in any public read. Backfilled to PUBLISHED for existing
+  // seeded societies in the M0 migration so the marketplace doesn't go dark.
+  publishStatus         SocietyPublishStatus @default(DRAFT)
+  publishedAt           DateTime?
+  createdById           String? // ops/admin user who created the record
   createdAt             DateTime         @default(now())
 
   categories            InventoryCategory[]
@@ -102,7 +108,19 @@ model Society {
   quotes                Quote[]
   updates               SocietyUpdate[]
 
+  // Directory scale (M0.7): the trigram GIN index on `name` is added in the M0
+  // migration (Prisma cannot express pg_trgm operator classes in the schema).
   @@index([citySlug])
+  @@index([authority])
+  @@index([verificationTier])
+  @@index([publishStatus])
+  @@index([publishStatus, citySlug])
+}
+
+enum SocietyPublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum SocietyBookingStatus {

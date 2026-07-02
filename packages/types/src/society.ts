@@ -31,6 +31,24 @@ export type VerificationTier =
   (typeof VerificationTier)[keyof typeof VerificationTier];
 export const verificationTierSchema = z.nativeEnum(VerificationTier);
 
+/**
+ * Publication lifecycle for a society (M0). A society is created as `DRAFT`,
+ * filled in incrementally, and only becomes publicly visible once it is
+ * `PUBLISHED`. `ARCHIVED` delists it while retaining the row for history/audit.
+ *
+ * Every public read filters `publishStatus = PUBLISHED`, which is what lets ops
+ * onboard societies one-by-one without exposing half-entered profiles. Mirrors
+ * the Prisma `SocietyPublishStatus` enum.
+ */
+export const SocietyPublishStatus = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+} as const;
+export type SocietyPublishStatus =
+  (typeof SocietyPublishStatus)[keyof typeof SocietyPublishStatus];
+export const societyPublishStatusSchema = z.nativeEnum(SocietyPublishStatus);
+
 /** A verified housing society — the seller of record on the marketplace. */
 export const societySchema = z.object({
   id: idSchema,
@@ -62,6 +80,12 @@ export const societySchema = z.object({
   bookingStatus: societyBookingStatusSchema,
   bookingOpensAt: isoDateTimeSchema.nullable().optional(),
   bookingClosesAt: isoDateTimeSchema.nullable().optional(),
+  /** Publication lifecycle (M0). New societies start as `DRAFT`. */
+  publishStatus: societyPublishStatusSchema,
+  /** When the society was first published to the marketplace, if ever. */
+  publishedAt: isoDateTimeSchema.nullable().optional(),
+  /** The ops/admin user who created the record — for audit and ownership. */
+  createdById: idSchema.nullable().optional(),
   createdAt: isoDateTimeSchema,
 });
 export type Society = z.infer<typeof societySchema>;

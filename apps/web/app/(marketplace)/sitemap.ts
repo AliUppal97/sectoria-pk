@@ -33,6 +33,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const api = getApi();
+    // PUBLISHED-only: `society.list` filters to publishStatus=PUBLISHED, so
+    // DRAFT/ARCHIVED societies never enter the sitemap (M0.2).
     const societies = await api.society.list();
 
     const societyEntries: MetadataRoute.Sitemap = societies.map((society) => ({

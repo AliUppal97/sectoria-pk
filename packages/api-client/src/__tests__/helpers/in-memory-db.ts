@@ -18,6 +18,8 @@ import type { PrismaClient } from "@sectoria/database";
 
 export interface UserRow {
   id: string;
+  role?: string;
+  societyId?: string | null;
   atlStatus: string;
   nadraVerified: boolean;
   cnicEncrypted: string | null;
@@ -29,6 +31,7 @@ export interface SocietyRow {
   id: string;
   slug: string;
   name: string;
+  city: string;
   citySlug: string;
   authority: string;
   verificationTier: string;
@@ -39,6 +42,23 @@ export interface SocietyRow {
   heroImageUrl: string | null;
   latitude: number | null;
   longitude: number | null;
+  lopReferenceNo: string | null;
+  nocReferenceNo: string | null;
+  hsmsLinked: boolean;
+  totalLandKanal: string | null;
+  developedLandKanal: string | null;
+  bookingStatus: string;
+  publishStatus: string;
+  publishedAt: Date | null;
+  createdById: string | null;
+  createdAt: Date;
+}
+
+export interface ReviewRow {
+  id: string;
+  subjectSocietyId: string | null;
+  subjectUserId: string | null;
+  rating: number;
 }
 
 export interface CategoryRow {
@@ -101,16 +121,29 @@ export class Store {
   plots = new Map<string, PlotRow>();
   paymentPlans = new Map<string, PaymentPlanRow>();
   bookings = new Map<string, BookingRow>();
+  reviews = new Map<string, ReviewRow>();
   ledgerEvents = new Map<string, LedgerRow>();
 
   /** Test hook: when set, every `ledgerEvent.create` throws to force a rollback. */
   failLedgerCreate = false;
 
+  /**
+   * Counts every model method invocation, so a test can assert an operation runs
+   * a *bounded* number of queries rather than fanning out per row (M0.7).
+   */
+  dbCallCount = 0;
+
   private bookingCounter = 0;
+  private societyCounter = 0;
 
   nextBookingId(): string {
     this.bookingCounter += 1;
     return `bk_${this.bookingCounter}`;
+  }
+
+  nextSocietyId(): string {
+    this.societyCounter += 1;
+    return `soc_new_${this.societyCounter}`;
   }
 }
 
@@ -126,20 +159,93 @@ function snapshot(store: Store): Map<string, unknown>[] {
     clone(store.plots),
     clone(store.paymentPlans),
     clone(store.bookings),
+    clone(store.reviews),
     clone(store.ledgerEvents),
   ];
 }
 
 function restore(store: Store, snap: Map<string, unknown>[]): void {
-  const [users, societies, categories, plots, paymentPlans, bookings, ledger] =
-    snap;
+  const [
+    users,
+    societies,
+    categories,
+    plots,
+    paymentPlans,
+    bookings,
+    reviews,
+    ledger,
+  ] = snap;
   store.users = users as Map<string, UserRow>;
   store.societies = societies as Map<string, SocietyRow>;
   store.categories = categories as Map<string, CategoryRow>;
   store.plots = plots as Map<string, PlotRow>;
   store.paymentPlans = paymentPlans as Map<string, PaymentPlanRow>;
   store.bookings = bookings as Map<string, BookingRow>;
+  store.reviews = reviews as Map<string, ReviewRow>;
   store.ledgerEvents = ledger as Map<string, LedgerRow>;
+}
+
+/** Evaluates a Prisma-style string filter (`contains` + `mode: "insensitive"`). */
+function matchesStringFilter(value: string, filter: unknown): boolean {
+  if (typeof filter === "string") return value === filter;
+  if (filter !== null && typeof filter === "object") {
+    const op = filter as { contains?: string; mode?: string };
+    if (typeof op.contains === "string") {
+      const haystack = op.mode === "insensitive" ? value.toLowerCase() : value;
+      const needle =
+        op.mode === "insensitive" ? op.contains.toLowerCase() : op.contains;
+      return haystack.includes(needle);
+    }
+  }
+  return true;
+}
+
+/** Minimal Prisma `where` matcher for the society directory/console queries. */
+function matchesSocietyWhere(
+  row: SocietyRow,
+  where?: Record<string, unknown>,
+): boolean {
+  if (where === undefined) return true;
+  for (const [key, condition] of Object.entries(where)) {
+    if (key === "OR") {
+      const clauses = condition as Record<string, unknown>[];
+      if (!clauses.some((clause) => matchesSocietyWhere(row, clause))) {
+        return false;
+      }
+      continue;
+    }
+    const value = (row as unknown as Record<string, unknown>)[key];
+    if (typeof value === "string") {
+      if (!matchesStringFilter(value, condition)) return false;
+    } else if (value !== condition) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Applies the subset of `orderBy` the society queries use. */
+function sortSocieties(rows: SocietyRow[], orderBy: unknown): SocietyRow[] {
+  const clauses = Array.isArray(orderBy)
+    ? (orderBy as Record<string, "asc" | "desc">[])
+    : orderBy !== undefined && orderBy !== null
+      ? [orderBy as Record<string, "asc" | "desc">]
+      : [];
+  if (clauses.length === 0) return rows;
+  return [...rows].sort((a, b) => {
+    for (const clause of clauses) {
+      const [field, direction] = Object.entries(clause)[0] ?? [];
+      if (field === undefined) continue;
+      const av = (a as unknown as Record<string, unknown>)[field];
+      const bv = (b as unknown as Record<string, unknown>)[field];
+      const cmp =
+        av instanceof Date && bv instanceof Date
+          ? av.getTime() - bv.getTime()
+          : String(av).localeCompare(String(bv));
+      if (cmp !== 0) return direction === "desc" ? -cmp : cmp;
+    }
+    return 0;
+  });
 }
 
 /** Applies a Prisma-style numeric write (`5` or `{ decrement: 1 }`). */
@@ -166,33 +272,188 @@ function buildClient(store: Store): PrismaClient {
     },
 
     user: {
-      findUnique: async (args: WhereId) =>
-        store.users.get(args.where.id) ?? null,
+      findUnique: async (args: {
+        where: { id: string };
+        select?: Record<string, boolean>;
+      }) => store.users.get(args.where.id) ?? null,
       update: async (args: WhereId & { data: Record<string, unknown> }) => {
         const row = store.users.get(args.where.id);
         if (row === undefined) throw new Error("user not found");
         Object.assign(row, args.data);
         return row;
       },
+      updateMany: async (args: {
+        where: { societyId?: string };
+        data: Record<string, unknown>;
+      }) => {
+        let count = 0;
+        for (const row of store.users.values()) {
+          if (
+            args.where.societyId === undefined ||
+            (row as unknown as { societyId?: string | null }).societyId ===
+              args.where.societyId
+          ) {
+            Object.assign(row, args.data);
+            count += 1;
+          }
+        }
+        return { count };
+      },
     },
 
     society: {
-      findMany: async () => [...store.societies.values()],
-      findUnique: async (args: { where: { id?: string; slug?: string } }) => {
-        if (args.where.id !== undefined) {
-          return store.societies.get(args.where.id) ?? null;
-        }
-        return (
-          [...store.societies.values()].find(
-            (s) => s.slug === args.where.slug,
-          ) ?? null
+      findMany: async (args?: {
+        where?: Record<string, unknown>;
+        orderBy?: unknown;
+        take?: number;
+        cursor?: { id: string };
+        skip?: number;
+        include?: { _count?: { select?: { users?: boolean } } };
+      }) => {
+        store.dbCallCount += 1;
+        let rows = [...store.societies.values()].filter((row) =>
+          matchesSocietyWhere(row, args?.where),
         );
+        rows = sortSocieties(rows, args?.orderBy);
+        if (args?.cursor !== undefined) {
+          const index = rows.findIndex((row) => row.id === args.cursor?.id);
+          if (index >= 0) rows = rows.slice(index + (args.skip ?? 0));
+        }
+        if (typeof args?.take === "number") rows = rows.slice(0, args.take);
+        if (args?.include?._count?.select?.users) {
+          return rows.map((row) => ({
+            ...row,
+            _count: {
+              users: [...store.users.values()].filter(
+                (u) => u.societyId === row.id,
+              ).length,
+            },
+          }));
+        }
+        return rows;
       },
-      update: async (args: WhereId & { data: Record<string, unknown> }) => {
-        const row = store.societies.get(args.where.id);
+      findUnique: async (args: {
+        where: { id?: string; slug?: string };
+        select?: Record<string, boolean>;
+      }) => {
+        store.dbCallCount += 1;
+        const row =
+          args.where.id !== undefined
+            ? (store.societies.get(args.where.id) ?? null)
+            : ([...store.societies.values()].find(
+                (s) => s.slug === args.where.slug,
+              ) ?? null);
+        return row;
+      },
+      create: async (args: { data: Record<string, unknown> }) => {
+        store.dbCallCount += 1;
+        const id = store.nextSocietyId();
+        const row: SocietyRow = {
+          id,
+          slug: String(args.data.slug),
+          name: String(args.data.name),
+          city: String(args.data.city ?? ""),
+          citySlug: String(args.data.citySlug),
+          authority: String(args.data.authority),
+          verificationTier: String(args.data.verificationTier ?? "PENDING"),
+          description: String(args.data.description ?? ""),
+          amenities: (args.data.amenities as string[] | undefined) ?? [],
+          developmentStage: String(args.data.developmentStage ?? ""),
+          developmentPct: Number(args.data.developmentPct ?? 0),
+          heroImageUrl: (args.data.heroImageUrl as string | null) ?? null,
+          latitude: (args.data.latitude as number | null) ?? null,
+          longitude: (args.data.longitude as number | null) ?? null,
+          lopReferenceNo: (args.data.lopReferenceNo as string | null) ?? null,
+          nocReferenceNo: (args.data.nocReferenceNo as string | null) ?? null,
+          hsmsLinked: Boolean(args.data.hsmsLinked ?? false),
+          totalLandKanal: (args.data.totalLandKanal as string | null) ?? null,
+          developedLandKanal:
+            (args.data.developedLandKanal as string | null) ?? null,
+          bookingStatus: String(args.data.bookingStatus ?? "OPEN"),
+          publishStatus: String(args.data.publishStatus ?? "DRAFT"),
+          publishedAt: (args.data.publishedAt as Date | null) ?? null,
+          createdById: (args.data.createdById as string | null) ?? null,
+          createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        };
+        store.societies.set(id, row);
+        return row;
+      },
+      update: async (args: {
+        where: { id?: string; slug?: string };
+        data: Record<string, unknown>;
+      }) => {
+        store.dbCallCount += 1;
+        const row =
+          args.where.id !== undefined
+            ? store.societies.get(args.where.id)
+            : [...store.societies.values()].find(
+                (s) => s.slug === args.where.slug,
+              );
         if (row === undefined) throw new Error("society not found");
         Object.assign(row, args.data);
         return row;
+      },
+      groupBy: async (args: {
+        by: string[];
+        where?: Record<string, unknown>;
+      }) => {
+        store.dbCallCount += 1;
+        const rows = [...store.societies.values()].filter((row) =>
+          matchesSocietyWhere(row, args.where),
+        );
+        const groups = new Map<string, { key: Record<string, unknown>; count: number }>();
+        for (const row of rows) {
+          const key: Record<string, unknown> = {};
+          for (const field of args.by) {
+            key[field] = (row as unknown as Record<string, unknown>)[field];
+          }
+          const mapKey = JSON.stringify(key);
+          const existing = groups.get(mapKey);
+          if (existing === undefined) groups.set(mapKey, { key, count: 1 });
+          else existing.count += 1;
+        }
+        return [...groups.values()].map((group) => ({
+          ...group.key,
+          _count: { _all: group.count },
+        }));
+      },
+      count: async (args?: { where?: Record<string, unknown> }) => {
+        store.dbCallCount += 1;
+        return [...store.societies.values()].filter((row) =>
+          matchesSocietyWhere(row, args?.where),
+        ).length;
+      },
+    },
+
+    review: {
+      groupBy: async (args: {
+        by: string[];
+        where?: { subjectSocietyId?: { in?: string[] } };
+      }) => {
+        store.dbCallCount += 1;
+        const allowed = args.where?.subjectSocietyId?.in;
+        const rows = [...store.reviews.values()].filter(
+          (r) =>
+            r.subjectSocietyId !== null &&
+            (allowed === undefined || allowed.includes(r.subjectSocietyId)),
+        );
+        const groups = new Map<string, { sum: number; count: number }>();
+        for (const row of rows) {
+          const key = row.subjectSocietyId as string;
+          const existing = groups.get(key) ?? { sum: 0, count: 0 };
+          existing.sum += row.rating;
+          existing.count += 1;
+          groups.set(key, existing);
+        }
+        return [...groups.entries()].map(([subjectSocietyId, { sum, count }]) => ({
+          subjectSocietyId,
+          _avg: { rating: sum / count },
+          _count: { _all: count },
+        }));
+      },
+      aggregate: async () => {
+        store.dbCallCount += 1;
+        return { _avg: { rating: null } };
       },
     },
 
@@ -202,6 +463,19 @@ function buildClient(store: Store): PrismaClient {
     },
 
     inventoryCategory: {
+      findMany: async (args?: {
+        where?: { societyId?: string | { in?: string[] } };
+        select?: Record<string, boolean>;
+      }) => {
+        store.dbCallCount += 1;
+        const filter = args?.where?.societyId;
+        return [...store.categories.values()].filter((category) => {
+          if (filter === undefined) return true;
+          if (typeof filter === "string") return category.societyId === filter;
+          if (filter.in !== undefined) return filter.in.includes(category.societyId);
+          return true;
+        });
+      },
       findUnique: async (args: {
         where: { id: string };
         include?: { plots?: { where?: { status?: string } } };

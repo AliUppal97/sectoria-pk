@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { useState, type ReactNode } from "react";
 import type { AppRouter } from "@sectoria/api-client";
@@ -13,6 +13,16 @@ import type { AppRouter } from "@sectoria/api-client";
  * compile error at every stale call site here.
  */
 export const api = createTRPCReact<AppRouter>();
+
+/**
+ * A plain (non-hook) tRPC client for the browser. Used where the React Query
+ * hook generics would otherwise instantiate an excessively deep type on a very
+ * large sub-router (TS2589) — pair it with TanStack Query's own `useQuery` and
+ * keep full end-to-end type inference on the call itself.
+ */
+export const trpcVanilla = createTRPCClient<AppRouter>({
+  links: [httpBatchLink({ url: "/api/trpc" })],
+});
 
 /**
  * Provides the tRPC + React Query clients to the client components beneath it.

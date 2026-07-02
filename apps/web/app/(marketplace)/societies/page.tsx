@@ -42,12 +42,13 @@ function parseFilters(
 ): Filters {
   const citySlug = readParam(params, "citySlug");
   const authority = readParam(params, "authority");
+  const search = readParam(params, "search");
   const tierRaw = readParam(params, "verificationTier");
   const verificationTier =
     tierRaw && VALID_TIERS.has(tierRaw as VerificationTier)
       ? (tierRaw as VerificationTier)
       : undefined;
-  return { citySlug, authority, verificationTier };
+  return { citySlug, authority, verificationTier, search };
 }
 
 export async function generateMetadata({
@@ -97,7 +98,8 @@ export default async function SocietiesPage({
   const hasFilters =
     Boolean(filters.citySlug) ||
     Boolean(filters.authority) ||
-    Boolean(filters.verificationTier);
+    Boolean(filters.verificationTier) ||
+    Boolean(filters.search);
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-12 sm:px-6">

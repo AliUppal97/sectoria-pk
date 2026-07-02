@@ -473,6 +473,11 @@ async function main(): Promise<void> {
           spec.bookingStatus === "CLOSED"
             ? new Date("2026-05-15T00:00:00.000Z")
             : null,
+        // M0.1: the demo societies are live in the marketplace. Public reads are
+        // filtered to PUBLISHED, so a DRAFT here would make them disappear.
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date(SEED_EPOCH),
+        createdById: superAdmin.id,
       },
     });
 
@@ -1022,8 +1027,32 @@ async function main(): Promise<void> {
     },
   });
 
+  // ── One DRAFT society for the onboarding console (M0.3) ──────────
+  // Intentionally incomplete (no LOP/NOC/hero/coordinates) so the console
+  // shows a sub-100% completeness score and the publish gate blocks it.
+  await prisma.society.create({
+    data: {
+      slug: "orchard-gardens-faisalabad",
+      name: "Orchard Gardens (Draft)",
+      city: "Faisalabad",
+      citySlug: "faisalabad",
+      authority: "FDA",
+      description: "",
+      hsmsLinked: false,
+      verificationTier: "PENDING",
+      developmentStage: "Planning",
+      developmentPct: 0,
+      bookingStatus: "UPCOMING",
+      publishStatus: "DRAFT",
+      createdById: superAdmin.id,
+    },
+  });
+
   const counts = {
     societies: await prisma.society.count(),
+    draftSocieties: await prisma.society.count({
+      where: { publishStatus: "DRAFT" },
+    }),
     categories: await prisma.inventoryCategory.count(),
     paymentPlans: await prisma.paymentPlan.count(),
     plots: await prisma.plot.count(),
