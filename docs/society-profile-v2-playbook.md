@@ -1,10 +1,12 @@
 # Society Profile V2 — Build Playbook (Prompt File)
 
-Companion to the technical spec [`docs/architecture/society-profile-v2-spec.md`](architecture/society-profile-v2-spec.md). Same format as [`docs/session-playbook.md`](session-playbook.md): for **every** session you get the model tier, mode, attachments, expected rules, a tightened prompt, and a test gate that must pass **before** the next session.
+Companion to the split technical spec. The spec **index** is [`docs/architecture/society-profile-v2-spec.md`](architecture/society-profile-v2-spec.md); the detailed parts live under [`docs/architecture/society-profile-v2/`](architecture/society-profile-v2/). Same format as [`docs/session-playbook.md`](session-playbook.md): for **every** session you get the model tier, mode, the exact files to attach, expected rules, a tightened prompt, and a test gate that must pass **before** the next session.
 
 > Golden rule (unchanged): **do not advance until every box in a session's Test Gate is ticked.** A broken foundation package multiplies into every session above it.
 
-These sessions deliver the Urban City-grade society profile (visual media, documents, rich amenities, connectivity, developer credibility, milestone roadmap, progress galleries, sub-community sections, and a blog) **inside the concierge model** — every CTA funnels to a quote request; no self-serve booking; no dealer net/contact exposure.
+> Attach discipline: each session attaches [`society-profile-v2/foundations.md`](architecture/society-profile-v2/foundations.md) **plus only the module/concern file(s) for that session** — not the whole spec. UI sessions also attach the design system.
+
+These sessions deliver an **end-to-end society onboarding pipeline** (Session S0: create -> draft -> complete -> publish, with a scalable directory so every society in Pakistan can be added one-by-one) plus the Urban City-grade society profile built on top of it (visual media, documents, rich amenities, connectivity, developer credibility, milestone roadmap, progress galleries, sub-community sections, and a blog) — all **inside the concierge model**: every CTA funnels to a quote request; no self-serve booking; no dealer net/contact exposure.
 
 ---
 
@@ -22,6 +24,7 @@ These sessions deliver the Urban City-grade society profile (visual media, docum
 
 | Session | Topic | Tier | Mode |
 |---|---|---|---|
+| S0 | Society lifecycle, onboarding console, bulk import + directory scalability | **A** | Agent |
 | S1 | Types + schema + migrations (data foundation) | **A** | Agent |
 | S2 | API routers + concierge/ownership guards | **A** | Agent |
 | S3 | Storage adapter + presigned uploads + ADR-009 | **A** | Agent |
@@ -38,21 +41,21 @@ These sessions deliver the Urban City-grade society profile (visual media, docum
 
 ## Design documentation (attach in UI sessions)
 
-Per `session-playbook.md`: **attach** `@docs/design/Sectoria_Design_System.md` in the UI-heavy sessions (**S4–S10**) for exact tokens, bento grid, five-states, and trust patterns. **Do not attach it** in S1–S3 (data/API/storage) or S11 (SEO/E2E) — it adds context with no benefit there.
+Per `session-playbook.md`: **attach** `@docs/design/Sectoria_Design_System.md` in the UI-heavy sessions (**S0 and S4–S10**) for exact tokens, bento grid, five-states, and trust patterns. S0 attaches it because it builds the admin onboarding console. **Do not attach it** in S1–S3 (data/API/storage) or S11 (SEO/E2E) — it adds context with no benefit there.
 
 The lean rules `ui-design-system-sectoria.mdc` and `ui-ux-excellence-sectoria.mdc` auto-load on `apps/web/app/**` and `packages/ui/**`.
 
 ---
 
-## Pre-flight gate (GREEN before S1)
+## Pre-flight gate (GREEN before S0)
 
 - [ ] On a clean branch off the latest `main`; working tree committed.
 - [ ] `pnpm install` clean; `pnpm turbo run test lint typecheck` green at baseline.
-- [ ] Read the spec `@docs/architecture/society-profile-v2-spec.md` end-to-end.
+- [ ] Read the spec index `@docs/architecture/society-profile-v2-spec.md` and `@docs/architecture/society-profile-v2/foundations.md` — **note M0 is foundational and runs first (Session S0)**.
 - [ ] Confirm concierge rule loads: `.cursor/rules/concierge-model.mdc`.
-- [ ] Postgres reachable for `prisma migrate dev`.
+- [ ] Postgres reachable for `prisma migrate dev` (and able to enable the `pg_trgm` extension for M0 search).
 
-**Per-session ritual:** new chat → set model tier → `@`-attach `@docs/architecture/society-profile-v2-spec.md` (UI sessions also attach `@docs/design/Sectoria_Design_System.md`) → paste the session prompt → run Test Gate → commit → push.
+**Per-session ritual:** new chat → set model tier → `@`-attach the files listed in that session's **Attach** line → paste the session prompt → run Test Gate → commit → push.
 
 ---
 
@@ -60,19 +63,91 @@ The lean rules `ui-design-system-sectoria.mdc` and `ui-ux-excellence-sectoria.md
 
 ---
 
+## Session S0 — Society lifecycle, onboarding console & directory scale (foundational)
+
+- **Model:** Tier A
+- **Mode:** Agent
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m0-onboarding-and-scale.md` + `@docs/design/Sectoria_Design_System.md`
+- **Rules expected to load:** `database`, `api-trpc`, `middleware-and-guards`, `auth-and-access-control`, `scalability-and-performance`, `concierge-model`, `security`.
+- **Why first:** today there is no `society.create`, no draft/publish lifecycle, and the directory does an N+1 fan-out plus three full-table facet scans (`apps/web/lib/queries.ts`). This session makes society data a governed, scalable dataset so every society in Pakistan can be added one-by-one. M1–M8 depend on it.
+
+**Prompt:**
+```
+@docs/architecture/society-profile-v2/foundations.md @docs/architecture/society-profile-v2/m0-onboarding-and-scale.md @docs/design/Sectoria_Design_System.md
+
+Implement module M0 (the onboarding + scalability foundation). Do it in this order:
+
+1. Lifecycle (M0.1): add SocietyPublishStatus enum (DRAFT/PUBLISHED/ARCHIVED) +
+   Society.publishStatus (default DRAFT), publishedAt, createdById. Add the Zod
+   schema to packages/types. Migration must BACKFILL existing societies to
+   PUBLISHED so the marketplace doesn't go dark. Add @@index([publishStatus,
+   citySlug]), and @@index on authority, verificationTier, publishStatus, plus a
+   pg_trgm trigram index on name (enable the extension in the migration).
+2. Filter ALL public reads to publishStatus=PUBLISHED: society.list, getBySlug,
+   the new summary/facet procedures, sitemap.ts, and generateStaticParams.
+3. Creation & ownership (M0.2): society.create (opsProcedure; minimal identity;
+   slug-unique -> CONFLICT on clash; starts DRAFT), society.setPublishStatus
+   (opsProcedure; gated on the completeness check), society.assignAdmin
+   (superAdminProcedure). Emit LedgerEvent SOCIETY_CREATED/PUBLISHED/ARCHIVED via
+   the standard ledger builder (entityId=societyId) — no ad-hoc audit rows.
+4. Completeness (M0.4): pure calculateSocietyCompleteness(society) ->
+   {score, missing[]}, used as the publish gate and surfaced read-only to admins.
+5. Reference data (M0.6): PAKISTAN_CITIES + REGULATORY_AUTHORITIES ({slug,label})
+   in packages/types; validate citySlug/authority on create/import against them.
+6. Bulk import (M0.5): society.importBatch (superAdminProcedure) — idempotent
+   upsert by slug, always DRAFT, dry-run mode, per-row result report.
+7. Scalability (M0.7): replace the N+1 in apps/web/lib/queries.ts with
+   society.listSummaries (cursor-paginated; category aggregates via groupBy,
+   review averages via aggregate/groupBy) and society.facets (one groupBy for
+   city/authority/tier counts). Add index-backed name/city search. Use on-demand
+   revalidation (revalidatePath/revalidateTag) when a society is published/edited;
+   cap generateStaticParams to the top/most-recent societies.
+8. Admin console (M0.3): apps/web/app/(admin)/admin/societies/ — paginated,
+   searchable, filterable list with a completeness % column; create wizard
+   (saves DRAFT); publish/unpublish/archive with confirm dialogs.
+
+Society creation is ops/platform work — never self-service, never a buyer path.
+Update docs/architecture/access-rights-matrix.md with every new mutation. Add
+tests: ops-only create, slug CONFLICT, publish gate rejection, draft excluded
+from public reads, import idempotency/dry-run, and a query-count assertion that
+listSummaries does NOT fan out per society.
+```
+
+**Test Gate:**
+- [ ] `SocietyPublishStatus` added; migration backfills existing societies to `PUBLISHED`; trigram + new indexes present (reviewed SQL).
+- [ ] Public reads, sitemap, and `generateStaticParams` exclude non-`PUBLISHED` societies (test).
+- [ ] `society.create` is ops-only, starts `DRAFT`, rejects duplicate slug with `CONFLICT` (test).
+- [ ] Publish is blocked until `calculateSocietyCompleteness` passes the minimum (test).
+- [ ] `society.assignAdmin` is super-admin-only; portal writes still gated by ownership.
+- [ ] `importBatch` is idempotent, dry-run writes nothing, returns a per-row report (test).
+- [ ] `listSummaries` is cursor-paginated and runs a **bounded** number of queries — assert no per-society fan-out (query-count test); `facets` uses a single `groupBy`.
+- [ ] Name/city search is index-backed (no in-memory full-table filter).
+- [ ] Create/publish/archive emit ledger events via the standard builder; `access-rights-matrix.md` updated.
+- [ ] Admin console can create a `DRAFT`, show completeness %, and publish; design tokens only.
+- [ ] `pnpm turbo run test lint typecheck` clean.
+- [ ] Commit + push: `feat(society): lifecycle, onboarding console, bulk import, and scalable directory (M0)`
+
+---
+
 ## Session S1 — Types + schema + migrations (data foundation)
 
 - **Model:** Tier A
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md`
+- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/architecture/society-profile-v2/foundations.md` (open each `society-profile-v2/m1`–`m8` file for its Data model section)
 - **Rules expected to load:** `database` (`packages/database/**`), `oop-and-domain-modeling`, `architecture`, `concierge-model`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md
+@docs/architecture/society-profile-v2-spec.md @docs/architecture/society-profile-v2/foundations.md
 
-Implement the Society Profile V2 data foundation per spec §3 and §8. This
-session is types + schema + migrations ONLY — no routers, no UI.
+Implement the M1–M8 data foundation. Read the Data model section of each module
+file under docs/architecture/society-profile-v2/ (m1-media-galleries,
+m2-documents, m3-amenities-highlights, m4-location-connectivity,
+m5-developer-profiles, m6-milestone-roadmap, m8-blog-content-hub) and the
+additive summary in foundations.md §3. This session is types + schema +
+migrations ONLY — no routers, no UI. (M0's lifecycle fields, indexes, and
+reference data were added in S0 — do not duplicate them; this session adds the
+M1–M8 models.)
 
 1. packages/types: add Zod schemas + `as const` enums + z.infer types for:
    society-media (SocietyMediaKind), society-document (SocietyDocumentKind),
@@ -81,8 +156,8 @@ session is types + schema + migrations ONLY — no routers, no UI.
    society-milestone (MilestoneStatus), article. Extend societySchema with
    virtualTourUrl?, promoVideoUrl?, developerId?. Export all from the barrel
    index.ts. Mirror Prisma enums EXACTLY.
-2. packages/database/prisma/schema.prisma: add the 9 new models, 4 new enums,
-   and the 3 new Society fields + relations from spec §8. cuid() ids, @@index
+2. packages/database/prisma/schema.prisma: add the new models, enums, and the
+   new Society fields + relations from foundations.md §3. cuid() ids, @@index
    on every FK, Decimal for money/area, enums for closed sets. Keep existing
    `amenities String[]` and `heroImageUrl` — additive only, no drops/renames.
 3. Generate ONE migration per logical module group (media, document, feature,
@@ -109,17 +184,18 @@ Do not expose dealer net/commission anywhere. Do not add plaintext PII columns.
 
 - **Model:** Tier A
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md`
+- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/architecture/society-profile-v2/foundations.md` (open each `m1`–`m8` file for its API section)
 - **Rules expected to load:** `api-trpc`, `middleware-and-guards`, `auth-and-access-control`, `concierge-model`, `security`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md
+@docs/architecture/society-profile-v2-spec.md @docs/architecture/society-profile-v2/foundations.md
 
-Add the tRPC routers for Society Profile V2 per spec §3 and §4. One router file
-per area under packages/api-client/src/routers/: media, document, society-feature
-(amenities + highlights), landmark, developer, milestone, article. Merge into the
-root router.
+Add the tRPC routers for M1–M8. Read the API section of each module file under
+docs/architecture/society-profile-v2/ and the procedure mapping in foundations.md
+§1.1/§2. One router file per area under packages/api-client/src/routers/: media,
+document, society-feature (amenities + highlights), landmark, developer,
+milestone, article. Merge into the root router.
 
 Rules:
 - Public reads (consumed by the profile) use publicProcedure with DTO mappers
@@ -153,14 +229,14 @@ docs/architecture/access-rights-matrix.md with a row per new mutation.
 
 - **Model:** Tier A
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/storage.md`
 - **Rules expected to load:** `security`, `architecture`, `api-trpc`, `dependency-management`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md
+@docs/architecture/society-profile-v2/foundations.md @docs/architecture/society-profile-v2/storage.md
 
-Implement media/document storage per spec §7. Write ADR-009
+Implement media/document storage per storage.md. Write ADR-009
 (docs/architecture/ADR-009-media-document-storage.md) recording the decision.
 
 1. Storage adapter (apps/web/lib/storage or packages/storage) with a small
@@ -182,7 +258,7 @@ rejection, signed-URL expiry, private-doc auth requirement.
 ```
 
 **Test Gate:**
-- [ ] ADR-009 written and linked from the spec.
+- [ ] ADR-009 written and linked from `storage.md` / the spec index.
 - [ ] Mock/local adapter works with no cloud creds (dev + CI).
 - [ ] Upload rejects disallowed content-type and oversized files (typed error, tested).
 - [ ] Private-doc URL requires auth/ownership; signed URLs expire (tested).
@@ -197,14 +273,14 @@ rejection, signed-URL expiry, private-doc auth requirement.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m1-media-galleries.md` + `@docs/architecture/society-profile-v2/storage.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `nextjs-app-router`, `concierge-model`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m1-media-galleries.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build the media UI per spec M1. Components under apps/web/components/marketplace/:
+Build the media UI per M1. Components under apps/web/components/marketplace/:
 - Render the society hero from SocietyMedia(kind=HERO) (fallback heroImageUrl)
   with the verification badge overlaid; next/image with sizes + blur, no CLS.
 - society-gallery.tsx: responsive grid + accessible lightbox (client, dynamic
@@ -233,14 +309,14 @@ initials placeholder). CTAs stay concierge — no booking buttons.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m2-documents.md` + `@docs/architecture/society-profile-v2/storage.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `concierge-model`, `security`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m2-documents.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build society-documents.tsx per spec M2: download cards grouped by kind
+Build society-documents.tsx per M2: download cards grouped by kind
 (master plan, brochure, payment plan, LOP, NOC), each showing icon, title,
 file size, and content type, linking to the signed URL with rel="noopener" and
 the download attribute. Public profile lists only public documents. Wire into the
@@ -262,14 +338,14 @@ design tokens only. No PII in displayed filenames.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m3-amenities-highlights.md` + `@docs/architecture/society-profile-v2/m4-location-connectivity.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `concierge-model`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m3-amenities-highlights.md @docs/architecture/society-profile-v2/m4-location-connectivity.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build per spec M3 + M4:
+Build per M3 + M4:
 - society-amenities.tsx: rich bento amenity cards (icon/image + title +
   description) from AmenityFeature; fall back to the existing amenities[] pills
   when no rich features exist.
@@ -296,14 +372,14 @@ Design tokens only; five states; concierge CTAs unchanged.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m5-developer-profiles.md` + `@docs/architecture/society-profile-v2/seo.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `nextjs-app-router`, `seo`, `concierge-model`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m5-developer-profiles.md @docs/architecture/society-profile-v2/seo.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build per spec M5:
+Build per M5:
 - A "Developer" credibility block on the society profile showing the developer
   (logo, name, short bio) and linking to their page.
 - New public route apps/web/app/(marketplace)/developers/[slug]/page.tsx (ISR):
@@ -328,14 +404,14 @@ tokens, five states.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m6-milestone-roadmap.md` + `@docs/architecture/society-profile-v2/m7-phase-sections.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `concierge-model`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m6-milestone-roadmap.md @docs/architecture/society-profile-v2/m7-phase-sections.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build per spec M6 + M7:
+Build per M6 + M7:
 - society-roadmap.tsx: structured milestone timeline (month-year nodes, status
   completed/in-progress/planned), reusing the visual language of
   society-updates-timeline.tsx, rendered ABOVE the existing news timeline.
@@ -358,14 +434,14 @@ Concierge quote CTA unchanged. Design tokens; five states.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/portal-editors.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `auth-and-access-control`, `concierge-model`, `security`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/portal-editors.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build the editing surfaces per spec §5.
+Build the editing surfaces per portal-editors.md.
 Society portal (apps/web/app/(society)/society-portal/, nav in
 components/society/society-shell.tsx), all societyAdminProcedure + ownership:
 - Media (upload/reorder hero, gallery, progress with capture date, floorplans)
@@ -396,14 +472,14 @@ dialogs, not toasts. Five states; design tokens.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md` + `@docs/design/Sectoria_Design_System.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m8-blog-content-hub.md` + `@docs/architecture/society-profile-v2/seo.md` + `@docs/design/Sectoria_Design_System.md`
 - **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `nextjs-app-router`, `seo`, `security`.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md @docs/design/Sectoria_Design_System.md
+@docs/architecture/society-profile-v2/m8-blog-content-hub.md @docs/architecture/society-profile-v2/seo.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
 
-Build per spec M8:
+Build per M8:
 - apps/web/app/(marketplace)/blog/page.tsx (published list, ISR) and
   blog/[slug]/page.tsx (article, ISR). Render markdown SERVER-SIDE through a
   sanitizer (no raw HTML injection). Unpublished articles never appear publicly.
@@ -426,19 +502,20 @@ Article JSON-LD + per-page metadata via lib/seo.ts. Design tokens; five states.
 
 - **Model:** Tier B
 - **Mode:** Agent
-- **Attach:** `@docs/architecture/society-profile-v2-spec.md`
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/seo.md`
 - **Rules expected to load:** `seo`, `testing` (`e2e/**`, `*.spec.ts`), `nextjs-app-router`, `concierge-model`.
 - **Design:** no design-spec attachment — this session validates flows/SEO, not visuals.
 
 **Prompt:**
 ```
-@docs/architecture/society-profile-v2-spec.md
+@docs/architecture/society-profile-v2/seo.md @docs/architecture/society-profile-v2/foundations.md
 
-Finalize SEO and tests per spec §6 and §10.
+Finalize SEO and tests per seo.md and the acceptance criteria in foundations.md §5.
 1. lib/seo.ts: add ImageObject (hero/gallery), VideoObject (virtual tour/promo),
    and confirm Organization (developer) + Article builders. Render through the
    shared <JsonLd> component — never inline <script>.
 2. sitemap.ts: add developer pages and published articles; keep society/category.
+   Only publishStatus=PUBLISHED societies appear.
 3. Make the society hero the society OG image; give blog/developer pages their own OG.
 4. Extend the Playwright suite (e2e/) to cover the enriched profile against seeded
    mock data: open a society profile and assert the hero, a gallery item, a
@@ -451,7 +528,7 @@ Run against MOCK adapters only — no real cloud/storage/government calls in CI.
 
 **Test Gate:**
 - [ ] JSON-LD for image/video/organization/article validates; no inline `<script>`.
-- [ ] Sitemap includes developer pages + published articles.
+- [ ] Sitemap includes developer pages + published articles; excludes non-published societies.
 - [ ] OG images correct for society/developer/blog.
 - [ ] Playwright asserts enriched profile sections render and CTAs are concierge-only (no booking/dealer path).
 - [ ] E2E uses mock adapters only; CI (`.github/workflows/ci.yml`) runs the suite.
@@ -476,7 +553,11 @@ All three must pass before you commit and move on. If anything fails, paste the 
 | Dealer net/commission leaks into a buyer payload | STOP → "violates concierge-model.mdc — strip dealerNetPkr/spreadPkr/commission and dealer contact from this response" |
 | A new CTA points at a booking/checkout route | "violates concierge-model.mdc — route to the QuoteRequestForm / advisor flow instead" |
 | Upload accepts arbitrary file types | "add the content-type allow-list + size cap on the server before minting a presigned URL (security.mdc)" |
-| Private LOP/NOC served via public URL | STOP → "private docs must require auth/ownership before a short-lived signed URL is minted (spec §2/§7)" |
+| Private LOP/NOC served via public URL | STOP → "private docs must require auth/ownership before a short-lived signed URL is minted (storage.md)" |
 | Inline hex / arbitrary spacing in UI | "violates ui-design-system-sectoria.mdc — add a token to theme.css and use it" |
 | Third-party iframe/video autoloads | "make virtual-tour/video click-to-load and add the host to CSP frame-src" |
+| Directory read fans out per society | STOP → "violates scalability-and-performance.mdc — use society.listSummaries with groupBy aggregates + cursor pagination, not an N+1 fan-out (m0-onboarding-and-scale.md M0.7)" |
+| Draft society appears publicly | STOP → "all public reads, sitemap, and generateStaticParams must filter publishStatus=PUBLISHED (m0-onboarding-and-scale.md M0.1)" |
+| `society.create` reachable by a buyer/society self-service | STOP → "society onboarding is opsProcedure only — never a buyer path (m0-onboarding-and-scale.md M0.2)" |
+| Free-text city/authority entered | "validate against PAKISTAN_CITIES / REGULATORY_AUTHORITIES reference sets (m0-onboarding-and-scale.md M0.6)" |
 | New package version guessed | `cat docs/architecture/dependency-baseline.md` → use the pinned version |
