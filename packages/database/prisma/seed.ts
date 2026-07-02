@@ -400,7 +400,9 @@ async function main(): Promise<void> {
   console.log("Resetting database (TRUNCATE … RESTART IDENTITY CASCADE)…");
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE
-       "FulfillmentOrder","QuotePayment","Quote","DealerNetSheet","Lead",
+       "Article","SocietyMilestone","NearbyLandmark","SocietyHighlight",
+       "AmenityFeature","SocietyDocument","SocietyMedia","DeveloperProject",
+       "Developer","FulfillmentOrder","QuotePayment","Quote","DealerNetSheet","Lead",
        "LedgerEvent","Review","SocietyPartnerAuthorization","Plot",
        "Booking","PaymentPlan","InventoryCategory","DealerProfile",
        "User","SocietyUpdate","Society"
@@ -1027,6 +1029,435 @@ async function main(): Promise<void> {
     },
   });
 
+  // ── Society Profile V2 fixtures (M1–M8) ───────────────────────────
+  // Platform-curated developers with track records.
+  const bahriaDeveloper = await prisma.developer.create({
+    data: {
+      slug: "bahria-town",
+      name: "Bahria Town (Pvt) Ltd",
+      description:
+        "One of Pakistan's largest private housing developers, known for gated communities with world-class amenities across Lahore, Karachi, and Rawalpindi.",
+      logoKey: "developers/bahria-town/logo.png",
+      websiteUrl: "https://www.bahriatown.com",
+      foundedYear: 1997,
+    },
+  });
+  await prisma.developerProject.createMany({
+    data: [
+      {
+        developerId: bahriaDeveloper.id,
+        name: "Bahria Town Rawalpindi",
+        description: "Flagship gated community near the GT Road interchange.",
+        city: "Rawalpindi",
+        year: 2005,
+        sortOrder: 0,
+      },
+      {
+        developerId: bahriaDeveloper.id,
+        name: "Bahria Town Lahore",
+        description: "6000+ kanal master-planned community on Raiwind Road.",
+        city: "Lahore",
+        year: 2012,
+        sortOrder: 1,
+      },
+      {
+        developerId: bahriaDeveloper.id,
+        name: "Bahria Town Karachi",
+        description: "Mega project on the Super Highway with commercial hub.",
+        city: "Karachi",
+        year: 2014,
+        sortOrder: 2,
+      },
+    ],
+  });
+
+  const dhaDeveloper = await prisma.developer.create({
+    data: {
+      slug: "dha-pakistan",
+      name: "Defence Housing Authority",
+      description:
+        "Government-backed housing authority delivering premium residential and commercial plots across Pakistan's major cities.",
+      logoKey: "developers/dha-pakistan/logo.png",
+      websiteUrl: "https://www.dha.com.pk",
+      foundedYear: 1978,
+    },
+  });
+  await prisma.developerProject.createMany({
+    data: [
+      {
+        developerId: dhaDeveloper.id,
+        name: "DHA Lahore Phase 6",
+        city: "Lahore",
+        year: 2010,
+        sortOrder: 0,
+      },
+      {
+        developerId: dhaDeveloper.id,
+        name: "DHA Islamabad Phase 2",
+        city: "Islamabad",
+        year: 2015,
+        sortOrder: 1,
+      },
+    ],
+  });
+
+  const futureDeveloper = await prisma.developer.create({
+    data: {
+      slug: "future-holdings",
+      name: "Future Holdings Developments",
+      description:
+        "Developer behind Capital Smart City — Pakistan's first smart city on the M-2 Motorway corridor.",
+      logoKey: "developers/future-holdings/logo.png",
+      websiteUrl: "https://www.capitalsmartcity.pk",
+      foundedYear: 2016,
+    },
+  });
+  await prisma.developerProject.createMany({
+    data: [
+      {
+        developerId: futureDeveloper.id,
+        name: "Capital Smart City (Phase 1)",
+        city: "Islamabad",
+        year: 2019,
+        sortOrder: 0,
+      },
+    ],
+  });
+
+  /** Maps society slug → developer for linking. */
+  const developerBySlug: Record<string, string> = {
+    "dha-lahore": dhaDeveloper.id,
+    "dha-islamabad": dhaDeveloper.id,
+    "bahria-town-lahore": bahriaDeveloper.id,
+    "bahria-town-karachi": bahriaDeveloper.id,
+    "capital-smart-city": futureDeveloper.id,
+  };
+
+  const profileUrlBySlug: Record<string, { virtualTourUrl?: string; promoVideoUrl?: string }> = {
+    "dha-lahore": {
+      virtualTourUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      promoVideoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    },
+    "bahria-town-lahore": {
+      promoVideoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    },
+    "capital-smart-city": {
+      virtualTourUrl: "https://my.matterport.com/show/?m=example",
+    },
+  };
+
+  for (const [societyIndex, seeded] of seededSocieties.entries()) {
+    const spec = requireDefined(SOCIETY_SPECS[societyIndex], "society spec");
+    const profileUrls = profileUrlBySlug[spec.slug] ?? {};
+
+    await prisma.society.update({
+      where: { id: seeded.id },
+      data: {
+        developerId: developerBySlug[spec.slug] ?? null,
+        virtualTourUrl: profileUrls.virtualTourUrl ?? null,
+        promoVideoUrl: profileUrls.promoVideoUrl ?? null,
+      },
+    });
+
+    // M1 — media
+    await prisma.societyMedia.createMany({
+      data: [
+        {
+          societyId: seeded.id,
+          kind: "HERO",
+          storageKey: `societies/${spec.slug}/hero.jpg`,
+          alt: `${spec.name} aerial view`,
+          sortOrder: 0,
+          width: 1920,
+          height: 1080,
+        },
+        {
+          societyId: seeded.id,
+          kind: "GALLERY",
+          storageKey: `societies/${spec.slug}/gallery-1.jpg`,
+          alt: `${spec.name} main boulevard`,
+          caption: "Main Boulevard",
+          sortOrder: 0,
+          width: 1600,
+          height: 900,
+        },
+        {
+          societyId: seeded.id,
+          kind: "GALLERY",
+          storageKey: `societies/${spec.slug}/gallery-2.jpg`,
+          alt: `${spec.name} community park`,
+          caption: "Community Park",
+          sortOrder: 1,
+          width: 1600,
+          height: 900,
+        },
+        {
+          societyId: seeded.id,
+          kind: "PROGRESS",
+          storageKey: `societies/${spec.slug}/progress-2024-03.jpg`,
+          alt: "Development progress — March 2024",
+          capturedAt: new Date("2024-03-15T00:00:00.000Z"),
+          sortOrder: 0,
+          width: 1200,
+          height: 800,
+        },
+        {
+          societyId: seeded.id,
+          kind: "PROGRESS",
+          storageKey: `societies/${spec.slug}/progress-2025-01.jpg`,
+          alt: "Development progress — January 2025",
+          capturedAt: new Date("2025-01-20T00:00:00.000Z"),
+          sortOrder: 1,
+          width: 1200,
+          height: 800,
+        },
+        {
+          societyId: seeded.id,
+          kind: "FLOORPLAN",
+          storageKey: `societies/${spec.slug}/master-layout.jpg`,
+          alt: `${spec.name} master layout`,
+          sortOrder: 0,
+          width: 1400,
+          height: 1000,
+        },
+      ],
+    });
+
+    // M2 — documents
+    await prisma.societyDocument.createMany({
+      data: [
+        {
+          societyId: seeded.id,
+          kind: "MASTER_PLAN",
+          title: "Master Plan",
+          storageKey: `societies/${spec.slug}/master-plan.pdf`,
+          fileSize: 4_500_000,
+          contentType: "application/pdf",
+          isPublic: true,
+          sortOrder: 0,
+        },
+        {
+          societyId: seeded.id,
+          kind: "BROCHURE",
+          title: "Project Brochure",
+          storageKey: `societies/${spec.slug}/brochure.pdf`,
+          fileSize: 2_800_000,
+          contentType: "application/pdf",
+          isPublic: true,
+          sortOrder: 1,
+        },
+        {
+          societyId: seeded.id,
+          kind: "PAYMENT_PLAN",
+          title: "Payment Plan Schedule",
+          storageKey: `societies/${spec.slug}/payment-plan.pdf`,
+          fileSize: 350_000,
+          contentType: "application/pdf",
+          isPublic: true,
+          sortOrder: 2,
+        },
+        {
+          societyId: seeded.id,
+          kind: "LOP",
+          title: "Letter of Permission",
+          storageKey: `societies/${spec.slug}/lop.pdf`,
+          fileSize: 520_000,
+          contentType: "application/pdf",
+          isPublic: false,
+          sortOrder: 3,
+        },
+        {
+          societyId: seeded.id,
+          kind: "NOC",
+          title: "No Objection Certificate",
+          storageKey: `societies/${spec.slug}/noc.pdf`,
+          fileSize: 480_000,
+          contentType: "application/pdf",
+          isPublic: false,
+          sortOrder: 4,
+        },
+      ],
+    });
+
+    // M3 — rich amenities & highlights
+    await prisma.amenityFeature.createMany({
+      data: [
+        {
+          societyId: seeded.id,
+          title: "Gated Security",
+          description:
+            "24/7 manned entry points with CCTV surveillance across all phases.",
+          icon: "shield-check",
+          sortOrder: 0,
+        },
+        {
+          societyId: seeded.id,
+          title: "Underground Utilities",
+          description:
+            "All electricity, gas, and sewerage lines laid underground for a clean streetscape.",
+          icon: "zap",
+          sortOrder: 1,
+        },
+        {
+          societyId: seeded.id,
+          title: "Grand Mosque",
+          description:
+            "Central Jamia mosque with capacity for 5,000 worshippers.",
+          icon: "building",
+          sortOrder: 2,
+        },
+        {
+          societyId: seeded.id,
+          title: "Commercial Hub",
+          description:
+            "Designated commercial zones with retail, dining, and service outlets.",
+          icon: "store",
+          sortOrder: 3,
+        },
+      ],
+    });
+
+    await prisma.societyHighlight.createMany({
+      data: [
+        {
+          societyId: seeded.id,
+          label: "Total Area",
+          value: `${spec.totalLandKanal.toLocaleString("en-PK")} kanal`,
+          icon: "map",
+          sortOrder: 0,
+        },
+        {
+          societyId: seeded.id,
+          label: "Development",
+          value: `${spec.developmentPct}% complete`,
+          icon: "trending-up",
+          sortOrder: 1,
+        },
+        {
+          societyId: seeded.id,
+          label: "Authority",
+          value: spec.authority,
+          icon: "badge-check",
+          sortOrder: 2,
+        },
+      ],
+    });
+
+    // M4 — nearby landmarks
+    const landmarkFixtures: ReadonlyArray<{
+      name: string;
+      category: "AIRPORT" | "HOSPITAL" | "SCHOOL" | "MOSQUE" | "INTERCHANGE" | "HIGHWAY";
+      distanceKm: string;
+      driveTimeMins: number;
+    }> =
+      spec.city === "Lahore"
+        ? [
+            { name: "Allama Iqbal International Airport", category: "AIRPORT", distanceKm: "18.5", driveTimeMins: 25 },
+            { name: "Shaukat Khanum Memorial Hospital", category: "HOSPITAL", distanceKm: "8.2", driveTimeMins: 15 },
+            { name: "Lahore Grammar School", category: "SCHOOL", distanceKm: "3.1", driveTimeMins: 8 },
+            { name: "Raiwind Road Interchange", category: "INTERCHANGE", distanceKm: "2.0", driveTimeMins: 5 },
+          ]
+        : spec.city === "Islamabad"
+          ? [
+              { name: "New Islamabad International Airport", category: "AIRPORT", distanceKm: "12.0", driveTimeMins: 15 },
+              { name: "Shifa International Hospital", category: "HOSPITAL", distanceKm: "22.0", driveTimeMins: 30 },
+              { name: "M-2 Motorway", category: "HIGHWAY", distanceKm: "1.5", driveTimeMins: 3 },
+            ]
+          : [
+              { name: "Jinnah International Airport", category: "AIRPORT", distanceKm: "35.0", driveTimeMins: 45 },
+              { name: "Aga Khan University Hospital", category: "HOSPITAL", distanceKm: "20.0", driveTimeMins: 30 },
+              { name: "Super Highway", category: "HIGHWAY", distanceKm: "0.5", driveTimeMins: 2 },
+            ];
+
+    await prisma.nearbyLandmark.createMany({
+      data: landmarkFixtures.map((lm, idx) => ({
+        societyId: seeded.id,
+        name: lm.name,
+        category: lm.category,
+        distanceKm: new Prisma.Decimal(lm.distanceKm),
+        driveTimeMins: lm.driveTimeMins,
+        sortOrder: idx,
+      })),
+    });
+
+    // M6 — milestone roadmap
+    await prisma.societyMilestone.createMany({
+      data: [
+        {
+          societyId: seeded.id,
+          title: "NOC Approval",
+          description: "No Objection Certificate granted by the development authority.",
+          occurredOn: new Date("2022-06-01T00:00:00.000Z"),
+          status: "COMPLETED",
+          sortOrder: 0,
+        },
+        {
+          societyId: seeded.id,
+          title: "Infrastructure Phase 1",
+          description: "Main boulevard, underground utilities, and drainage completed.",
+          occurredOn: new Date("2023-09-15T00:00:00.000Z"),
+          status: "COMPLETED",
+          sortOrder: 1,
+        },
+        {
+          societyId: seeded.id,
+          title: "Possession — Phase 1 Blocks",
+          description: "Physical possession commenced for early residential blocks.",
+          occurredOn: new Date("2024-08-01T00:00:00.000Z"),
+          status: "IN_PROGRESS",
+          sortOrder: 2,
+        },
+        {
+          societyId: seeded.id,
+          title: "Commercial Hub Launch",
+          description: "Commercial plots allocation and development.",
+          occurredOn: new Date("2026-12-01T00:00:00.000Z"),
+          status: "PLANNED",
+          sortOrder: 3,
+        },
+      ],
+    });
+  }
+
+  // M8 — blog articles
+  await prisma.article.createMany({
+    data: [
+      {
+        slug: "why-gated-communities-lahore-2026",
+        title: "Why Gated Communities in Lahore Are the Smart Investment in 2026",
+        excerpt:
+          "LDA-approved societies with verified NOCs offer capital appreciation and lifestyle amenities that unplanned housing cannot match.",
+        body: "## The Lahore housing market\n\nLahore's premium societies continue to outperform unplanned areas on both rental yield and capital gains.\n\n### What to look for\n\n- Verified NOC and LOP references\n- Developer track record\n- Infrastructure completion percentage",
+        coverKey: "blog/gated-communities-lahore.jpg",
+        authorName: "Sectoria Editorial",
+        publishedAt: new Date("2026-02-15T00:00:00.000Z"),
+        isPublished: true,
+        societyId: seededSocieties[0]?.id ?? null,
+      },
+      {
+        slug: "capital-smart-city-m2-corridor",
+        title: "Capital Smart City and the M-2 Motorway Corridor",
+        excerpt:
+          "How Pakistan's first smart city leverages the Islamabad–Lahore motorway for connectivity and long-term value.",
+        body: "## Location advantage\n\nCapital Smart City sits directly on the M-2 corridor, minutes from the new Islamabad airport.\n\n### Smart infrastructure\n\nUnderground utilities, fibre connectivity, and master-planned commercial zones.",
+        coverKey: "blog/capital-smart-city.jpg",
+        authorName: "Sectoria Editorial",
+        publishedAt: new Date("2026-03-01T00:00:00.000Z"),
+        isPublished: true,
+        societyId: seededSocieties[2]?.id ?? null,
+        developerId: futureDeveloper.id,
+      },
+      {
+        slug: "draft-article-not-published",
+        title: "Draft: Upcoming Society Spotlight",
+        excerpt: "This article is intentionally unpublished for lifecycle testing.",
+        body: "Draft content — should not appear on the public blog.",
+        authorName: "Sectoria Editorial",
+        isPublished: false,
+      },
+    ],
+  });
+
   // ── One DRAFT society for the onboarding console (M0.3) ──────────
   // Intentionally incomplete (no LOP/NOC/hero/coordinates) so the console
   // shows a sub-100% completeness score and the publish gate blocks it.
@@ -1053,6 +1484,16 @@ async function main(): Promise<void> {
     draftSocieties: await prisma.society.count({
       where: { publishStatus: "DRAFT" },
     }),
+    developers: await prisma.developer.count(),
+    developerProjects: await prisma.developerProject.count(),
+    societyMedia: await prisma.societyMedia.count(),
+    societyDocuments: await prisma.societyDocument.count(),
+    amenityFeatures: await prisma.amenityFeature.count(),
+    societyHighlights: await prisma.societyHighlight.count(),
+    nearbyLandmarks: await prisma.nearbyLandmark.count(),
+    societyMilestones: await prisma.societyMilestone.count(),
+    articles: await prisma.article.count(),
+    publishedArticles: await prisma.article.count({ where: { isPublished: true } }),
     categories: await prisma.inventoryCategory.count(),
     paymentPlans: await prisma.paymentPlan.count(),
     plots: await prisma.plot.count(),

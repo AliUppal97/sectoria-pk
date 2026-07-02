@@ -99,6 +99,9 @@ model Society {
   publishStatus         SocietyPublishStatus @default(DRAFT)
   publishedAt           DateTime?
   createdById           String? // ops/admin user who created the record
+  virtualTourUrl        String? // Matterport/YouTube/360 embed (M1)
+  promoVideoUrl         String? // promotional video embed (M1)
+  developerId           String? // platform-curated builder (M5)
   createdAt             DateTime         @default(now())
 
   categories            InventoryCategory[]
@@ -107,6 +110,14 @@ model Society {
   reviews               Review[]                      @relation("ReviewSubjectSociety")
   quotes                Quote[]
   updates               SocietyUpdate[]
+  media                 SocietyMedia[]
+  documents             SocietyDocument[]
+  amenityFeatures       AmenityFeature[]
+  highlights            SocietyHighlight[]
+  landmarks             NearbyLandmark[]
+  milestones            SocietyMilestone[]
+  articles              Article[]
+  developer             Developer?                    @relation(fields: [developerId], references: [id])
 
   // Directory scale (M0.7): the trigram GIN index on `name` is added in the M0
   // migration (Prisma cannot express pg_trgm operator classes in the schema).
@@ -115,6 +126,7 @@ model Society {
   @@index([verificationTier])
   @@index([publishStatus])
   @@index([publishStatus, citySlug])
+  @@index([developerId])
 }
 
 enum SocietyPublishStatus {
@@ -471,6 +483,176 @@ enum FulfillmentStatus {
   ALLOCATED
   COMPLETED
   CANCELLED
+}
+
+// ── SOCIETY PROFILE V2 (M1–M8) ─────────────────────────────────────
+
+enum SocietyMediaKind {
+  HERO
+  GALLERY
+  PROGRESS
+  FLOORPLAN
+}
+
+model SocietyMedia {
+  id         String           @id @default(cuid())
+  societyId  String
+  society    Society          @relation(fields: [societyId], references: [id])
+  kind       SocietyMediaKind @default(GALLERY)
+  storageKey String
+  alt        String
+  caption    String?
+  capturedAt DateTime?
+  sortOrder  Int              @default(0)
+  width      Int?
+  height     Int?
+  createdAt  DateTime         @default(now())
+
+  @@index([societyId, kind, sortOrder])
+}
+
+enum SocietyDocumentKind {
+  MASTER_PLAN
+  BROCHURE
+  PAYMENT_PLAN
+  LOP
+  NOC
+  OTHER
+}
+
+model SocietyDocument {
+  id          String              @id @default(cuid())
+  societyId   String
+  society     Society             @relation(fields: [societyId], references: [id])
+  kind        SocietyDocumentKind
+  title       String
+  storageKey  String
+  fileSize    Int
+  contentType String
+  isPublic    Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+
+  @@index([societyId, kind])
+}
+
+model AmenityFeature {
+  id          String  @id @default(cuid())
+  societyId   String
+  society     Society @relation(fields: [societyId], references: [id])
+  title       String
+  description String  @db.Text
+  icon        String?
+  imageKey    String?
+  sortOrder   Int     @default(0)
+
+  @@index([societyId, sortOrder])
+}
+
+model SocietyHighlight {
+  id        String  @id @default(cuid())
+  societyId String
+  society   Society @relation(fields: [societyId], references: [id])
+  label     String
+  value     String
+  icon      String?
+  sortOrder Int     @default(0)
+
+  @@index([societyId, sortOrder])
+}
+
+enum LandmarkCategory {
+  AIRPORT
+  HOSPITAL
+  SCHOOL
+  UNIVERSITY
+  MARKET
+  MOSQUE
+  HIGHWAY
+  INTERCHANGE
+  LANDMARK
+}
+
+model NearbyLandmark {
+  id            String           @id @default(cuid())
+  societyId     String
+  society       Society          @relation(fields: [societyId], references: [id])
+  name          String
+  category      LandmarkCategory
+  distanceKm    Decimal?
+  driveTimeMins Int?
+  sortOrder     Int              @default(0)
+
+  @@index([societyId, sortOrder])
+}
+
+model Developer {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  description String             @db.Text
+  logoKey     String?
+  websiteUrl  String?
+  foundedYear Int?
+  createdAt   DateTime           @default(now())
+
+  societies Society[]
+  projects  DeveloperProject[]
+  articles  Article[]
+}
+
+model DeveloperProject {
+  id          String    @id @default(cuid())
+  developerId String
+  developer   Developer @relation(fields: [developerId], references: [id])
+  name        String
+  description String?   @db.Text
+  imageKey    String?
+  year        Int?
+  city        String?
+  sortOrder   Int       @default(0)
+
+  @@index([developerId, sortOrder])
+}
+
+enum MilestoneStatus {
+  COMPLETED
+  IN_PROGRESS
+  PLANNED
+}
+
+model SocietyMilestone {
+  id          String          @id @default(cuid())
+  societyId   String
+  society     Society         @relation(fields: [societyId], references: [id])
+  title       String
+  description String?         @db.Text
+  occurredOn  DateTime
+  status      MilestoneStatus @default(COMPLETED)
+  sortOrder   Int             @default(0)
+
+  @@index([societyId, occurredOn])
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String    @db.Text
+  body        String    @db.Text
+  coverKey    String?
+  authorName  String
+  publishedAt DateTime?
+  isPublished Boolean   @default(false)
+  societyId   String?
+  society     Society?  @relation(fields: [societyId], references: [id])
+  developerId String?
+  developer   Developer? @relation(fields: [developerId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([isPublished, publishedAt])
+  @@index([societyId])
+  @@index([developerId])
 }
 
 model FulfillmentOrder {

@@ -86,6 +86,12 @@ export const societySchema = z.object({
   publishedAt: isoDateTimeSchema.nullable().optional(),
   /** The ops/admin user who created the record — for audit and ownership. */
   createdById: idSchema.nullable().optional(),
+  /** Matterport / YouTube / 360 embed URL for a virtual tour (M1). */
+  virtualTourUrl: z.string().url().nullable().optional(),
+  /** Promotional video embed URL (M1). */
+  promoVideoUrl: z.string().url().nullable().optional(),
+  /** Platform-curated developer / builder (M5). */
+  developerId: idSchema.nullable().optional(),
   createdAt: isoDateTimeSchema,
 });
 export type Society = z.infer<typeof societySchema>;
