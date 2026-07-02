@@ -25,6 +25,7 @@ test-results/
 .DS_Store
 *.log
 .vscode/settings.json
+.cursor/plans/
 
 # Prisma
 packages/database/prisma/migrations/**/migration_lock.toml

@@ -1,0 +1,90 @@
+---
+description: File/module decomposition and reuse discipline — no god files, single responsibility per file, extract reusable components/hooks/services/libraries, barrel exports, and where shared code belongs. Apply when adding or growing any TypeScript source file.
+globs:
+  - "apps/web/**/*.ts"
+  - "apps/web/**/*.tsx"
+  - "packages/**/*.ts"
+  - "packages/**/*.tsx"
+alwaysApply: false
+---
+
+# Code Modularity & File Structure
+
+Build the product as small, composable, reusable units — never one growing
+file that does everything. This is about *file/module* decomposition;
+function-level shape lives in `code-clarity-and-comments.mdc`, OOP shape in
+`oop-and-domain-modeling.mdc`, and cross-package boundaries in `architecture.mdc`.
+
+## One concern per file
+
+- A file exports **one cohesive thing** (a component + its tiny local helpers,
+  one router, one service, one hook). If a file needs the word "and" to
+  describe it, split it.
+- **File size is a smell signal, not a hard limit:** past ~200–300 lines, stop
+  and ask "what distinct responsibility can move out?" Long files are where
+  ownership checks, edge cases, and dead code hide.
+- Never create catch-all `utils.ts` / `helpers.ts` / `misc.ts` buckets. Name
+  the module for the concern (`marketplace-geo.ts`, `ledger-display.ts`), as
+  the codebase already does.
+
+## Extract for reuse (the "rule of two/three")
+
+- Inline the first time. On the **second** copy, extract a named, typed,
+  tested unit; don't wait for the third. Avoid the opposite failure too — no
+  speculative abstraction for a single caller.
+- Reused pure logic → a function in the right package (`packages/domain/*` for
+  business rules, a small shared lib package for generic helpers).
+- Reused server/composition logic (DTO mappers, query shapers) → a `lib/`
+  helper imported by the routers that need it, not copy-pasted per router.
+- Reused presentational UI → `packages/ui` (no data fetching, no business
+  logic). Feature-specific UI → colocate under `apps/web/components/<area>/`.
+
+## Where shared code belongs (follow `architecture.mdc`)
+
+| Kind of code | Home |
+|---|---|
+| Shapes/enums shared across packages | `packages/types` (Zod + `z.infer`) |
+| Pure business rules | `packages/domain/*` |
+| tRPC routers / composition | `packages/api-client` (one file per area) |
+| Reusable presentational components | `packages/ui` |
+| Feature/page-local components | `apps/web/components/<area>/` |
+| Cross-feature web helpers | `apps/web/lib/<concern>.ts` |
+
+Do not solve "shared between two routes" by importing from another route's
+folder — lift it to the appropriate shared location instead.
+
+## Components
+
+- Decompose a page into **named section components**; a page/component that
+  renders many independent sections inline is a god component — extract each
+  section (the marketplace profile already does this:
+  `society-location-section.tsx`, `society-payment-plans.tsx`, etc.).
+- Default to Server Components; push `"use client"` to the smallest
+  interactive leaf (`nextjs-app-router.mdc`).
+- Reusable client logic → a custom hook in a `hooks/` file, not duplicated
+  effect/state across components.
+- Props are a single typed object; keep positional params ≤3
+  (`code-clarity-and-comments.mdc`).
+
+## Public API & imports
+
+- Each package's public surface is its `src/index.ts` **barrel**; import across
+  packages from the barrel, never deep-import an internal file
+  (`@sectoria/types`, not `@sectoria/types/src/society.js` internals).
+- Within a package, prefer explicit `.js` specifiers per the repo's NodeNext
+  ESM convention (see existing files).
+
+## Services
+
+- A service is a cohesive set of functions over one concern, exposed through
+  `packages/api-client`. It composes domain + persistence; it does not
+  reimplement business rules inline (`api-trpc.mdc`,
+  `oop-and-domain-modeling.mdc`). If a service function exceeds ~30 lines of
+  real logic, check whether part belongs in `packages/domain`.
+
+## Quick check before committing a file
+
+- [ ] Does this file do exactly one thing?
+- [ ] Is anything here duplicated elsewhere (extract it)?
+- [ ] Is reusable UI/logic in the right shared home, not trapped in a route?
+- [ ] Are cross-package imports through the barrel, not deep paths?
