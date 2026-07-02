@@ -78,6 +78,25 @@ export async function listDemoSalesAdvisors(): Promise<DemoAccount[]> {
   return users;
 }
 
+/** Seeded platform-admin accounts for the dev login picker. */
+export async function listDemoSuperAdmins(): Promise<DemoAccount[]> {
+  if (!allowDemoFixtures()) return [];
+
+  const users = await prisma.user.findMany({
+    where: { role: UserRole.SUPER_ADMIN },
+    orderBy: { phone: "asc" },
+    take: 3,
+    select: { name: true, phone: true, nadraVerified: true, atlStatus: true },
+  });
+
+  return users.map((user) => ({
+    name: `${user.name} (platform admin)`,
+    phone: user.phone,
+    nadraVerified: user.nadraVerified,
+    atlStatus: user.atlStatus,
+  }));
+}
+
 /** Seeded society-admin accounts for the dev login picker. */
 export async function listDemoSocietyAdmins(): Promise<DemoAccount[]> {
   if (!allowDemoFixtures()) return [];
