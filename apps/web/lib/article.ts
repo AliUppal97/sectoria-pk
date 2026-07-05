@@ -1,4 +1,4 @@
-import { LOCAL_STORAGE_BASE_URL } from "@sectoria/storage";
+import { LOCAL_STORAGE_BASE_URL, resolvePublicUrl } from "@sectoria/storage";
 import { isResolvableImageUrl } from "@/lib/society-media";
 
 /** Public article row from `article.list` / `article.getBySlug`. */
@@ -24,6 +24,6 @@ export function resolveArticleCoverUrl(
   if (!coverKey?.trim()) return null;
   const base =
     process.env.STORAGE_PUBLIC_BASE_URL?.trim() || LOCAL_STORAGE_BASE_URL;
-  const url = `${base.replace(/\/$/, "")}/${coverKey.replace(/^\//, "")}`;
+  const url = resolvePublicUrl(base, coverKey);
   return isResolvableImageUrl(url) ? url : null;
 }

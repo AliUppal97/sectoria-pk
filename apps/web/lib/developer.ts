@@ -1,4 +1,4 @@
-import { LOCAL_STORAGE_BASE_URL } from "@sectoria/storage";
+import { LOCAL_STORAGE_BASE_URL, resolvePublicUrl } from "@sectoria/storage";
 import { isResolvableImageUrl } from "@/lib/society-media";
 
 /** Developer summary embedded on a society profile (`society.getBySlug`). */
@@ -40,7 +40,7 @@ export function resolveDeveloperAssetUrl(
   if (!assetKey?.trim()) return null;
   const base =
     process.env.STORAGE_PUBLIC_BASE_URL?.trim() || LOCAL_STORAGE_BASE_URL;
-  const url = `${base.replace(/\/$/, "")}/${assetKey.replace(/^\//, "")}`;
+  const url = resolvePublicUrl(base, assetKey);
   return isResolvableImageUrl(url) ? url : null;
 }
 

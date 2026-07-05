@@ -20,6 +20,12 @@ describe("LocalStorageAdapter", () => {
     );
   });
 
+  it("passes through absolute CDN URLs unchanged", () => {
+    const cdn =
+      "https://cdn.prod.website-files.com/example/hero.avif";
+    expect(adapter.getPublicUrl(cdn)).toBe(cdn);
+  });
+
   it("mints presigned upload URLs with content type and expiry", async () => {
     const result = await adapter.getUploadUrl({
       key: "societies/soc_1/media/abc.jpg",

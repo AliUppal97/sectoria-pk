@@ -14,6 +14,7 @@ import type {
   GetUploadUrlParams,
 } from "./interface.js";
 import type { ResolvedS3Credentials } from "./config.js";
+import { isAbsoluteHttpUrl, resolvePublicUrl } from "./resolve-public-url.js";
 
 export type S3StorageAdapterConfig = ResolvedS3Credentials;
 
@@ -39,8 +40,7 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   getPublicUrl(key: string): string {
-    const base = this.credentials.publicBaseUrl.replace(/\/$/, "");
-    return `${base}/${key}`;
+    return resolvePublicUrl(this.credentials.publicBaseUrl, key);
   }
 
   private resolveBucket(bucket: "public" | "private"): string {
@@ -67,6 +67,7 @@ export class S3StorageAdapter implements StorageAdapter {
   async getSignedDownloadUrl(
     params: GetSignedDownloadUrlParams,
   ): Promise<string> {
+    if (isAbsoluteHttpUrl(params.key)) return params.key;
     const expiresIn = params.ttlSeconds ?? DEFAULT_SIGNED_URL_TTL_SECONDS;
     const command = new GetObjectCommand({
       Bucket: this.resolveBucket(params.bucket),

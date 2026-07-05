@@ -51,3 +51,8 @@ export {
   extensionForContentType,
   SOCIETY_DOCUMENT_MAX_BYTES,
 } from "./upload-validation.js";
+
+export {
+  isAbsoluteHttpUrl,
+  resolvePublicUrl,
+} from "./resolve-public-url.js";
