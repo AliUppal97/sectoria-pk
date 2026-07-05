@@ -4,9 +4,11 @@ import { Button } from "@sectoria/ui";
 import type { geoJsonBoundarySchema } from "@sectoria/types";
 import type { z } from "zod";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
+import { SocietyConnectivity } from "@/components/marketplace/society-connectivity";
 import { SocietyDistance } from "@/components/marketplace/society-distance";
 import { SocietyLandArea } from "@/components/marketplace/society-land-area";
 import { SocietyLocationMapDynamic } from "@/components/marketplace/society-location-map-dynamic";
+import type { NearbyLandmarkPublic } from "@/lib/society-landmarks";
 import {
   googleMapsDirectionsUrl,
   googleMapsPlaceUrl,
@@ -24,6 +26,8 @@ export function SocietyLocationSection({
   totalLandKanal,
   developedLandKanal,
   boundaryGeoJson,
+  landmarks = [],
+  landmarksDegraded = false,
 }: {
   societyName: string;
   city: string;
@@ -34,6 +38,8 @@ export function SocietyLocationSection({
   totalLandKanal: string | null;
   developedLandKanal: string | null;
   boundaryGeoJson: GeoJsonBoundary | null;
+  landmarks?: readonly NearbyLandmarkPublic[];
+  landmarksDegraded?: boolean;
 }) {
   const hasCoords = latitude !== null && longitude !== null;
   const addressParts = [addressLine, district, `${city}, Pakistan`].filter(
@@ -99,6 +105,11 @@ export function SocietyLocationSection({
                 Map coordinates for this society have not been published yet.
               </p>
             )}
+            <SocietyConnectivity
+              societyName={societyName}
+              landmarks={landmarks}
+              degraded={landmarksDegraded}
+            />
           </BentoCell>
           <BentoCell className="flex flex-col gap-3">
             <h2 className="font-sans text-md font-semibold text-text-primary">

@@ -2,7 +2,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import {
   Button,
   EmptyState,
@@ -20,7 +20,12 @@ import { CategoryCard, type CategoryView } from "@/components/marketplace/catego
 import { RatingStars } from "@/components/marketplace/rating-stars";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyBookingBanner } from "@/components/marketplace/society-booking-banner";
+import {
+  SocietyAmenities,
+  SocietyAmenitiesPills,
+} from "@/components/marketplace/society-amenities";
 import { SocietyDocuments } from "@/components/marketplace/society-documents";
+import { SocietyHighlights } from "@/components/marketplace/society-highlights";
 import { SocietyGalleryDynamic } from "@/components/marketplace/society-gallery-dynamic";
 import { SocietyHero } from "@/components/marketplace/society-hero";
 import { SocietyLocationSection } from "@/components/marketplace/society-location-section";
@@ -53,6 +58,8 @@ import {
   type SocietyMediaPublic,
 } from "@/lib/society-media";
 import type { SocietyDocumentPublic } from "@/lib/society-documents";
+import type { AmenityFeaturePublic, SocietyHighlightPublic } from "@/lib/society-features";
+import type { NearbyLandmarkPublic } from "@/lib/society-landmarks";
 import { SITE } from "@/lib/site";
 
 // ISR: society content is largely stable (inventory counts drift slowly), so
@@ -149,6 +156,57 @@ const loadSocietyDocuments = cache(
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[society] documents load failed:", error);
+      }
+      return { ok: false };
+    }
+  },
+);
+
+type SocietyFeaturesLoadResult =
+  | {
+      readonly ok: true;
+      readonly amenities: AmenityFeaturePublic[];
+      readonly highlights: SocietyHighlightPublic[];
+    }
+  | { readonly ok: false };
+
+const loadSocietyFeatures = cache(
+  async (societyId: string): Promise<SocietyFeaturesLoadResult> => {
+    try {
+      const api = getApi();
+      const [amenities, highlights] = await Promise.all([
+        api.societyFeature.listAmenitiesForSociety({ societyId }),
+        api.societyFeature.listHighlightsForSociety({ societyId }),
+      ]);
+      return {
+        ok: true,
+        amenities: amenities as AmenityFeaturePublic[],
+        highlights: highlights as SocietyHighlightPublic[],
+      };
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] features load failed:", error);
+      }
+      return { ok: false };
+    }
+  },
+);
+
+type SocietyLandmarksLoadResult =
+  | { readonly ok: true; readonly landmarks: NearbyLandmarkPublic[] }
+  | { readonly ok: false };
+
+const loadSocietyLandmarks = cache(
+  async (societyId: string): Promise<SocietyLandmarksLoadResult> => {
+    try {
+      const landmarks = await getApi().landmark.listForSociety({ societyId });
+      return {
+        ok: true,
+        landmarks: landmarks as NearbyLandmarkPublic[],
+      };
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] landmarks load failed:", error);
       }
       return { ok: false };
     }
@@ -286,6 +344,14 @@ export default async function SocietyProfilePage({
   const documentsResult = await loadSocietyDocuments(society.id);
   const publicDocuments = documentsResult.ok ? documentsResult.documents : [];
   const documentsDegraded = !documentsResult.ok;
+  const featuresResult = await loadSocietyFeatures(society.id);
+  const amenityFeatures = featuresResult.ok ? featuresResult.amenities : [];
+  const societyHighlights = featuresResult.ok ? featuresResult.highlights : [];
+  const featuresDegraded = !featuresResult.ok;
+  const hasRichAmenities = amenityFeatures.length > 0;
+  const landmarksResult = await loadSocietyLandmarks(society.id);
+  const nearbyLandmarks = landmarksResult.ok ? landmarksResult.landmarks : [];
+  const landmarksDegraded = !landmarksResult.ok;
 
   return (
     <div className="flex flex-col">
@@ -478,6 +544,11 @@ export default async function SocietyProfilePage({
         </div>
       </section>
 
+      <SocietyHighlights
+        highlights={societyHighlights}
+        degraded={featuresDegraded}
+      />
+
       {/* ── Trust + overview bento ─────────────────────────────── */}
       <section className="mx-auto w-full max-w-[1280px] px-4 py-12 sm:px-6">
         <BentoGrid>
@@ -545,23 +616,8 @@ export default async function SocietyProfilePage({
             ) : null}
           </BentoCell>
 
-          {society.amenities.length > 0 ? (
-            <BentoCell size="wide" className="flex flex-col gap-3">
-              <h2 className="font-sans text-md font-semibold text-text-primary">
-                Amenities
-              </h2>
-              <ul className="flex flex-wrap gap-2">
-                {society.amenities.map((amenity) => (
-                  <li
-                    key={amenity}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-surface-subtle px-3 py-1 font-sans text-xs text-text-secondary"
-                  >
-                    <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-success" />
-                    {amenity}
-                  </li>
-                ))}
-              </ul>
-            </BentoCell>
+          {!hasRichAmenities ? (
+            <SocietyAmenitiesPills amenities={society.amenities} />
           ) : null}
 
           <BentoCell size="wide" className="flex flex-col gap-2">
@@ -574,6 +630,14 @@ export default async function SocietyProfilePage({
           </BentoCell>
         </BentoGrid>
       </section>
+
+      {hasRichAmenities ? (
+        <SocietyAmenities
+          societyName={society.name}
+          features={amenityFeatures}
+          degraded={featuresDegraded}
+        />
+      ) : null}
 
       <SocietyGalleryDynamic
         societyName={society.name}
@@ -608,6 +672,8 @@ export default async function SocietyProfilePage({
             ? geoJsonBoundarySchema.parse(society.boundaryGeoJson)
             : null
         }
+        landmarks={nearbyLandmarks}
+        landmarksDegraded={landmarksDegraded}
       />
 
       <section className="border-t border-border-base bg-surface-base">
