@@ -1,10 +1,11 @@
 import {
   societyDocumentCreateInputSchema,
   societyDocumentDeleteInputSchema,
+  documentGetDownloadUrlInputSchema,
   societyDocumentListInputSchema,
   societyDocumentUpdateInputSchema,
 } from "@sectoria/types";
-import { router } from "../trpc.js";
+import { router, TRPCError } from "../trpc.js";
 import { publicProcedure, societyAdminProcedure } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
 import {
@@ -13,6 +14,7 @@ import {
 } from "../lib/society-profile-dto.js";
 import { assertPublishedSociety } from "../lib/assert-published-society.js";
 import { findResourceSocietyId, loadOwnedSocietyResource } from "../lib/society-profile-helpers.js";
+import { DEFAULT_SIGNED_URL_TTL_SECONDS } from "@sectoria/storage";
 
 export const documentRouter = router({
   /**
@@ -28,7 +30,9 @@ export const documentRouter = router({
         where: { societyId: input.societyId, isPublic: true },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
       });
-      return rows.map(toDocumentPublicDto);
+      return Promise.all(
+        rows.map((row) => toDocumentPublicDto(row, ctx.storage)),
+      );
     }),
 
   /** Society admin: all documents including private compliance artifacts. */
@@ -40,7 +44,11 @@ export const documentRouter = router({
         where: { societyId: input.societyId },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
       });
-      return rows.map((row) => toDocumentAdminDto(row, { includeUrl: true }));
+      return Promise.all(
+        rows.map((row) =>
+          toDocumentAdminDto(row, ctx.storage, { includeUrl: true }),
+        ),
+      );
     }),
 
   create: societyAdminProcedure
@@ -59,7 +67,7 @@ export const documentRouter = router({
           sortOrder: input.sortOrder ?? 0,
         },
       });
-      return toDocumentAdminDto(created);
+      return toDocumentAdminDto(created, ctx.storage);
     }),
 
   update: societyAdminProcedure
@@ -75,7 +83,7 @@ export const documentRouter = router({
         where: { id: input.documentId },
         data: input.data,
       });
-      return toDocumentAdminDto(updated);
+      return toDocumentAdminDto(updated, ctx.storage);
     }),
 
   delete: societyAdminProcedure
@@ -89,5 +97,38 @@ export const documentRouter = router({
       );
       await ctx.db.societyDocument.delete({ where: { id: input.documentId } });
       return { ok: true as const };
+    }),
+
+  /**
+   * Society admin: mint a short-lived signed URL for a document (required for
+   * private LOP/NOC before download).
+   */
+  getDownloadUrl: societyAdminProcedure
+    .input(documentGetDownloadUrlInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.societyDocument.findUnique({
+        where: { id: input.documentId },
+        select: {
+          id: true,
+          societyId: true,
+          storageKey: true,
+          isPublic: true,
+        },
+      });
+      if (!doc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Document not found." });
+      }
+      assertSocietyOwnership(ctx.session, doc.societyId);
+
+      const url = await ctx.storage.getSignedDownloadUrl({
+        key: doc.storageKey,
+        ttlSeconds: DEFAULT_SIGNED_URL_TTL_SECONDS,
+        bucket: doc.isPublic ? "public" : "private",
+      });
+
+      return {
+        url,
+        expiresInSeconds: DEFAULT_SIGNED_URL_TTL_SECONDS,
+      };
     }),
 });

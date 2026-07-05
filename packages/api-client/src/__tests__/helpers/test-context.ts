@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@sectoria/database";
 import { createVerificationAdapters } from "@sectoria/verification";
+import { createStorageAdapter } from "@sectoria/storage";
 import { UserRole, idSchema, type Id } from "@sectoria/types";
 import {
   appRouter,
@@ -80,6 +81,7 @@ export function createTestCaller(options: {
     verification: createVerificationAdapters({
       mock: { minLatencyMs: 0, maxLatencyMs: 0 },
     }),
+    storage: createStorageAdapter({ now: () => FIXED_NOW }),
     now: () => FIXED_NOW,
     generateId: () => {
       ledgerCounter += 1;

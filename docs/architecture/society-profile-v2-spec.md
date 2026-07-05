@@ -3,7 +3,7 @@
 **Status:** Proposed
 **Date:** 2026-06-30
 **Owner:** Marketplace / Society experience
-**Related:** [ADR-007 (concierge pivot)](ADR-007-concierge-pivot.md), [ADR-008 (society profile maps)](ADR-008-society-profile-maps.md), proposed ADR-009 (see [storage](society-profile-v2/storage.md))
+**Related:** [ADR-007 (concierge pivot)](ADR-007-concierge-pivot.md), [ADR-008 (society profile maps)](ADR-008-society-profile-maps.md), [ADR-009 (media & document storage)](ADR-009-media-document-storage.md)
 **Build prompts:** [`docs/society-profile-v2-playbook.md`](../society-profile-v2-playbook.md)
 
 > This spec is **split into focused files** under [`society-profile-v2/`](society-profile-v2/) so each build session attaches only the slice it needs (instead of one large document). Start with [`foundations.md`](society-profile-v2/foundations.md), then the relevant module/concern file. The playbook's per-session **Attach** lines tell you exactly which files to load.

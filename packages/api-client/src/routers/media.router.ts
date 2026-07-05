@@ -29,7 +29,7 @@ export const mediaRouter = router({
         where: { societyId: input.societyId },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
       });
-      return rows.map(toMediaPublicDto);
+      return rows.map((row) => toMediaPublicDto(row, ctx.storage));
     }),
 
   /** Society admin: all media including drafts/unpublished ordering. */
@@ -41,7 +41,7 @@ export const mediaRouter = router({
         where: { societyId: input.societyId },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
       });
-      return rows.map(toMediaAdminDto);
+      return rows.map((row) => toMediaAdminDto(row, ctx.storage));
     }),
 
   create: societyAdminProcedure
@@ -64,7 +64,7 @@ export const mediaRouter = router({
           height: input.height ?? null,
         },
       });
-      return toMediaAdminDto(created);
+      return toMediaAdminDto(created, ctx.storage);
     }),
 
   update: societyAdminProcedure
@@ -88,7 +88,7 @@ export const mediaRouter = router({
               : undefined,
         },
       });
-      return toMediaAdminDto(updated);
+      return toMediaAdminDto(updated, ctx.storage);
     }),
 
   delete: societyAdminProcedure

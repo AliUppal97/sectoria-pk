@@ -18,7 +18,10 @@ import {
   type SocietyMedia,
   type SocietyMilestone,
 } from "@sectoria/types";
-import { getPublicUrl, getSignedDownloadUrl } from "./resolve-storage-url.js";
+import {
+  DEFAULT_SIGNED_URL_TTL_SECONDS,
+  type StorageAdapter,
+} from "@sectoria/storage";
 
 /** Fields that must never appear in buyer-facing payloads. */
 export const FORBIDDEN_BUYER_FIELDS = [
@@ -44,19 +47,22 @@ function serializeDecimal(
 }
 
 /** Public media DTO — CDN URL only; storage key omitted from the wire. */
-export function toMediaPublicDto(row: {
-  id: string;
-  societyId: string;
-  kind: string;
-  storageKey: string;
-  alt: string;
-  caption: string | null;
-  capturedAt: Date | null;
-  sortOrder: number;
-  width: number | null;
-  height: number | null;
-  createdAt: Date;
-}): Omit<SocietyMedia, "storageKey"> & { url: string } {
+export function toMediaPublicDto(
+  row: {
+    id: string;
+    societyId: string;
+    kind: string;
+    storageKey: string;
+    alt: string;
+    caption: string | null;
+    capturedAt: Date | null;
+    sortOrder: number;
+    width: number | null;
+    height: number | null;
+    createdAt: Date;
+  },
+  storage: StorageAdapter,
+): Omit<SocietyMedia, "storageKey"> & { url: string } {
   const { storageKey, ...rest } = societyMediaSchema.parse({
     id: row.id,
     societyId: row.societyId,
@@ -71,11 +77,14 @@ export function toMediaPublicDto(row: {
     createdAt: serializeDate(row.createdAt),
   });
   void storageKey;
-  return { ...rest, url: getPublicUrl(row.storageKey) };
+  return { ...rest, url: storage.getPublicUrl(row.storageKey) };
 }
 
 /** Admin media DTO — includes storage key for editing. */
-export function toMediaAdminDto(row: Parameters<typeof toMediaPublicDto>[0]) {
+export function toMediaAdminDto(
+  row: Parameters<typeof toMediaPublicDto>[0],
+  _storage: StorageAdapter,
+) {
   return societyMediaSchema.parse({
     id: row.id,
     societyId: row.societyId,
@@ -92,18 +101,21 @@ export function toMediaAdminDto(row: Parameters<typeof toMediaPublicDto>[0]) {
 }
 
 /** Public document DTO — signed URL, no storage key on the wire. */
-export function toDocumentPublicDto(row: {
-  id: string;
-  societyId: string;
-  kind: string;
-  title: string;
-  storageKey: string;
-  fileSize: number;
-  contentType: string;
-  isPublic: boolean;
-  sortOrder: number;
-  createdAt: Date;
-}): Omit<SocietyDocument, "storageKey"> & { url: string } {
+export async function toDocumentPublicDto(
+  row: {
+    id: string;
+    societyId: string;
+    kind: string;
+    title: string;
+    storageKey: string;
+    fileSize: number;
+    contentType: string;
+    isPublic: boolean;
+    sortOrder: number;
+    createdAt: Date;
+  },
+  storage: StorageAdapter,
+): Promise<Omit<SocietyDocument, "storageKey"> & { url: string }> {
   const { storageKey, ...rest } = societyDocumentSchema.parse({
     id: row.id,
     societyId: row.societyId,
@@ -119,13 +131,18 @@ export function toDocumentPublicDto(row: {
   void storageKey;
   return {
     ...rest,
-    url: getSignedDownloadUrl(row.storageKey),
+    url: await storage.getSignedDownloadUrl({
+      key: row.storageKey,
+      ttlSeconds: DEFAULT_SIGNED_URL_TTL_SECONDS,
+      bucket: "public",
+    }),
   };
 }
 
 /** Admin document DTO — includes storage key; private docs omit URL until minted. */
-export function toDocumentAdminDto(
+export async function toDocumentAdminDto(
   row: Parameters<typeof toDocumentPublicDto>[0],
+  storage: StorageAdapter,
   options: { includeUrl?: boolean } = {},
 ) {
   const dto = societyDocumentSchema.parse({
@@ -141,7 +158,14 @@ export function toDocumentAdminDto(
     createdAt: serializeDate(row.createdAt),
   });
   if (options.includeUrl) {
-    return { ...dto, url: getSignedDownloadUrl(row.storageKey) };
+    return {
+      ...dto,
+      url: await storage.getSignedDownloadUrl({
+        key: row.storageKey,
+        ttlSeconds: DEFAULT_SIGNED_URL_TTL_SECONDS,
+        bucket: row.isPublic ? "public" : "private",
+      }),
+    };
   }
   return dto;
 }

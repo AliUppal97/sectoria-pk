@@ -2,7 +2,7 @@
 
 > Cross-cutting concern for M1 (media) and M2 (documents). Build session: **S3**. Read with [`foundations.md`](foundations.md).
 
-A dedicated ADR (`docs/architecture/ADR-009-media-document-storage.md`) will record this; summary for implementers:
+Recorded in [`ADR-009`](../ADR-009-media-document-storage.md). Summary for implementers:
 
 - **Storage:** S3-compatible object storage (e.g. Cloudflare R2 / AWS S3). Buckets: public-read for marketing media, private for sensitive docs.
 - **Adapter:** a thin storage interface (`packages/storage` or `apps/web/lib/storage`) with `getUploadUrl(key, contentType)`, `getSignedDownloadUrl(key, ttl)`, `getPublicUrl(key)`. Inject the client; no inline SDK calls scattered across routers (mirrors the adapter pattern in `oop-and-domain-modeling.mdc`).

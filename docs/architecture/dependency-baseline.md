@@ -89,6 +89,13 @@ against npm before relying on this table if significant time has passed.
 | `@upstash/ratelimit` | `^2.0.8` | Rate limiting for auth, booking, verification endpoints (`apps/web`). |
 | `@upstash/redis` | `^1.38.0` | Upstash Redis REST client for `@upstash/ratelimit`. |
 
+## Object storage (`packages/storage`)
+
+| Package | Version | Notes |
+|---|---|---|
+| `@aws-sdk/client-s3` | `^3.1079.0` | S3-compatible uploads/downloads (R2, AWS, MinIO) |
+| `@aws-sdk/s3-request-presigner` | `^3.1079.0` | Presigned PUT/GET URLs |
+
 ## Tooling
 
 | Package | Version | Notes |

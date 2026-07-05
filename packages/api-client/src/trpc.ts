@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import type { PrismaClient } from "@sectoria/database";
 import type { Id, UserRole } from "@sectoria/types";
 import type { VerificationAdapters } from "@sectoria/verification";
+import type { StorageAdapter } from "@sectoria/storage";
 
 /**
  * `@sectoria/api-client` — the tRPC composition root.
@@ -75,6 +76,8 @@ export interface TRPCContext {
   readonly db: PrismaClient;
   /** The government-verification adapters (mock in dev/test, real in prod). */
   readonly verification: VerificationAdapters;
+  /** Object storage adapter (local mock in dev/test, S3/R2 in prod). */
+  readonly storage: StorageAdapter;
   /** Optional rate limiter; when null, rate-limit guards pass through. */
   readonly rateLimiter: RateLimiter | null;
   /**
@@ -88,11 +91,12 @@ export interface TRPCContext {
   readonly generateId: () => string;
 }
 
-/** Options for {@link createTRPCContext}. Only `db` and `verification` are required. */
+/** Options for {@link createTRPCContext}. Only `db`, `verification`, and `storage` are required. */
 export interface CreateTRPCContextOptions {
   readonly session?: Session | null;
   readonly db: PrismaClient;
   readonly verification: VerificationAdapters;
+  readonly storage: StorageAdapter;
   readonly rateLimiter?: RateLimiter | null;
   readonly clientId?: string | null;
   readonly now?: () => Date;
@@ -110,6 +114,7 @@ export function createTRPCContext(
     session: options.session ?? null,
     db: options.db,
     verification: options.verification,
+    storage: options.storage,
     rateLimiter: options.rateLimiter ?? null,
     clientId: options.clientId ?? null,
     now: options.now ?? (() => new Date()),
