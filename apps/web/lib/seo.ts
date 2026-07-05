@@ -94,6 +94,33 @@ interface SocietyOrgInput {
   readonly description: string;
 }
 
+interface DeveloperOrganizationInput {
+  readonly name: string;
+  readonly description: string;
+  readonly path: string;
+  readonly logoUrl?: string;
+  readonly websiteUrl?: string;
+  readonly foundedYear?: number;
+}
+
+/** schema.org `Organization` for a housing developer / builder (M5). */
+export function developerOrganizationSchema(
+  developer: DeveloperOrganizationInput,
+): JsonLdSchema {
+  return {
+    "@type": "Organization",
+    name: developer.name,
+    url: absoluteUrl(developer.path),
+    description: developer.description,
+    areaServed: "PK",
+    ...(developer.logoUrl ? { logo: developer.logoUrl } : {}),
+    ...(developer.websiteUrl ? { sameAs: [developer.websiteUrl] } : {}),
+    ...(developer.foundedYear !== undefined
+      ? { foundingDate: String(developer.foundedYear) }
+      : {}),
+  };
+}
+
 /** schema.org `Organization` describing a single housing society. */
 export function societyOrganizationSchema(
   society: SocietyOrgInput,

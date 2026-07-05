@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getApi } from "@/lib/trpc/server";
 import { absoluteUrl, SITE_URL } from "@/lib/site";
 import { isPublicDealerDirectoryEnabled } from "@/lib/feature-flags";
-import { categoryPath, dealerPath, societyPath } from "@/lib/marketplace";
+import { categoryPath, dealerPath, developerPath, societyPath } from "@/lib/marketplace";
 
 /**
  * Dynamic sitemap covering every crawlable entity — societies, their inventory
@@ -69,11 +69,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }))
       : [];
 
+    const developerEntries: MetadataRoute.Sitemap = (
+      await api.developer.list()
+    ).map((developer) => ({
+      url: absoluteUrl(developerPath(developer.slug)),
+      lastModified: developer.createdAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+
     return [
       ...staticEntries,
       ...societyEntries,
       ...categoryEntries,
       ...dealerEntries,
+      ...developerEntries,
     ];
   } catch {
     return staticEntries;
