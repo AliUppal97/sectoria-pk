@@ -14,15 +14,19 @@ import {
   formatPKR,
 } from "@sectoria/ui";
 import { formatLandKanal, parseKanalString } from "@sectoria/domain-land";
-import { geoJsonBoundarySchema } from "@sectoria/types";
+import { geoJsonBoundarySchema, SocietyMediaKind } from "@sectoria/types";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
 import { CategoryCard, type CategoryView } from "@/components/marketplace/category-card";
 import { RatingStars } from "@/components/marketplace/rating-stars";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyBookingBanner } from "@/components/marketplace/society-booking-banner";
+import { SocietyGalleryDynamic } from "@/components/marketplace/society-gallery-dynamic";
+import { SocietyHero } from "@/components/marketplace/society-hero";
 import { SocietyLocationSection } from "@/components/marketplace/society-location-section";
 import { SocietyPaymentPlans } from "@/components/marketplace/society-payment-plans";
+import { SocietyProgressGalleryDynamic } from "@/components/marketplace/society-progress-gallery-dynamic";
 import { SocietyUpdatesTimeline } from "@/components/marketplace/society-updates-timeline";
+import { SocietyVirtualTour } from "@/components/marketplace/society-virtual-tour";
 import { VerificationTierBadge } from "@/components/marketplace/verification-badge";
 import { getApi } from "@/lib/trpc/server";
 import { isNotFound } from "@/lib/fetch";
@@ -34,11 +38,19 @@ import {
 import {
   aggregateRatingSchema,
   breadcrumbSchema,
+  imageObjectSchema,
   pageMetadata,
   placeSchema,
   realEstateListingSchema,
   societyOrganizationSchema,
+  videoObjectSchema,
 } from "@/lib/seo";
+import {
+  filterMediaByKind,
+  pickHeroImage,
+  sortProgressNewestFirst,
+  type SocietyMediaPublic,
+} from "@/lib/society-media";
 import { SITE } from "@/lib/site";
 
 // ISR: society content is largely stable (inventory counts drift slowly), so
@@ -105,6 +117,24 @@ const loadReviews = cache(async (societyId: string) => {
   }
 });
 
+type SocietyMediaLoadResult =
+  | { readonly ok: true; readonly media: SocietyMediaPublic[] }
+  | { readonly ok: false };
+
+const loadSocietyMedia = cache(
+  async (societyId: string): Promise<SocietyMediaLoadResult> => {
+    try {
+      const media = await getApi().media.listForSociety({ societyId });
+      return { ok: true, media: media as SocietyMediaPublic[] };
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] media load failed:", error);
+      }
+      return { ok: false };
+    }
+  },
+);
+
 function toCategoryView(category: {
   id: string;
   slug: string;
@@ -153,6 +183,9 @@ export async function generateMetadata({
   }
   const { society } = result;
   const categories = society.categories.map(toCategoryView);
+  const mediaResult = await loadSocietyMedia(society.id);
+  const media = mediaResult.ok ? mediaResult.media : [];
+  const hero = pickHeroImage(media, society.heroImageUrl, society.name);
   const from = categories.length
     ? Math.min(...categories.map((c) => c.totalPrice))
     : null;
@@ -171,6 +204,7 @@ export async function generateMetadata({
     title: `${society.name}, ${society.city}`,
     description: `${society.name} in ${society.city} — ${VERIFICATION_TIER_META[society.verificationTier].label}, approved by ${society.authority}.${landSummary !== null ? ` ${landSummary}.` : ""} ${bookingNote}${from !== null ? ` Plots from ${formatPKR(from)}.` : ""} Compare pricing, payment plans and availability on ${SITE.name}.`,
     path: societyPath(city, societySlug),
+    ...(hero ? { ogImage: hero.src } : {}),
   });
 }
 
@@ -223,6 +257,12 @@ export default async function SocietyProfilePage({
     society.totalLandKanal !== null && society.totalLandKanal !== undefined
       ? formatLandKanal(parseKanalString(society.totalLandKanal) ?? 0)
       : null;
+  const mediaResult = await loadSocietyMedia(society.id);
+  const media = mediaResult.ok ? mediaResult.media : [];
+  const hero = pickHeroImage(media, society.heroImageUrl, society.name);
+  const galleryItems = filterMediaByKind(media, SocietyMediaKind.GALLERY);
+  const progressItems = sortProgressNewestFirst(media);
+  const mediaDegraded = !mediaResult.ok;
 
   return (
     <div className="flex flex-col">
@@ -281,6 +321,43 @@ export default async function SocietyProfilePage({
               available: category.availableUnits > 0,
             }),
           ),
+          ...(hero
+            ? [
+                imageObjectSchema({
+                  url: hero.src,
+                  name: hero.alt,
+                  width: hero.width,
+                  height: hero.height,
+                }),
+              ]
+            : []),
+          ...galleryItems.map((item) =>
+            imageObjectSchema({
+              url: item.url,
+              name: item.alt,
+              caption: item.caption ?? undefined,
+              width: item.width ?? undefined,
+              height: item.height ?? undefined,
+            }),
+          ),
+          ...(society.virtualTourUrl
+            ? [
+                videoObjectSchema({
+                  name: `${society.name} virtual tour`,
+                  description: `360° virtual tour of ${society.name}, ${society.city}.`,
+                  embedUrl: society.virtualTourUrl,
+                }),
+              ]
+            : []),
+          ...(society.promoVideoUrl
+            ? [
+                videoObjectSchema({
+                  name: `${society.name} promotional video`,
+                  description: `Official promotional video for ${society.name}.`,
+                  embedUrl: society.promoVideoUrl,
+                }),
+              ]
+            : []),
         ]}
       />
 
@@ -288,6 +365,12 @@ export default async function SocietyProfilePage({
         status={society.bookingStatus}
         bookingOpensAt={society.bookingOpensAt ?? null}
         bookingClosesAt={society.bookingClosesAt ?? null}
+      />
+
+      <SocietyHero
+        societyName={society.name}
+        hero={hero}
+        verificationTier={society.verificationTier}
       />
 
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -462,6 +545,24 @@ export default async function SocietyProfilePage({
           </BentoCell>
         </BentoGrid>
       </section>
+
+      <SocietyGalleryDynamic
+        societyName={society.name}
+        items={galleryItems}
+        degraded={mediaDegraded}
+      />
+
+      <SocietyProgressGalleryDynamic
+        societyName={society.name}
+        items={progressItems}
+        degraded={mediaDegraded}
+      />
+
+      <SocietyVirtualTour
+        societyName={society.name}
+        virtualTourUrl={society.virtualTourUrl ?? null}
+        promoVideoUrl={society.promoVideoUrl ?? null}
+      />
 
       <SocietyLocationSection
         societyName={society.name}

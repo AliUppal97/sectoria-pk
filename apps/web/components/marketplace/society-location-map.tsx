@@ -103,7 +103,8 @@ export function SocietyLocationMap({
           {satellite ? "Street map" : "Satellite view"}
         </Button>
       </div>
-      <div className="h-64 overflow-hidden rounded-xl border border-border-base sm:h-80">
+      {/* isolate + z-0: Leaflet panes use z-index up to 1000; contain them below sticky nav (z-40). */}
+      <div className="society-location-map relative isolate z-0 h-64 overflow-hidden rounded-xl border border-border-base sm:h-80">
         <MapContainer
           center={[latitude, longitude]}
           zoom={13}
@@ -137,7 +138,7 @@ export function SocietyLocationMap({
 export function SocietyLocationMapSkeleton() {
   return (
     <div
-      className="h-64 animate-pulse rounded-xl border border-border-base bg-surface-subtle sm:h-80"
+      className="society-location-map relative isolate z-0 h-64 animate-pulse overflow-hidden rounded-xl border border-border-base bg-surface-subtle sm:h-80"
       aria-hidden="true"
     />
   );
