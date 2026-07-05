@@ -20,7 +20,8 @@ import {
  * string; the server component re-runs the filtered query and re-renders.
  *
  * Radix Select forbids an empty-string item value, so the "all" sentinel maps
- * to *removing* the param.
+ * to *removing* the param. Below `md`, native `<select>` is used because Radix
+ * dropdowns are unreliable on iOS Safari touch.
  */
 
 const ALL = "all";
@@ -30,6 +31,9 @@ const TIER_OPTIONS = [
   { value: "VERIFIED", label: "LOP + NOC verified" },
   { value: "PENDING", label: "Verification pending" },
 ] as const;
+
+const nativeSelectClassName =
+  "flex h-11 min-h-[44px] w-full cursor-pointer touch-manipulation items-center rounded-md border border-border-base bg-surface-card px-3 font-sans text-sm text-text-primary md:hidden";
 
 export interface SocietyFiltersProps {
   readonly cities: readonly { slug: string; label: string }[];
@@ -81,11 +85,28 @@ export function SocietyFilters({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-city">City</Label>
+          <select
+            id="filter-city"
+            className={nativeSelectClassName}
+            value={current.citySlug ?? ALL}
+            onChange={(event) => setParam("citySlug", event.target.value)}
+            aria-label="Filter by city"
+          >
+            <option value={ALL}>All cities</option>
+            {cities.map((city) => (
+              <option key={city.slug} value={city.slug}>
+                {city.label}
+              </option>
+            ))}
+          </select>
           <Select
             value={current.citySlug ?? ALL}
             onValueChange={(value) => setParam("citySlug", value)}
           >
-            <SelectTrigger id="filter-city" aria-label="Filter by city">
+            <SelectTrigger
+              className="hidden md:flex"
+              aria-label="Filter by city"
+            >
               <SelectValue placeholder="All cities" />
             </SelectTrigger>
             <SelectContent>
@@ -101,11 +122,30 @@ export function SocietyFilters({
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-tier">Verification</Label>
+          <select
+            id="filter-tier"
+            className={nativeSelectClassName}
+            value={current.verificationTier ?? ALL}
+            onChange={(event) =>
+              setParam("verificationTier", event.target.value)
+            }
+            aria-label="Filter by verification tier"
+          >
+            <option value={ALL}>Any verification</option>
+            {TIER_OPTIONS.map((tier) => (
+              <option key={tier.value} value={tier.value}>
+                {tier.label}
+              </option>
+            ))}
+          </select>
           <Select
             value={current.verificationTier ?? ALL}
             onValueChange={(value) => setParam("verificationTier", value)}
           >
-            <SelectTrigger id="filter-tier" aria-label="Filter by verification tier">
+            <SelectTrigger
+              className="hidden md:flex"
+              aria-label="Filter by verification tier"
+            >
               <SelectValue placeholder="Any verification" />
             </SelectTrigger>
             <SelectContent>
@@ -121,11 +161,28 @@ export function SocietyFilters({
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-authority">Authority</Label>
+          <select
+            id="filter-authority"
+            className={nativeSelectClassName}
+            value={current.authority ?? ALL}
+            onChange={(event) => setParam("authority", event.target.value)}
+            aria-label="Filter by development authority"
+          >
+            <option value={ALL}>All authorities</option>
+            {authorities.map((authority) => (
+              <option key={authority} value={authority}>
+                {authority}
+              </option>
+            ))}
+          </select>
           <Select
             value={current.authority ?? ALL}
             onValueChange={(value) => setParam("authority", value)}
           >
-            <SelectTrigger id="filter-authority" aria-label="Filter by development authority">
+            <SelectTrigger
+              className="hidden md:flex"
+              aria-label="Filter by development authority"
+            >
               <SelectValue placeholder="All authorities" />
             </SelectTrigger>
             <SelectContent>
