@@ -20,6 +20,7 @@ import { CategoryCard, type CategoryView } from "@/components/marketplace/catego
 import { RatingStars } from "@/components/marketplace/rating-stars";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyBookingBanner } from "@/components/marketplace/society-booking-banner";
+import { SocietyDocuments } from "@/components/marketplace/society-documents";
 import { SocietyGalleryDynamic } from "@/components/marketplace/society-gallery-dynamic";
 import { SocietyHero } from "@/components/marketplace/society-hero";
 import { SocietyLocationSection } from "@/components/marketplace/society-location-section";
@@ -51,6 +52,7 @@ import {
   sortProgressNewestFirst,
   type SocietyMediaPublic,
 } from "@/lib/society-media";
+import type { SocietyDocumentPublic } from "@/lib/society-documents";
 import { SITE } from "@/lib/site";
 
 // ISR: society content is largely stable (inventory counts drift slowly), so
@@ -129,6 +131,24 @@ const loadSocietyMedia = cache(
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[society] media load failed:", error);
+      }
+      return { ok: false };
+    }
+  },
+);
+
+type SocietyDocumentsLoadResult =
+  | { readonly ok: true; readonly documents: SocietyDocumentPublic[] }
+  | { readonly ok: false };
+
+const loadSocietyDocuments = cache(
+  async (societyId: string): Promise<SocietyDocumentsLoadResult> => {
+    try {
+      const documents = await getApi().document.listForSociety({ societyId });
+      return { ok: true, documents: documents as SocietyDocumentPublic[] };
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] documents load failed:", error);
       }
       return { ok: false };
     }
@@ -263,6 +283,9 @@ export default async function SocietyProfilePage({
   const galleryItems = filterMediaByKind(media, SocietyMediaKind.GALLERY);
   const progressItems = sortProgressNewestFirst(media);
   const mediaDegraded = !mediaResult.ok;
+  const documentsResult = await loadSocietyDocuments(society.id);
+  const publicDocuments = documentsResult.ok ? documentsResult.documents : [];
+  const documentsDegraded = !documentsResult.ok;
 
   return (
     <div className="flex flex-col">
@@ -487,6 +510,12 @@ export default async function SocietyProfilePage({
               </div>
             </dl>
           </BentoCell>
+
+          <SocietyDocuments
+            societyName={society.name}
+            documents={publicDocuments}
+            degraded={documentsDegraded}
+          />
 
           <BentoCell className="flex flex-col gap-3">
             <h2 className="font-sans text-md font-semibold text-text-primary">
