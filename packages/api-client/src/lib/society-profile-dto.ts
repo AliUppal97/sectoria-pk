@@ -43,7 +43,7 @@ function serializeDecimal(
   return typeof value === "string" ? value : value.toString();
 }
 
-/** Public media DTO — storage key resolved to a CDN URL. */
+/** Public media DTO — CDN URL only; storage key omitted from the wire. */
 export function toMediaPublicDto(row: {
   id: string;
   societyId: string;
@@ -56,8 +56,8 @@ export function toMediaPublicDto(row: {
   width: number | null;
   height: number | null;
   createdAt: Date;
-}): SocietyMedia & { url: string } {
-  const dto = societyMediaSchema.parse({
+}): Omit<SocietyMedia, "storageKey"> & { url: string } {
+  const { storageKey, ...rest } = societyMediaSchema.parse({
     id: row.id,
     societyId: row.societyId,
     kind: row.kind,
@@ -70,7 +70,8 @@ export function toMediaPublicDto(row: {
     height: row.height,
     createdAt: serializeDate(row.createdAt),
   });
-  return { ...dto, url: getPublicUrl(row.storageKey) };
+  void storageKey;
+  return { ...rest, url: getPublicUrl(row.storageKey) };
 }
 
 /** Admin media DTO — includes storage key for editing. */

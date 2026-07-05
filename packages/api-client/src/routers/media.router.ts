@@ -12,6 +12,7 @@ import {
   toMediaAdminDto,
   toMediaPublicDto,
 } from "../lib/society-profile-dto.js";
+import { assertPublishedSociety } from "../lib/assert-published-society.js";
 import {
   applyReorder,
   findResourceSocietyId,
@@ -23,6 +24,7 @@ export const mediaRouter = router({
   listForSociety: publicProcedure
     .input(societyMediaListInputSchema)
     .query(async ({ ctx, input }) => {
+      await assertPublishedSociety(ctx.db, input.societyId);
       const rows = await ctx.db.societyMedia.findMany({
         where: { societyId: input.societyId },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],

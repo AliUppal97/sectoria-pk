@@ -13,6 +13,7 @@ import {
 
 const SOCIETY_ID = "soc_1";
 const OTHER_SOCIETY_ID = "soc_other";
+const DRAFT_SOCIETY_ID = "soc_draft";
 
 function seedSociety(store: Store): void {
   store.societies.set(SOCIETY_ID, {
@@ -43,6 +44,60 @@ function seedSociety(store: Store): void {
   });
 }
 
+function seedDraftSocietyWithProfileContent(store: Store): void {
+  store.societies.set(DRAFT_SOCIETY_ID, {
+    id: DRAFT_SOCIETY_ID,
+    slug: "draft-society",
+    name: "Draft Society",
+    city: "Lahore",
+    citySlug: "lahore",
+    authority: "LDA",
+    verificationTier: "PENDING",
+    description: "Not yet published.",
+    amenities: [],
+    developmentStage: "Planning",
+    developmentPct: 0,
+    heroImageUrl: null,
+    latitude: null,
+    longitude: null,
+    lopReferenceNo: null,
+    nocReferenceNo: null,
+    hsmsLinked: false,
+    totalLandKanal: null,
+    developedLandKanal: null,
+    bookingStatus: "OPEN",
+    publishStatus: "DRAFT",
+    publishedAt: null,
+    createdById: null,
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+  });
+  store.profileV2.societyMedia.set("media_draft", {
+    id: "media_draft",
+    societyId: DRAFT_SOCIETY_ID,
+    kind: "GALLERY",
+    storageKey: "societies/draft/gallery.jpg",
+    alt: "Draft gallery",
+    caption: null,
+    capturedAt: null,
+    sortOrder: 0,
+    width: null,
+    height: null,
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+  });
+  store.profileV2.societyDocument.set("doc_draft", {
+    id: "doc_draft",
+    societyId: DRAFT_SOCIETY_ID,
+    kind: "BROCHURE",
+    title: "Draft brochure",
+    storageKey: "societies/draft/brochure.pdf",
+    fileSize: 512,
+    contentType: "application/pdf",
+    isPublic: true,
+    sortOrder: 0,
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+  });
+}
+
 describe("society profile v2 routers — ownership & access", () => {
   let store: Store;
   let db: ReturnType<typeof createInMemoryDb>["db"];
@@ -52,6 +107,49 @@ describe("society profile v2 routers — ownership & access", () => {
     store = fake.store;
     db = fake.db;
     seedSociety(store);
+  });
+
+  it("public listForSociety procedures reject DRAFT societies with NOT_FOUND", async () => {
+    seedDraftSocietyWithProfileContent(store);
+    const caller = createTestCaller({ db, session: null });
+    const publicListCalls = [
+      () => caller.media.listForSociety({ societyId: DRAFT_SOCIETY_ID }),
+      () => caller.document.listForSociety({ societyId: DRAFT_SOCIETY_ID }),
+      () =>
+        caller.societyFeature.listAmenitiesForSociety({
+          societyId: DRAFT_SOCIETY_ID,
+        }),
+      () =>
+        caller.societyFeature.listHighlightsForSociety({
+          societyId: DRAFT_SOCIETY_ID,
+        }),
+      () => caller.landmark.listForSociety({ societyId: DRAFT_SOCIETY_ID }),
+      () => caller.milestone.listForSociety({ societyId: DRAFT_SOCIETY_ID }),
+    ];
+    for (const call of publicListCalls) {
+      await expect(call()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+  });
+
+  it("public media payloads expose url and omit storageKey", async () => {
+    store.profileV2.societyMedia.set("media_1", {
+      id: "media_1",
+      societyId: SOCIETY_ID,
+      kind: "HERO",
+      storageKey: "societies/dha/hero.jpg",
+      alt: "Hero",
+      caption: null,
+      capturedAt: null,
+      sortOrder: 0,
+      width: 1200,
+      height: 800,
+      createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+    const caller = createTestCaller({ db, session: null });
+    const media = await caller.media.listForSociety({ societyId: SOCIETY_ID });
+    expect(media).toHaveLength(1);
+    expect(media[0]).toHaveProperty("url");
+    expect(media[0]).not.toHaveProperty("storageKey");
   });
 
   it("rejects cross-society media create with FORBIDDEN", async () => {

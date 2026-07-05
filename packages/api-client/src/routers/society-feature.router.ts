@@ -11,6 +11,7 @@ import {
 import { router, TRPCError } from "../trpc.js";
 import { publicProcedure, societyAdminProcedure } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
+import { assertPublishedSociety } from "../lib/assert-published-society.js";
 import {
   toAmenityDto,
   toHighlightDto,
@@ -26,6 +27,7 @@ export const societyFeatureRouter = router({
   listAmenitiesForSociety: publicProcedure
     .input(societyMediaListInputSchema)
     .query(async ({ ctx, input }) => {
+      await assertPublishedSociety(ctx.db, input.societyId);
       const rows = await ctx.db.amenityFeature.findMany({
         where: { societyId: input.societyId },
         orderBy: { sortOrder: "asc" },
@@ -37,6 +39,7 @@ export const societyFeatureRouter = router({
   listHighlightsForSociety: publicProcedure
     .input(societyMediaListInputSchema)
     .query(async ({ ctx, input }) => {
+      await assertPublishedSociety(ctx.db, input.societyId);
       const rows = await ctx.db.societyHighlight.findMany({
         where: { societyId: input.societyId },
         orderBy: { sortOrder: "asc" },
