@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { UserRole } from "@sectoria/types";
 import { Button } from "@sectoria/ui";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
 import { PageHeader } from "@/components/buyer/page-header";
+import { auth } from "@/auth";
 import { getAuthedApi } from "@/lib/trpc/server";
 
 export const metadata: Metadata = {
@@ -11,11 +13,16 @@ export const metadata: Metadata = {
 };
 
 export default async function OpsPortalPage() {
+  const session = await auth();
+  const isSuperAdmin = session?.user?.role === UserRole.SUPER_ADMIN;
+
   const api = await getAuthedApi();
   const [leads, fulfillments, remittance] = await Promise.all([
     api.lead.list(),
     api.fulfillment.listAll(),
-    api.quote.remittanceSummary(),
+    isSuperAdmin
+      ? api.quote.remittanceSummary()
+      : Promise.resolve(null),
   ]);
 
   const newLeads = leads.filter((l) => l.status === "NEW").length;
@@ -48,14 +55,16 @@ export default async function OpsPortalPage() {
           </p>
           <p className="mt-2 font-mono text-3xl font-bold">{pendingFulfillment}</p>
         </BentoCell>
-        <BentoCell size="unit">
-          <p className="font-sans text-2xs uppercase text-text-tertiary">
-            Platform spread (accepted)
-          </p>
-          <p className="mt-2 font-mono text-lg font-bold">
-            PKR {remittance.totalSpreadPkr.toLocaleString("en-PK")}
-          </p>
-        </BentoCell>
+        {remittance ? (
+          <BentoCell size="unit">
+            <p className="font-sans text-2xs uppercase text-text-tertiary">
+              Platform spread (accepted)
+            </p>
+            <p className="mt-2 font-mono text-lg font-bold">
+              PKR {remittance.totalSpreadPkr.toLocaleString("en-PK")}
+            </p>
+          </BentoCell>
+        ) : null}
       </BentoGrid>
     </div>
   );
