@@ -10,14 +10,16 @@ disable-model-invocation: true
 
 # Ship PR — branch → commit → PR → merge → sync main
 
-Run this **after implementation is done** and local quality gates pass. Executes
-the full delivery loop like a senior engineer: small scoped PR, green CI, merge,
-clean main.
+Run this **after implementation is done** and local quality gates pass. For
+playbook sessions, run `session-ship-review` first unless the user explicitly
+skips it. Executes the full delivery loop like a senior engineer: small scoped
+PR, green CI, merge, clean main.
 
 ## When to use
 
 - User finished a task/session and wants it on `main`
 - Playbook test gate includes "Commit + push" and merge
+- `session-ship-review` returned ✅ SHIP or ⚠️ SHIP WITH NOTES (or user skipped review)
 - User says: *ship it*, *land this*, *open PR and merge*, *sync main*
 
 ## When NOT to use
@@ -198,6 +200,7 @@ Ship PR progress:
 
 ## Related project rules & skills
 
+- `session-ship-review` — expert panel + prompt/test-gate check before this skill
 - `.cursor/rules/git-workflow.mdc` — commit style, PR readiness, scope discipline
 - `split-to-prs` — when one task produced multiple independent slices
 - `babysit` — when CI/comments need iteration before merge
