@@ -266,3 +266,74 @@ export function breadcrumbSchema(items: readonly BreadcrumbItem[]): JsonLdSchema
     })),
   };
 }
+
+interface ArticlePageMetadataInput extends PageMetadataInput {
+  readonly authorName: string;
+  readonly publishedAt?: string | null;
+}
+
+/** Blog article metadata with Open Graph `article` type and publish date. */
+export function articlePageMetadata({
+  title,
+  description,
+  path,
+  ogImage,
+  keywords,
+  authorName,
+  publishedAt,
+}: ArticlePageMetadataInput): Metadata {
+  const base = pageMetadata({
+    title,
+    description,
+    path,
+    ogImage,
+    keywords,
+  });
+
+  return {
+    ...base,
+    openGraph: {
+      ...base.openGraph,
+      type: "article",
+      ...(publishedAt ? { publishedTime: publishedAt } : {}),
+      authors: [authorName],
+    },
+  };
+}
+
+interface ArticleJsonLdInput {
+  readonly title: string;
+  readonly description: string;
+  readonly path: string;
+  readonly authorName: string;
+  readonly publishedAt?: string | null;
+  readonly modifiedAt?: string | null;
+  readonly imageUrl?: string;
+}
+
+/** schema.org `Article` for blog posts (M8). */
+export function articleSchema(input: ArticleJsonLdInput): JsonLdSchema {
+  const pageUrl = absoluteUrl(input.path);
+  const published = input.publishedAt ?? undefined;
+  const modified = input.modifiedAt ?? input.publishedAt ?? undefined;
+
+  return {
+    "@type": "Article",
+    headline: input.title,
+    description: input.description,
+    url: pageUrl,
+    mainEntityOfPage: pageUrl,
+    author: {
+      "@type": "Person",
+      name: input.authorName,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE.legalName,
+      url: SITE.url,
+    },
+    ...(published ? { datePublished: published } : {}),
+    ...(modified ? { dateModified: modified } : {}),
+    ...(input.imageUrl ? { image: [input.imageUrl] } : {}),
+  };
+}

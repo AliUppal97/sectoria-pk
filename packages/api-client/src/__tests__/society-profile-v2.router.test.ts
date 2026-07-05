@@ -231,6 +231,28 @@ describe("society profile v2 routers — ownership & access", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("returns NOT_FOUND for unpublished articles via getBySlug", async () => {
+    store.profileV2.article.set("art_draft", {
+      id: "art_draft",
+      slug: "draft-only",
+      title: "Draft",
+      excerpt: "Hidden",
+      body: "Body",
+      coverKey: null,
+      authorName: "Editorial",
+      publishedAt: null,
+      isPublished: false,
+      societyId: null,
+      developerId: null,
+      createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+
+    const caller = createTestCaller({ db, session: null });
+    await expect(
+      caller.article.getBySlug({ slug: "draft-only" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("lets super-admin create a developer and an article", async () => {
     const caller = createTestCaller({
       db,

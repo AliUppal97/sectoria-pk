@@ -25,6 +25,9 @@ against npm before relying on this table if significant time has passed.
 | `react-leaflet` | `^5.0.0` | React bindings for Leaflet on society profile pages. |
 | `@types/leaflet` | `^1.9.21` | Type definitions for Leaflet (dev dep of `apps/web`). |
 | `@turf/area` | `^7.3.4` | Approximate kanal from GeoJSON boundary polygons on society profiles. |
+| `react-markdown` | `^10.1.0` | Server-side blog article markdown rendering (M8). |
+| `remark-gfm` | `^4.0.1` | GitHub-flavoured markdown for blog articles. |
+| `rehype-sanitize` | `^6.0.0` | HTML sanitization after markdown → HTML conversion (M8). |
 
 ## API & validation
 
