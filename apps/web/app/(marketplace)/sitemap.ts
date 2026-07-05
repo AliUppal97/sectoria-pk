@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getApi } from "@/lib/trpc/server";
 import { absoluteUrl, SITE_URL } from "@/lib/site";
 import { isPublicDealerDirectoryEnabled } from "@/lib/feature-flags";
-import { categoryPath, dealerPath, developerPath, societyPath } from "@/lib/marketplace";
+import { categoryPath, dealerPath, developerPath, societyPath, blogPath } from "@/lib/marketplace";
 
 /**
  * Dynamic sitemap covering every crawlable entity — societies, their inventory
@@ -26,6 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { url: absoluteUrl("/compare"), changeFrequency: "weekly", priority: 0.6 },
     { url: absoluteUrl("/support"), changeFrequency: "weekly", priority: 0.7 },
+    { url: absoluteUrl(blogPath()), changeFrequency: "weekly", priority: 0.7 },
     ...(isPublicDealerDirectoryEnabled()
       ? [{ url: absoluteUrl("/dealers"), changeFrequency: "daily" as const, priority: 0.7 }]
       : []),
@@ -78,12 +79,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
+    const articleEntries: MetadataRoute.Sitemap = (
+      await api.article.list({ limit: 50 })
+    ).map((article) => ({
+      url: absoluteUrl(blogPath(article.slug)),
+      lastModified: article.publishedAt ?? article.createdAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
+    }));
+
     return [
       ...staticEntries,
       ...societyEntries,
       ...categoryEntries,
       ...dealerEntries,
       ...developerEntries,
+      ...articleEntries,
     ];
   } catch {
     return staticEntries;

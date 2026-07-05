@@ -134,3 +134,8 @@ export function dealerPath(slug: string): string {
 export function developerPath(slug: string): string {
   return `/developers/${slug}`;
 }
+
+/** Canonical path to the blog index or a single published article. */
+export function blogPath(slug?: string): string {
+  return slug ? `/blog/${slug}` : "/blog";
+}

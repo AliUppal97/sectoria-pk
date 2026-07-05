@@ -26,6 +26,7 @@ import { SocietyPhases } from "@/components/marketplace/society-phases";
 import { SocietyProgressGalleryDynamic } from "@/components/marketplace/society-progress-gallery-dynamic";
 import { SocietyRoadmap } from "@/components/marketplace/society-roadmap";
 import { SocietyUpdatesTimeline } from "@/components/marketplace/society-updates-timeline";
+import { RelatedReading } from "@/components/marketplace/related-reading";
 import { SocietyVirtualTour } from "@/components/marketplace/society-virtual-tour";
 import { VerificationTierBadge } from "@/components/marketplace/verification-badge";
 import { getApi } from "@/lib/trpc/server";
@@ -55,6 +56,7 @@ import type { SocietyDocumentPublic } from "@/lib/society-documents";
 import type { AmenityFeaturePublic, SocietyHighlightPublic } from "@/lib/society-features";
 import type { NearbyLandmarkPublic } from "@/lib/society-landmarks";
 import type { SocietyMilestonePublic } from "@/lib/society-milestones";
+import type { ArticlePublic } from "@/lib/article";
 import { SITE } from "@/lib/site";
 
 // ISR: society content is largely stable (inventory counts drift slowly), so
@@ -229,6 +231,20 @@ const loadSocietyMilestones = cache(
   },
 );
 
+const loadRelatedArticles = cache(
+  async (societyId: string): Promise<ArticlePublic[]> => {
+    try {
+      const articles = await getApi().article.list({ societyId, limit: 3 });
+      return articles as ArticlePublic[];
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] related articles load failed:", error);
+      }
+      return [];
+    }
+  },
+);
+
 function toCategoryView(category: {
   id: string;
   slug: string;
@@ -371,6 +387,7 @@ export default async function SocietyProfilePage({
   const milestonesResult = await loadSocietyMilestones(society.id);
   const societyMilestones = milestonesResult.ok ? milestonesResult.milestones : [];
   const milestonesDegraded = !milestonesResult.ok;
+  const relatedArticles = await loadRelatedArticles(society.id);
 
   return (
     <div className="flex flex-col">
@@ -839,6 +856,11 @@ export default async function SocietyProfilePage({
           )}
         </div>
       </section>
+
+      <RelatedReading
+        articles={relatedArticles}
+        contextLabel={society.name}
+      />
     </div>
   );
 }

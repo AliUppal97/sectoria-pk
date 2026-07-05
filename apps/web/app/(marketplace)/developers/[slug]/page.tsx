@@ -8,6 +8,7 @@ import { Button, EmptyState, JsonLd } from "@sectoria/ui";
 import { LeadSource } from "@sectoria/types";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
 import { QuoteRequestForm } from "@/components/marketplace/quote-request-form";
+import { RelatedReading } from "@/components/marketplace/related-reading";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { VerificationTierBadge } from "@/components/marketplace/verification-badge";
 import { getApi } from "@/lib/trpc/server";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/developer";
 import { developerPath, societyPath } from "@/lib/marketplace";
 import { breadcrumbSchema, developerOrganizationSchema, pageMetadata } from "@/lib/seo";
+import type { ArticlePublic } from "@/lib/article";
 import { SITE } from "@/lib/site";
 import type { VerificationTier } from "@sectoria/types";
 
@@ -50,6 +52,20 @@ const loadDeveloper = cache(async (slug: string): Promise<LoadResult> => {
     return { ok: false, reason: "error" };
   }
 });
+
+const loadRelatedArticles = cache(
+  async (developerId: string): Promise<ArticlePublic[]> => {
+    try {
+      const articles = await getApi().article.list({ developerId, limit: 3 });
+      return articles as ArticlePublic[];
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[developer] related articles load failed:", error);
+      }
+      return [];
+    }
+  },
+);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   try {
@@ -217,6 +233,7 @@ export default async function DeveloperProfilePage({
   const path = developerPath(developer.slug);
   const logoUrl = resolveDeveloperAssetUrl(developer.logoKey);
   const societyIds = developer.societies.map((society) => society.id);
+  const relatedArticles = await loadRelatedArticles(developer.id);
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
@@ -358,6 +375,11 @@ export default async function DeveloperProfilePage({
           </div>
         </section>
       ) : null}
+
+      <RelatedReading
+        articles={relatedArticles}
+        contextLabel={developer.name}
+      />
     </div>
   );
 }
