@@ -67,6 +67,13 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | View onboarding console (all statuses incl. DRAFT/ARCHIVED) | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Assign / unassign a society administrator | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Bulk-import societies (idempotent upsert, dry-run) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Manage society media (gallery/hero/progress) | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Manage society documents (downloads, LOP/NOC) | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Manage rich amenities & stat highlights | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Manage nearby landmarks / connectivity | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Manage society milestone roadmap | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Create/update developer profiles & track record | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Create/update/publish blog articles | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ## Notes
 
@@ -93,3 +100,11 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
   archive emit `SOCIETY_CREATED`/`SOCIETY_PUBLISHED`/`SOCIETY_ARCHIVED` ledger
   events via the standard builder. Once an admin is linked, society-portal
   writes stay gated by `assertSocietyOwnership`.
+- Society profile v2 (M1–M6, M8): public reads (`media.listForSociety`,
+  `document.listForSociety`, `societyFeature.list*`, `landmark.listForSociety`,
+  `milestone.listForSociety`, `developer.getBySlug`, `article.list`/`getBySlug`)
+  use `publicProcedure`; society-owned writes use `societyAdminProcedure` +
+  `assertSocietyOwnership`; `Developer` and `Article` authoring use
+  `superAdminProcedure`. `document.listForSociety` returns only `isPublic`
+  documents with signed URLs — private LOP/NOC docs require an authenticated
+  admin via `document.listForAdmin`.

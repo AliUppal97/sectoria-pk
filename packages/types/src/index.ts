@@ -40,3 +40,4 @@ export * from "./nearby-landmark.js";
 export * from "./developer.js";
 export * from "./society-milestone.js";
 export * from "./article.js";
+export * from "./society-profile-inputs.js";
