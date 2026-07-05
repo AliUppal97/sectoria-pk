@@ -11,6 +11,7 @@ import {
   toDocumentAdminDto,
   toDocumentPublicDto,
 } from "../lib/society-profile-dto.js";
+import { assertPublishedSociety } from "../lib/assert-published-society.js";
 import { findResourceSocietyId, loadOwnedSocietyResource } from "../lib/society-profile-helpers.js";
 
 export const documentRouter = router({
@@ -22,6 +23,7 @@ export const documentRouter = router({
   listForSociety: publicProcedure
     .input(societyDocumentListInputSchema)
     .query(async ({ ctx, input }) => {
+      await assertPublishedSociety(ctx.db, input.societyId);
       const rows = await ctx.db.societyDocument.findMany({
         where: { societyId: input.societyId, isPublic: true },
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],

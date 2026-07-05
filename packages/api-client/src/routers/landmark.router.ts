@@ -8,6 +8,7 @@ import {
 import { router, TRPCError } from "../trpc.js";
 import { publicProcedure, societyAdminProcedure } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
+import { assertPublishedSociety } from "../lib/assert-published-society.js";
 import { toLandmarkDto } from "../lib/society-profile-dto.js";
 import {
   applyReorder,
@@ -20,6 +21,7 @@ export const landmarkRouter = router({
   listForSociety: publicProcedure
     .input(societyMediaListInputSchema)
     .query(async ({ ctx, input }) => {
+      await assertPublishedSociety(ctx.db, input.societyId);
       const rows = await ctx.db.nearbyLandmark.findMany({
         where: { societyId: input.societyId },
         orderBy: { sortOrder: "asc" },
