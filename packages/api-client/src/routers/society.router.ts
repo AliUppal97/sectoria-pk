@@ -248,6 +248,8 @@ export const societyRouter = router({
           amenities: z.array(z.string().min(1)).optional(),
           developmentStage: z.string().min(1).optional(),
           developmentPct: z.number().int().min(0).max(100).optional(),
+          virtualTourUrl: z.string().url().nullable().optional(),
+          promoVideoUrl: z.string().url().nullable().optional(),
           heroImageUrl: z.string().url().nullable().optional(),
           latitude: latitudeSchema.nullable().optional(),
           longitude: longitudeSchema.nullable().optional(),
@@ -306,6 +308,79 @@ export const societyRouter = router({
           },
         }),
       );
+    }),
+
+  /** Society admin: editable profile fields (works for DRAFT societies). */
+  getEditableProfile: societyAdminProcedure
+    .input(z.object({ societyId: idSchema }))
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const society = await ctx.db.society.findUnique({
+        where: { id: input.societyId },
+        select: {
+          description: true,
+          amenities: true,
+          developmentStage: true,
+          developmentPct: true,
+          virtualTourUrl: true,
+          promoVideoUrl: true,
+        },
+      });
+      if (society === null) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Society not found.",
+        });
+      }
+      return society;
+    }),
+
+  /** Society admin: location, booking, and compliance fields (any publish status). */
+  getPortalSettings: societyAdminProcedure
+    .input(z.object({ societyId: idSchema }))
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const society = await ctx.db.society.findUnique({
+        where: { id: input.societyId },
+        select: {
+          slug: true,
+          lopReferenceNo: true,
+          nocReferenceNo: true,
+          hsmsLinked: true,
+          verificationTier: true,
+          addressLine: true,
+          district: true,
+          latitude: true,
+          longitude: true,
+          totalLandKanal: true,
+          developedLandKanal: true,
+          boundaryGeoJson: true,
+          bookingStatus: true,
+          bookingOpensAt: true,
+          bookingClosesAt: true,
+        },
+      });
+      if (society === null) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Society not found.",
+        });
+      }
+      const toIso = (value: Date | null) =>
+        value === null ? null : value.toISOString();
+      return {
+        ...society,
+        totalLandKanal:
+          society.totalLandKanal !== null
+            ? society.totalLandKanal.toString()
+            : null,
+        developedLandKanal:
+          society.developedLandKanal !== null
+            ? society.developedLandKanal.toString()
+            : null,
+        bookingOpensAt: toIso(society.bookingOpensAt),
+        bookingClosesAt: toIso(society.bookingClosesAt),
+      };
     }),
 
   /**

@@ -80,12 +80,12 @@ export function toMediaPublicDto(
   return { ...rest, url: storage.getPublicUrl(row.storageKey) };
 }
 
-/** Admin media DTO — includes storage key for editing. */
+/** Admin media DTO — includes storage key and preview URL for editing. */
 export function toMediaAdminDto(
   row: Parameters<typeof toMediaPublicDto>[0],
-  _storage: StorageAdapter,
+  storage: StorageAdapter,
 ) {
-  return societyMediaSchema.parse({
+  const dto = societyMediaSchema.parse({
     id: row.id,
     societyId: row.societyId,
     kind: row.kind,
@@ -98,6 +98,7 @@ export function toMediaAdminDto(
     height: row.height,
     createdAt: serializeDate(row.createdAt),
   });
+  return { ...dto, url: storage.getPublicUrl(row.storageKey) };
 }
 
 /** Public document DTO — signed URL, no storage key on the wire. */

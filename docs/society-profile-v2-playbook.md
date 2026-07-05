@@ -37,6 +37,7 @@ These sessions deliver an **end-to-end society onboarding pipeline** (Session S0
 | S7 | Developer profiles + track-record pages | B | Agent |
 | S8 | Milestone roadmap + sub-community/phase sections | B | Agent |
 | S9 | Society portal + admin editors | B | Agent |
+| S9a | Portal editor reorder + milestone edit (ship-review) | B | Agent |
 | S10 | Blog / content hub | B | Agent |
 | S11 | SEO, sitemap, JSON-LD + E2E coverage | B | Agent |
 
@@ -515,6 +516,41 @@ dialogs, not toasts. Five states; design tokens.
 - [ ] Cross-society write attempts are rejected (manual check or test).
 - [ ] `pnpm turbo run test lint typecheck` clean.
 - [ ] Commit + push: `feat(web): society + admin editors for profile v2 content`
+- [ ] S9a complete if spawned by ship-review (reorder + milestone edit gaps)
+
+---
+
+## Session S9a — Portal editor reorder + milestone edit (ship-review gap)
+
+- **Model:** Tier B
+- **Mode:** Agent
+- **Parent:** S9 — run after S9 implementation; complete before S10
+- **Attach:** `@docs/architecture/society-profile-v2/portal-editors.md` + `@docs/architecture/society-profile-v2/foundations.md` + `@docs/design/Sectoria_Design_System.md`
+- **Rules expected to load:** `ui-design-system-sectoria`, `ui-ux-excellence-sectoria`, `auth-and-access-control`
+
+**Prompt:**
+```
+@docs/architecture/society-profile-v2/portal-editors.md @docs/architecture/society-profile-v2/foundations.md @docs/design/Sectoria_Design_System.md
+
+Close S9 ship-review gaps in the society portal editors (reuse ReorderControls + ConfirmDeleteDialog patterns):
+
+1. apps/web/components/society/society-documents-editor.tsx — add reorder controls
+   wired to document.reorder (societyId + orderedIds), matching amenities/highlights.
+2. apps/web/components/society/society-milestones-editor.tsx — add reorder controls
+   wired to milestone.reorder.
+3. apps/web/components/society/society-milestones-editor.tsx — add inline edit for
+   existing milestones (title, description, date, status) via milestone.update;
+   mirror society-updates-admin-list edit-in-place pattern.
+
+Do not expand into blog pages (S10), developer logo upload, or amenity image upload.
+Destructive actions keep confirm dialogs.
+```
+
+**Test Gate:**
+- [ ] Society admin can reorder documents and milestones from the portal.
+- [ ] Society admin can edit an existing milestone (date + status + copy) without delete/recreate.
+- [ ] `pnpm turbo run test lint typecheck` clean.
+- [ ] Commit + push: `fix(web): document/milestone reorder and milestone edit in society portal`
 
 ---
 

@@ -29,6 +29,18 @@ export const milestoneRouter = router({
       return rows.map(toMilestoneDto);
     }),
 
+  /** Society admin: all milestones regardless of publish status. */
+  listForAdmin: societyAdminProcedure
+    .input(societyMediaListInputSchema)
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const rows = await ctx.db.societyMilestone.findMany({
+        where: { societyId: input.societyId },
+        orderBy: [{ occurredOn: "desc" }, { sortOrder: "asc" }],
+      });
+      return rows.map(toMilestoneDto);
+    }),
+
   create: societyAdminProcedure
     .input(societyMilestoneCreateInputSchema)
     .mutation(async ({ ctx, input }) => {

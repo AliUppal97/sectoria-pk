@@ -10,6 +10,14 @@ import { publicProcedure, superAdminProcedure } from "../procedures.js";
 import { toArticleDto } from "../lib/society-profile-dto.js";
 
 export const articleRouter = router({
+  /** Super-admin: all articles including drafts for the authoring console. */
+  listForAdmin: superAdminProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.article.findMany({
+      orderBy: [{ createdAt: "desc" }],
+    });
+    return rows.map(toArticleDto);
+  }),
+
   /** Public blog index — published articles only. */
   list: publicProcedure
     .input(articleListInputSchema)
