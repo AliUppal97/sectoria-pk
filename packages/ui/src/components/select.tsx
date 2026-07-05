@@ -20,7 +20,7 @@ export const SelectTrigger = forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-9.5 w-full items-center justify-between gap-2 rounded-md border border-border-base bg-surface-card px-3",
+      "flex h-11 min-h-[44px] w-full cursor-pointer touch-manipulation items-center justify-between gap-2 rounded-md border border-border-base bg-surface-card px-3",
       "font-sans text-sm text-text-primary",
       "data-[placeholder]:text-text-disabled",
       "transition-colors duration-150 ease-default",
@@ -47,8 +47,8 @@ export const SelectContent = forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border-base bg-surface-elevated shadow-lg",
-        "p-1",
+        "z-[150] min-w-[8rem] overflow-hidden rounded-lg border border-border-base bg-surface-elevated shadow-lg",
+        "p-1 touch-manipulation",
         position === "popper" && "translate-y-1",
         className,
       )}
@@ -69,7 +69,7 @@ export const SelectItem = forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-3 pr-8",
+      "relative flex min-h-[44px] w-full cursor-pointer touch-manipulation select-none items-center rounded-sm py-2 pl-3 pr-8",
       "font-sans text-sm text-text-primary outline-none",
       "data-[highlighted]:bg-surface-subtle data-[highlighted]:outline-none",
       "data-[disabled]:opacity-45 data-[disabled]:pointer-events-none",
