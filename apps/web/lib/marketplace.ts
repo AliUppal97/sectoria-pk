@@ -129,3 +129,8 @@ export function categoryPath(
 export function dealerPath(slug: string): string {
   return `/dealers/${slug}`;
 }
+
+/** Canonical path to a platform-curated developer / builder profile. */
+export function developerPath(slug: string): string {
+  return `/developers/${slug}`;
+}

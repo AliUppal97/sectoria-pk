@@ -3,16 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MapPin } from "lucide-react";
-import {
-  Button,
-  EmptyState,
-  JsonLd,
-  ProgressBar,
-  StatusBadge,
-  TrustBadge,
-  formatDate,
-  formatPKR,
-} from "@sectoria/ui";
+import { Button, EmptyState, JsonLd, ProgressBar, StatusBadge, TrustBadge, formatDate, formatPKR } from "@sectoria/ui";
 import { formatLandKanal, parseKanalString } from "@sectoria/domain-land";
 import { geoJsonBoundarySchema, SocietyMediaKind } from "@sectoria/types";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
@@ -25,6 +16,7 @@ import {
   SocietyAmenitiesPills,
 } from "@/components/marketplace/society-amenities";
 import { SocietyDocuments } from "@/components/marketplace/society-documents";
+import { SocietyDeveloper } from "@/components/marketplace/society-developer";
 import { SocietyHighlights } from "@/components/marketplace/society-highlights";
 import { SocietyGalleryDynamic } from "@/components/marketplace/society-gallery-dynamic";
 import { SocietyHero } from "@/components/marketplace/society-hero";
@@ -587,6 +579,8 @@ export default async function SocietyProfilePage({
             documents={publicDocuments}
             degraded={documentsDegraded}
           />
+
+          <SocietyDeveloper developer={society.developer ?? null} />
 
           <BentoCell className="flex flex-col gap-3">
             <h2 className="font-sans text-md font-semibold text-text-primary">

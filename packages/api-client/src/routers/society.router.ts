@@ -205,6 +205,16 @@ export const societyRouter = router({
             orderBy: { publishedAt: "desc" },
             take: 10,
           },
+          developer: {
+            select: {
+              slug: true,
+              name: true,
+              description: true,
+              logoKey: true,
+              foundedYear: true,
+              websiteUrl: true,
+            },
+          },
         },
       });
       // Public read: a DRAFT/ARCHIVED society is indistinguishable from a
@@ -219,9 +229,10 @@ export const societyRouter = router({
           message: "Society not found.",
         });
       }
-      const { categories, updates, ...rest } = society;
+      const { categories, updates, developer, ...rest } = society;
       return {
         ...toSocietyDto(rest),
+        developer,
         categories: categories.map(toCategoryWithPlansDto),
         updates: updates.map(toSocietyUpdateDto),
       };
