@@ -5,7 +5,7 @@ attach in (almost) every build session alongside the specific module file(s).
 
 - Index: [`../society-profile-v2-spec.md`](../society-profile-v2-spec.md)
 - Build prompts: [`../../society-profile-v2-playbook.md`](../../society-profile-v2-playbook.md)
-- Related: [ADR-007 (concierge pivot)](../ADR-007-concierge-pivot.md), [ADR-008 (society profile maps)](../ADR-008-society-profile-maps.md), proposed ADR-009 (see [`storage.md`](storage.md))
+- Related: [ADR-007 (concierge pivot)](../ADR-007-concierge-pivot.md), [ADR-008 (society profile maps)](../ADR-008-society-profile-maps.md), [ADR-009 (media & document storage)](../ADR-009-media-document-storage.md)
 
 ---
 

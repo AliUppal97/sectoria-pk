@@ -19,6 +19,7 @@
     "@sectoria/types": "workspace:*",
     "@sectoria/ui": "workspace:*",
     "@sectoria/verification": "workspace:*",
+    "@sectoria/storage": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/react-query": "catalog:",

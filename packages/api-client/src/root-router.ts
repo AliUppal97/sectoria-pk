@@ -18,6 +18,7 @@ import { landmarkRouter } from "./routers/landmark.router.js";
 import { developerRouter } from "./routers/developer.router.js";
 import { milestoneRouter } from "./routers/milestone.router.js";
 import { articleRouter } from "./routers/article.router.js";
+import { storageRouter } from "./routers/storage.router.js";
 
 /**
  * The application's root tRPC router — the single merged surface the Next.js
@@ -44,6 +45,7 @@ export const appRouter = router({
   developer: developerRouter,
   milestone: milestoneRouter,
   article: articleRouter,
+  storage: storageRouter,
 });
 
 /**

@@ -25,6 +25,7 @@
     "@sectoria/domain-trust-score": "workspace:*",
     "@sectoria/types": "workspace:*",
     "@sectoria/verification": "workspace:*",
+    "@sectoria/storage": "workspace:*",
     "@trpc/server": "catalog:",
     "zod": "catalog:"
   },

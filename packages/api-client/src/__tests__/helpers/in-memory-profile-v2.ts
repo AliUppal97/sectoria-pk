@@ -196,12 +196,18 @@ function makeSocietyOwnedCrud<T extends { id: string; societyId: string }>(
     },
     findUnique: async (args: {
       where: { id: string };
-      select?: { societyId?: boolean };
+      select?: Record<string, boolean>;
     }) => {
       const row = map.get(args.where.id) ?? null;
       if (row === null) return null;
-      if (args.select?.societyId) return { societyId: row.societyId };
-      return row;
+      if (args.select === undefined) return row;
+      const result: Record<string, unknown> = {};
+      for (const [key, include] of Object.entries(args.select)) {
+        if (include) {
+          result[key] = (row as Record<string, unknown>)[key];
+        }
+      }
+      return result as T;
     },
     create: async (args: { data: Record<string, unknown> }) => {
       const id = nextId(idPrefix);

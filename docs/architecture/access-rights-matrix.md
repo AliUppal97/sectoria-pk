@@ -69,6 +69,8 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | Bulk-import societies (idempotent upsert, dry-run) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Manage society media (gallery/hero/progress) | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
 | Manage society documents (downloads, LOP/NOC) | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Request presigned upload URL (media/documents) | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
+| Mint signed download URL for private document | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
 | Manage rich amenities & stat highlights | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
 | Manage nearby landmarks / connectivity | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
 | Manage society milestone roadmap | ❌ | ❌ | 🔶 own society only | ❌ | ✅ |
@@ -107,4 +109,5 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
   `assertSocietyOwnership`; `Developer` and `Article` authoring use
   `superAdminProcedure`. `document.listForSociety` returns only `isPublic`
   documents with signed URLs — private LOP/NOC docs require an authenticated
-  admin via `document.listForAdmin`.
+  admin via `document.listForAdmin` or `document.getDownloadUrl`.
+  `storage.requestUploadUrl` mints presigned PUT URLs for society-owned uploads.

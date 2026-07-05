@@ -24,6 +24,19 @@ try {
 
 const isProduction = process.env.NODE_ENV === "production";
 
+/** Storage/CDN origin for CSP when set; falls back to the local mock host. */
+function storageCspOrigin(): string {
+  const base = process.env.STORAGE_PUBLIC_BASE_URL?.trim();
+  if (!base) return "http://127.0.0.1:3099";
+  try {
+    return new URL(base).origin;
+  } catch {
+    return "";
+  }
+}
+
+const storageOrigin = storageCspOrigin();
+
 /**
  * Baseline security headers (build-prompt Section 7). A strict, nonce-based CSP
  * for first-party scripts is deferred to the dedicated security-hardening pass
@@ -37,9 +50,12 @@ const contentSecurityPolicy = [
     ? "script-src 'self' 'unsafe-inline'"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https:" +
+    (storageOrigin ? ` ${storageOrigin}` : ""),
   "font-src 'self' data:",
-  "connect-src 'self' ws: https:",
+  "connect-src 'self' ws: https:" +
+    (storageOrigin ? ` ${storageOrigin}` : ""),
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://my.matterport.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -86,6 +102,7 @@ const nextConfig: NextConfig = {
     "@sectoria/database",
     "@sectoria/verification",
     "@sectoria/types",
+    "@sectoria/storage",
     "@sectoria/domain-escrow",
     "@sectoria/domain-ledger",
     "@sectoria/domain-tax",

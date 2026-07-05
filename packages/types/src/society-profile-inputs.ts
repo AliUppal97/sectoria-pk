@@ -116,6 +116,31 @@ export type SocietyDocumentDeleteInput = z.infer<
   typeof societyDocumentDeleteInputSchema
 >;
 
+/** Mint a presigned PUT URL for a society media or document upload. */
+export const storageRequestUploadInputSchema = z.object({
+  societyId: idSchema,
+  contentType: societyDocumentContentTypeSchema,
+  fileSize: z
+    .number()
+    .int()
+    .positive()
+    .max(SOCIETY_DOCUMENT_MAX_BYTES),
+  /** Public media/docs → public bucket; private compliance docs → private bucket. */
+  visibility: z.enum(["public", "private"]),
+  resourceType: z.enum(["media", "document"]),
+});
+export type StorageRequestUploadInput = z.infer<
+  typeof storageRequestUploadInputSchema
+>;
+
+/** Mint a signed download URL for a specific document (incl. private LOP/NOC). */
+export const documentGetDownloadUrlInputSchema = z.object({
+  documentId: idSchema,
+});
+export type DocumentGetDownloadUrlInput = z.infer<
+  typeof documentGetDownloadUrlInputSchema
+>;
+
 export const amenityFeatureCreateInputSchema = z.object({
   societyId: idSchema,
   title: z.string().min(1),
