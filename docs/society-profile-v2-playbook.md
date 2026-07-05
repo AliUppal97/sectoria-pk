@@ -6,6 +6,8 @@ Companion to the split technical spec. The spec **index** is [`docs/architecture
 
 > Attach discipline: each session attaches [`society-profile-v2/foundations.md`](architecture/society-profile-v2/foundations.md) **plus only the module/concern file(s) for that session** — not the whole spec. UI sessions also attach the design system.
 
+> **Sub-sessions (S2a, S0b, …):** spawned by `session-ship-review` when a gap is **in the parent session's scope** but no later session will fix it. Run the sub-session after the parent Test Gate passes and **before** the next major session. Sub-sessions use the same format below (Model, Attach, Prompt, Test Gate). Do not advance past a sub-session if its Test Gate is unchecked.
+
 These sessions deliver an **end-to-end society onboarding pipeline** (Session S0: create -> draft -> complete -> publish, with a scalable directory so every society in Pakistan can be added one-by-one) plus the Urban City-grade society profile built on top of it (visual media, documents, rich amenities, connectivity, developer credibility, milestone roadmap, progress galleries, sub-community sections, and a blog) — all **inside the concierge model**: every CTA funnels to a quote request; no self-serve booking; no dealer net/contact exposure.
 
 ---
@@ -27,6 +29,7 @@ These sessions deliver an **end-to-end society onboarding pipeline** (Session S0
 | S0 | Society lifecycle, onboarding console, bulk import + directory scalability | **A** | Agent |
 | S1 | Types + schema + migrations (data foundation) | **A** | Agent |
 | S2 | API routers + concierge/ownership guards | **A** | Agent |
+| S2a | Public profile read guards (ship-review gap) | **A** | Agent |
 | S3 | Storage adapter + presigned uploads + ADR-009 | **A** | Agent |
 | S4 | Media, galleries & virtual tour UI | B | Agent |
 | S5 | Documents & downloads UI | B | Agent |
@@ -222,6 +225,53 @@ docs/architecture/access-rights-matrix.md with a row per new mutation.
 - [ ] `access-rights-matrix.md` updated.
 - [ ] `pnpm turbo run test lint typecheck` clean.
 - [ ] Commit + push: `feat(api): society profile v2 routers with ownership + concierge guards`
+- [ ] **S2a** complete if spawned by ship-review (public `publishStatus` guards)
+
+---
+
+## Session S2a — Public profile read guards (ship-review gap)
+
+- **Model:** Tier A
+- **Mode:** Agent
+- **Parent:** S2 — run after S2 Test Gate passes; complete **before S3**
+- **Attach:** `@docs/architecture/society-profile-v2/foundations.md` + `@docs/architecture/society-profile-v2/m0-onboarding-and-scale.md`
+- **Rules expected to load:** `api-trpc`, `middleware-and-guards`, `auth-and-access-control`, `security`.
+
+**Prompt:**
+```
+@docs/architecture/society-profile-v2/foundations.md @docs/architecture/society-profile-v2/m0-onboarding-and-scale.md
+
+Close the S2 ship-review gap: every new public profile read must respect M0's
+publishStatus rule (foundations.md §1.1 — publicProcedure reads filtered to
+PUBLISHED). S3 owns real storage signing; this session is guards + DTO hygiene only.
+
+1. Add a shared helper in packages/api-client/src/lib/ (e.g.
+   assert-published-society.ts): given societyId, load publishStatus; if not
+   PUBLISHED, throw TRPCError NOT_FOUND (same semantics as society.getBySlug —
+   draft/archived indistinguishable from missing for public callers).
+2. Call it at the start of every public listForSociety* query:
+   media.listForSociety, document.listForSociety, societyFeature.listAmenitiesForSociety,
+   societyFeature.listHighlightsForSociety, landmark.listForSociety,
+   milestone.listForSociety. Do NOT add publish checks to societyAdminProcedure
+   admin list endpoints.
+3. In society-profile-dto.ts: toMediaPublicDto must not expose storageKey on the
+   public wire (mirror toDocumentPublicDto — return url only). Admin DTOs keep
+   storageKey.
+4. Tests in society-profile-v2.router.test.ts: seed a DRAFT society with media/docs;
+   assert public listForSociety returns NOT_FOUND or empty per your helper choice
+   (match getBySlug: NOT_FOUND on the society lookup inside helper). Assert public
+   media payloads have url and no storageKey.
+
+Do not implement presigned URLs, upload flows, or CSP changes — those land in S3.
+Do not add UI. Smallest correct diff.
+```
+
+**Test Gate:**
+- [ ] Shared publishStatus guard used by all six public listForSociety* procedures.
+- [ ] DRAFT society profile content not returned to unauthenticated callers (test).
+- [ ] Public media DTO omits storageKey; admin DTO still includes it.
+- [ ] `pnpm turbo run test lint typecheck` clean.
+- [ ] Commit + push: `fix(api): gate public profile v2 reads on publishStatus + strip public media storageKey`
 
 ---
 
