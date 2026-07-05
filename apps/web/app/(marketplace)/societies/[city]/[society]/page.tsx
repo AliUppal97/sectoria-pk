@@ -22,7 +22,9 @@ import { SocietyGalleryDynamic } from "@/components/marketplace/society-gallery-
 import { SocietyHero } from "@/components/marketplace/society-hero";
 import { SocietyLocationSection } from "@/components/marketplace/society-location-section";
 import { SocietyPaymentPlans } from "@/components/marketplace/society-payment-plans";
+import { SocietyPhases } from "@/components/marketplace/society-phases";
 import { SocietyProgressGalleryDynamic } from "@/components/marketplace/society-progress-gallery-dynamic";
+import { SocietyRoadmap } from "@/components/marketplace/society-roadmap";
 import { SocietyUpdatesTimeline } from "@/components/marketplace/society-updates-timeline";
 import { SocietyVirtualTour } from "@/components/marketplace/society-virtual-tour";
 import { VerificationTierBadge } from "@/components/marketplace/verification-badge";
@@ -52,6 +54,7 @@ import {
 import type { SocietyDocumentPublic } from "@/lib/society-documents";
 import type { AmenityFeaturePublic, SocietyHighlightPublic } from "@/lib/society-features";
 import type { NearbyLandmarkPublic } from "@/lib/society-landmarks";
+import type { SocietyMilestonePublic } from "@/lib/society-milestones";
 import { SITE } from "@/lib/site";
 
 // ISR: society content is largely stable (inventory counts drift slowly), so
@@ -205,6 +208,27 @@ const loadSocietyLandmarks = cache(
   },
 );
 
+type SocietyMilestonesLoadResult =
+  | { readonly ok: true; readonly milestones: SocietyMilestonePublic[] }
+  | { readonly ok: false };
+
+const loadSocietyMilestones = cache(
+  async (societyId: string): Promise<SocietyMilestonesLoadResult> => {
+    try {
+      const milestones = await getApi().milestone.listForSociety({ societyId });
+      return {
+        ok: true,
+        milestones: milestones as SocietyMilestonePublic[],
+      };
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[society] milestones load failed:", error);
+      }
+      return { ok: false };
+    }
+  },
+);
+
 function toCategoryView(category: {
   id: string;
   slug: string;
@@ -344,6 +368,9 @@ export default async function SocietyProfilePage({
   const landmarksResult = await loadSocietyLandmarks(society.id);
   const nearbyLandmarks = landmarksResult.ok ? landmarksResult.landmarks : [];
   const landmarksDegraded = !landmarksResult.ok;
+  const milestonesResult = await loadSocietyMilestones(society.id);
+  const societyMilestones = milestonesResult.ok ? milestonesResult.milestones : [];
+  const milestonesDegraded = !milestonesResult.ok;
 
   return (
     <div className="flex flex-col">
@@ -702,7 +729,7 @@ export default async function SocietyProfilePage({
             title="Categories & pricing"
             description="Each category is a sellable bucket — phase, block and plot size — with its own pricing, availability and booking flow."
           />
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col gap-12">
             {categories.length === 0 ? (
               <EmptyState
                 heading="No inventory listed yet"
@@ -714,16 +741,36 @@ export default async function SocietyProfilePage({
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {categories.map((category) => (
-                  <CategoryCard
-                    key={category.id}
-                    citySlug={society.citySlug}
-                    societySlug={society.slug}
-                    category={category}
-                  />
-                ))}
-              </div>
+              <>
+                <SocietyPhases
+                  citySlug={society.citySlug}
+                  societySlug={society.slug}
+                  categories={categories}
+                  media={media}
+                />
+
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-sans text-md font-semibold text-text-primary">
+                      All categories
+                    </h3>
+                    <p className="font-sans text-sm text-text-secondary">
+                      Full flat list of every sellable category across all
+                      phases and blocks.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {categories.map((category) => (
+                      <CategoryCard
+                        key={category.id}
+                        citySlug={society.citySlug}
+                        societySlug={society.slug}
+                        category={category}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -736,8 +783,23 @@ export default async function SocietyProfilePage({
             title="Society news & milestones"
             description="Official updates on NOC approvals, licenses, possession, and booking windows — published by the society."
           />
-          <div className="mt-8">
-            <SocietyUpdatesTimeline updates={society.updates} />
+          <div className="mt-8 flex flex-col gap-12">
+            <SocietyRoadmap
+              milestones={societyMilestones}
+              degraded={milestonesDegraded}
+            />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <h3 className="font-sans text-md font-semibold text-text-primary">
+                  Official news
+                </h3>
+                <p className="font-sans text-sm text-text-secondary">
+                  NOC approvals, possession announcements, and booking updates
+                  published by the society.
+                </p>
+              </div>
+              <SocietyUpdatesTimeline updates={society.updates} />
+            </div>
           </div>
         </div>
       </section>
