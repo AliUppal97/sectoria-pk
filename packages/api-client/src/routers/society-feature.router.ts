@@ -35,6 +35,30 @@ export const societyFeatureRouter = router({
       return rows.map(toAmenityDto);
     }),
 
+  /** Society admin: all amenities regardless of publish status. */
+  listAmenitiesForAdmin: societyAdminProcedure
+    .input(societyMediaListInputSchema)
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const rows = await ctx.db.amenityFeature.findMany({
+        where: { societyId: input.societyId },
+        orderBy: { sortOrder: "asc" },
+      });
+      return rows.map(toAmenityDto);
+    }),
+
+  /** Society admin: all highlights regardless of publish status. */
+  listHighlightsForAdmin: societyAdminProcedure
+    .input(societyMediaListInputSchema)
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const rows = await ctx.db.societyHighlight.findMany({
+        where: { societyId: input.societyId },
+        orderBy: { sortOrder: "asc" },
+      });
+      return rows.map(toHighlightDto);
+    }),
+
   /** Public stat highlights for a society profile. */
   listHighlightsForSociety: publicProcedure
     .input(societyMediaListInputSchema)

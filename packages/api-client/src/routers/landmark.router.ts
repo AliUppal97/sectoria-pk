@@ -29,6 +29,18 @@ export const landmarkRouter = router({
       return rows.map(toLandmarkDto);
     }),
 
+  /** Society admin: all landmarks regardless of publish status. */
+  listForAdmin: societyAdminProcedure
+    .input(societyMediaListInputSchema)
+    .query(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const rows = await ctx.db.nearbyLandmark.findMany({
+        where: { societyId: input.societyId },
+        orderBy: { sortOrder: "asc" },
+      });
+      return rows.map(toLandmarkDto);
+    }),
+
   create: societyAdminProcedure
     .input(nearbyLandmarkCreateInputSchema)
     .mutation(async ({ ctx, input }) => {

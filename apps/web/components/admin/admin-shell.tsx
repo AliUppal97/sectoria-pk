@@ -9,11 +9,13 @@ import {
   BookOpen,
   Building2,
   ClipboardCheck,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
   Scale,
   TrendingUp,
+  Users,
   Wallet,
   X,
   type LucideIcon,
@@ -31,6 +33,8 @@ interface NavItem {
 const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/societies", label: "Societies", icon: Building2 },
+  { href: "/admin/developers", label: "Developers", icon: Users },
+  { href: "/admin/articles", label: "Articles", icon: FileText },
   {
     href: "/admin/verification-queue",
     label: "Verification",

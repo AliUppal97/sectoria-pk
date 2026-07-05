@@ -1,4 +1,5 @@
 import {
+  reorderByIdsInputSchema,
   societyDocumentCreateInputSchema,
   societyDocumentDeleteInputSchema,
   documentGetDownloadUrlInputSchema,
@@ -13,7 +14,11 @@ import {
   toDocumentPublicDto,
 } from "../lib/society-profile-dto.js";
 import { assertPublishedSociety } from "../lib/assert-published-society.js";
-import { findResourceSocietyId, loadOwnedSocietyResource } from "../lib/society-profile-helpers.js";
+import {
+  applyReorder,
+  findResourceSocietyId,
+  loadOwnedSocietyResource,
+} from "../lib/society-profile-helpers.js";
 import { DEFAULT_SIGNED_URL_TTL_SECONDS } from "@sectoria/storage";
 
 export const documentRouter = router({
@@ -96,6 +101,31 @@ export const documentRouter = router({
         "Document",
       );
       await ctx.db.societyDocument.delete({ where: { id: input.documentId } });
+      return { ok: true as const };
+    }),
+
+  reorder: societyAdminProcedure
+    .input(reorderByIdsInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      assertSocietyOwnership(ctx.session, input.societyId);
+      const existing = await ctx.db.societyDocument.findMany({
+        where: { societyId: input.societyId },
+        select: { id: true },
+      });
+      const validIds = new Set(existing.map((row) => row.id));
+      if (!input.orderedIds.every((id) => validIds.has(id))) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "orderedIds must reference documents belonging to this society.",
+        });
+      }
+      await applyReorder(
+        ctx.db,
+        "societyDocument",
+        input.societyId,
+        input.orderedIds,
+      );
       return { ok: true as const };
     }),
 
