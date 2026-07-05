@@ -1,4 +1,9 @@
 import type { PrismaClient } from "@sectoria/database";
+import {
+  attachProfileV2Models,
+  createProfileV2Store,
+  type ProfileV2Store,
+} from "./in-memory-profile-v2.js";
 
 /**
  * A tiny in-memory stand-in for the Prisma client, implementing only the model
@@ -123,6 +128,7 @@ export class Store {
   bookings = new Map<string, BookingRow>();
   reviews = new Map<string, ReviewRow>();
   ledgerEvents = new Map<string, LedgerRow>();
+  profileV2: ProfileV2Store = createProfileV2Store();
 
   /** Test hook: when set, every `ledgerEvent.create` throws to force a rollback. */
   failLedgerCreate = false;
@@ -161,6 +167,15 @@ function snapshot(store: Store): Map<string, unknown>[] {
     clone(store.bookings),
     clone(store.reviews),
     clone(store.ledgerEvents),
+    clone(store.profileV2.societyMedia),
+    clone(store.profileV2.societyDocument),
+    clone(store.profileV2.amenityFeature),
+    clone(store.profileV2.societyHighlight),
+    clone(store.profileV2.nearbyLandmark),
+    clone(store.profileV2.developer),
+    clone(store.profileV2.developerProject),
+    clone(store.profileV2.societyMilestone),
+    clone(store.profileV2.article),
   ];
 }
 
@@ -174,6 +189,15 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
     bookings,
     reviews,
     ledger,
+    societyMedia,
+    societyDocument,
+    amenityFeature,
+    societyHighlight,
+    nearbyLandmark,
+    developer,
+    developerProject,
+    societyMilestone,
+    article,
   ] = snap;
   store.users = users as Map<string, UserRow>;
   store.societies = societies as Map<string, SocietyRow>;
@@ -183,6 +207,42 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
   store.bookings = bookings as Map<string, BookingRow>;
   store.reviews = reviews as Map<string, ReviewRow>;
   store.ledgerEvents = ledger as Map<string, LedgerRow>;
+  store.profileV2.societyMedia = societyMedia as Map<
+    string,
+    import("./in-memory-profile-v2.js").SocietyMediaRow
+  >;
+  store.profileV2.societyDocument = societyDocument as Map<
+    string,
+    import("./in-memory-profile-v2.js").SocietyDocumentRow
+  >;
+  store.profileV2.amenityFeature = amenityFeature as Map<
+    string,
+    import("./in-memory-profile-v2.js").AmenityFeatureRow
+  >;
+  store.profileV2.societyHighlight = societyHighlight as Map<
+    string,
+    import("./in-memory-profile-v2.js").SocietyHighlightRow
+  >;
+  store.profileV2.nearbyLandmark = nearbyLandmark as Map<
+    string,
+    import("./in-memory-profile-v2.js").NearbyLandmarkRow
+  >;
+  store.profileV2.developer = developer as Map<
+    string,
+    import("./in-memory-profile-v2.js").DeveloperRow
+  >;
+  store.profileV2.developerProject = developerProject as Map<
+    string,
+    import("./in-memory-profile-v2.js").DeveloperProjectRow
+  >;
+  store.profileV2.societyMilestone = societyMilestone as Map<
+    string,
+    import("./in-memory-profile-v2.js").SocietyMilestoneRow
+  >;
+  store.profileV2.article = article as Map<
+    string,
+    import("./in-memory-profile-v2.js").ArticleRow
+  >;
 }
 
 /** Evaluates a Prisma-style string filter (`contains` + `mode: "insensitive"`). */
@@ -559,6 +619,12 @@ function buildClient(store: Store): PrismaClient {
       findMany: async () => [...store.ledgerEvents.values()],
     },
   };
+
+  attachProfileV2Models(
+    client as Record<string, unknown>,
+    store,
+    store.profileV2,
+  );
 
   return client as unknown as PrismaClient;
 }

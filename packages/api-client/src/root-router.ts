@@ -11,6 +11,13 @@ import { quoteRouter } from "./routers/quote.router.js";
 import { dealerNetSheetRouter } from "./routers/dealer-net-sheet.router.js";
 import { fulfillmentRouter } from "./routers/fulfillment.router.js";
 import { societyUpdateRouter } from "./routers/society-update.router.js";
+import { mediaRouter } from "./routers/media.router.js";
+import { documentRouter } from "./routers/document.router.js";
+import { societyFeatureRouter } from "./routers/society-feature.router.js";
+import { landmarkRouter } from "./routers/landmark.router.js";
+import { developerRouter } from "./routers/developer.router.js";
+import { milestoneRouter } from "./routers/milestone.router.js";
+import { articleRouter } from "./routers/article.router.js";
 
 /**
  * The application's root tRPC router — the single merged surface the Next.js
@@ -30,6 +37,13 @@ export const appRouter = router({
   dealerNetSheet: dealerNetSheetRouter,
   fulfillment: fulfillmentRouter,
   societyUpdate: societyUpdateRouter,
+  media: mediaRouter,
+  document: documentRouter,
+  societyFeature: societyFeatureRouter,
+  landmark: landmarkRouter,
+  developer: developerRouter,
+  milestone: milestoneRouter,
+  article: articleRouter,
 });
 
 /**
