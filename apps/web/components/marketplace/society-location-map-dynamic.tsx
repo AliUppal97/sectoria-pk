@@ -10,7 +10,7 @@ type GeoJsonBoundary = z.infer<typeof geoJsonBoundarySchema>;
 function SocietyLocationMapSkeleton() {
   return (
     <div
-      className="h-64 animate-pulse rounded-xl border border-border-base bg-surface-subtle sm:h-80"
+      className="society-location-map relative isolate z-0 h-64 animate-pulse overflow-hidden rounded-xl border border-border-base bg-surface-subtle sm:h-80"
       aria-hidden="true"
     />
   );

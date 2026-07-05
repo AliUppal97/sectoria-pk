@@ -193,6 +193,40 @@ export interface BreadcrumbItem {
   readonly path: string;
 }
 
+/** schema.org `ImageObject` for society hero/gallery media (M1). */
+export function imageObjectSchema(input: {
+  readonly url: string;
+  readonly name: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly caption?: string;
+}): JsonLdSchema {
+  return {
+    "@type": "ImageObject",
+    url: input.url.startsWith("http") ? input.url : absoluteUrl(input.url),
+    name: input.name,
+    ...(input.caption ? { caption: input.caption } : {}),
+    ...(input.width ? { width: input.width } : {}),
+    ...(input.height ? { height: input.height } : {}),
+  };
+}
+
+/** schema.org `VideoObject` for click-to-load virtual tour / promo embeds (M1). */
+export function videoObjectSchema(input: {
+  readonly name: string;
+  readonly description: string;
+  readonly embedUrl: string;
+  readonly thumbnailUrl?: string;
+}): JsonLdSchema {
+  return {
+    "@type": "VideoObject",
+    name: input.name,
+    description: input.description,
+    embedUrl: input.embedUrl,
+    ...(input.thumbnailUrl ? { thumbnailUrl: input.thumbnailUrl } : {}),
+  };
+}
+
 /** schema.org `BreadcrumbList` — every public page emits one (seo.mdc). */
 export function breadcrumbSchema(items: readonly BreadcrumbItem[]): JsonLdSchema {
   return {

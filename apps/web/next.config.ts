@@ -37,6 +37,41 @@ function storageCspOrigin(): string {
 
 const storageOrigin = storageCspOrigin();
 
+function storageImageRemotePatterns(): NonNullable<
+  NextConfig["images"]
+>["remotePatterns"] {
+  const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+    {
+      protocol: "http",
+      hostname: "127.0.0.1",
+      port: "3099",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "images.sectoria.pk",
+      pathname: "/**",
+    },
+  ];
+
+  const base = process.env.STORAGE_PUBLIC_BASE_URL?.trim();
+  if (base) {
+    try {
+      const url = new URL(base);
+      patterns.push({
+        protocol: url.protocol.replace(":", "") as "http" | "https",
+        hostname: url.hostname,
+        ...(url.port ? { port: url.port } : {}),
+        pathname: "/**",
+      });
+    } catch {
+      // Invalid STORAGE_PUBLIC_BASE_URL — skip pattern.
+    }
+  }
+
+  return patterns;
+}
+
 /**
  * Baseline security headers (build-prompt Section 7). A strict, nonce-based CSP
  * for first-party scripts is deferred to the dedicated security-hardening pass
@@ -90,6 +125,9 @@ const nextConfig: NextConfig = {
   // in authenticated portal route groups (see nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts).
   experimental: {
     authInterrupts: true,
+  },
+  images: {
+    remotePatterns: storageImageRemotePatterns(),
   },
   // Workspace packages are published as raw TS source (their `exports` map to
   // `src/index.ts`) and use NodeNext-style `.js` import specifiers. Listing them
