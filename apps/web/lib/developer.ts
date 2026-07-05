@@ -1,3 +1,4 @@
+import { LOCAL_STORAGE_BASE_URL } from "@sectoria/storage";
 import { isResolvableImageUrl } from "@/lib/society-media";
 
 /** Developer summary embedded on a society profile (`society.getBySlug`). */
@@ -37,8 +38,8 @@ export function resolveDeveloperAssetUrl(
   assetKey: string | null | undefined,
 ): string | null {
   if (!assetKey?.trim()) return null;
-  const base = process.env.STORAGE_PUBLIC_BASE_URL?.trim();
-  if (!base) return null;
+  const base =
+    process.env.STORAGE_PUBLIC_BASE_URL?.trim() || LOCAL_STORAGE_BASE_URL;
   const url = `${base.replace(/\/$/, "")}/${assetKey.replace(/^\//, "")}`;
   return isResolvableImageUrl(url) ? url : null;
 }
