@@ -4,13 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@sectoria/ui";
+import type { MarketplaceNavLink } from "@/lib/marketplace-nav";
 import { SITE } from "@/lib/site";
-
-const NAV_LINKS = [
-  { href: "/societies", label: "Societies" },
-  { href: "/compare", label: "Compare" },
-  { href: "/dealers", label: "Dealers" },
-] as const;
 
 const mobileNavLinkClassName =
   "flex min-h-[52px] w-full items-center border-b border-border-base px-5 font-sans text-base font-medium text-text-primary transition-colors duration-150 last:border-b-0 active:bg-surface-subtle";
@@ -24,7 +19,12 @@ const HISTORY_STATE_KEY = "marketplaceMobileNav";
  * open so iOS/Android back closes the menu instead of leaving the page. The
  * drawer sits below the sticky header so the toggle stays tappable.
  */
-export function SiteHeaderNav() {
+export interface SiteHeaderNavProps {
+  readonly navLinks: readonly MarketplaceNavLink[];
+  readonly cta: MarketplaceNavLink;
+}
+
+export function SiteHeaderNav({ navLinks, cta }: SiteHeaderNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const closedFromPopState = useRef(false);
 
@@ -78,7 +78,7 @@ export function SiteHeaderNav() {
         aria-label="Primary"
         className="hidden items-center gap-1 md:flex md:flex-nowrap md:gap-2"
       >
-        {NAV_LINKS.map((link) => (
+        {navLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
@@ -88,7 +88,7 @@ export function SiteHeaderNav() {
           </Link>
         ))}
         <Button asChild size="sm" className="ml-1 shrink-0">
-          <Link href="/societies">Explore societies</Link>
+          <Link href={cta.href}>{cta.label}</Link>
         </Button>
       </nav>
 
@@ -130,7 +130,7 @@ export function SiteHeaderNav() {
               </div>
 
               <ul className="flex flex-1 flex-col overflow-y-auto">
-                {NAV_LINKS.map((link) => (
+                {navLinks.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
@@ -145,8 +145,8 @@ export function SiteHeaderNav() {
 
               <div className="mobile-nav-panel-footer">
                 <Button asChild className="w-full">
-                  <Link href="/societies" onClick={closeMenu}>
-                    Explore societies
+                  <Link href={cta.href} onClick={closeMenu}>
+                    {cta.label}
                   </Link>
                 </Button>
               </div>

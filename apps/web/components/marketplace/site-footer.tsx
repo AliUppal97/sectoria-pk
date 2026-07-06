@@ -1,23 +1,6 @@
 import Link from "next/link";
+import { getMarketplaceFooterSections } from "@/lib/marketplace-nav";
 import { SITE } from "@/lib/site";
-
-const FOOTER_SECTIONS = [
-  {
-    heading: "Marketplace",
-    links: [
-      { href: "/societies", label: "All societies" },
-      { href: "/compare", label: "Compare societies" },
-      { href: "/support", label: "Get best price" },
-    ],
-  },
-  {
-    heading: "Trust & safety",
-    links: [
-      { href: "/societies?verificationTier=HSMS_LINKED", label: "HSMS-linked societies" },
-      { href: SITE.supportPath, label: "Contact support" },
-    ],
-  },
-] as const;
 
 /**
  * Public marketplace footer. Plain navigation + the trust positioning line;
@@ -25,6 +8,7 @@ const FOOTER_SECTIONS = [
  */
 export function SiteFooter() {
   const year = new Date().getFullYear();
+  const footerSections = getMarketplaceFooterSections();
   return (
     <footer className="border-t border-border-base bg-surface-card">
       <div className="mx-auto grid max-w-[1280px] gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6">
@@ -39,7 +23,7 @@ export function SiteFooter() {
           </p>
         </div>
 
-        {FOOTER_SECTIONS.map((section) => (
+        {footerSections.map((section) => (
           <nav key={section.heading} aria-label={section.heading}>
             <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.06em] text-text-tertiary">
               {section.heading}

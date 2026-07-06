@@ -13,6 +13,10 @@ import { BackgroundGrid } from "@/components/marketplace/background-grid";
 import { BentoCell, BentoGrid } from "@/components/marketplace/bento";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyCard } from "@/components/marketplace/society-card";
+import {
+  MARKETPLACE_CTA_COPY,
+  MARKETPLACE_ROUTES,
+} from "@/lib/marketplace-nav";
 import { load } from "@/lib/fetch";
 import { listSocietySummaries } from "@/lib/queries";
 import {
@@ -96,10 +100,14 @@ export default async function HomePage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/societies">Explore societies</Link>
+              <Link href={MARKETPLACE_ROUTES.societies.href}>
+                {MARKETPLACE_CTA_COPY.exploreSocieties}
+              </Link>
             </Button>
             <Button asChild size="lg" variant="ghost">
-              <Link href="/support">Get best price</Link>
+              <Link href={MARKETPLACE_ROUTES.support.href}>
+                {MARKETPLACE_ROUTES.support.label}
+              </Link>
             </Button>
           </div>
         </div>
