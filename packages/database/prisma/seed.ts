@@ -40,7 +40,6 @@ import {
   QuoteStatus,
   QuotePaymentType,
   QuotePaymentStatus,
-  FulfillmentStatus,
   UserRole,
   idSchema,
   pkrAmountSchema,
@@ -1044,15 +1043,6 @@ async function main(): Promise<void> {
       amountPkr: tokenAmountPkr,
       status: QuotePaymentStatus.CONFIRMED,
       externalEventId: randomUUID(),
-    },
-  });
-
-  await prisma.fulfillmentOrder.create({
-    data: {
-      quoteId: acceptedQuote.id,
-      dealerId: firstDealer.id,
-      orderRef: `FO-${acceptedQuote.id.slice(-8).toUpperCase()}`,
-      status: FulfillmentStatus.PENDING,
     },
   });
 
