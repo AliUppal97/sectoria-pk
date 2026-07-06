@@ -41,6 +41,7 @@ import {
   calculateSocietyCompleteness,
   type SocietyCompleteness,
 } from "../lib/society-completeness.js";
+import { pickSocietyCardHeroUrl } from "../lib/society-hero-url.js";
 
 function toSocietyDto<T extends Record<string, unknown>>(society: T) {
   const createdAt =
@@ -600,10 +601,10 @@ export const societyRouter = router({
       const nextCursor = hasMore ? (page.at(-1)?.id ?? null) : null;
       const societyIds = page.map((society) => society.id);
 
-      // Query 2 + 3: bounded aggregates for the whole page (no per-society loop).
-      const [categoryRows, reviewGroups] =
+      // Query 2–4: bounded aggregates for the whole page (no per-society loop).
+      const [categoryRows, reviewGroups, heroMediaRows] =
         societyIds.length === 0
-          ? [[], []]
+          ? [[], [], []]
           : await Promise.all([
               ctx.db.inventoryCategory.findMany({
                 where: { societyId: { in: societyIds } },
@@ -619,7 +620,19 @@ export const societyRouter = router({
                 _avg: { rating: true },
                 _count: { _all: true },
               }),
+              ctx.db.societyMedia.findMany({
+                where: { societyId: { in: societyIds }, kind: "HERO" },
+                orderBy: [{ sortOrder: "asc" }],
+                select: { societyId: true, storageKey: true },
+              }),
             ]);
+
+      const heroStorageKeyBySociety = new Map<string, string>();
+      for (const row of heroMediaRows) {
+        if (!heroStorageKeyBySociety.has(row.societyId)) {
+          heroStorageKeyBySociety.set(row.societyId, row.storageKey);
+        }
+      }
 
       const categoryStats = new Map<
         string,
@@ -685,6 +698,11 @@ export const societyRouter = router({
               : null,
           bookingStatus: society.bookingStatus,
           latestUpdateTitle: null as string | null,
+          heroImageUrl: pickSocietyCardHeroUrl(
+            society.heroImageUrl,
+            heroStorageKeyBySociety.get(society.id),
+            ctx.storage,
+          ),
         };
       });
 

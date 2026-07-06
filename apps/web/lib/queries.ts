@@ -62,6 +62,7 @@ function summarizeSociety(
     totalLandKanal?: string | null;
     developedLandKanal?: string | null;
     bookingStatus?: SocietyBookingStatus;
+    heroImageUrl?: string | null;
   },
   categories: readonly PricedCategory[],
   reviews: readonly RatingRow[],
@@ -87,6 +88,7 @@ function summarizeSociety(
     developedLandKanal: society.developedLandKanal ?? null,
     bookingStatus: society.bookingStatus ?? "OPEN",
     latestUpdateTitle: latestUpdateTitle ?? null,
+    heroImageUrl: society.heroImageUrl ?? null,
   };
 }
 

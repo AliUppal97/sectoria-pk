@@ -18,6 +18,12 @@ export interface SocietyMediaPublic {
 /** Seed CDN host — URLs here do not resolve in dev (see society-thumbnail.tsx). */
 const PLACEHOLDER_CDN_HOST = "images.sectoria.pk";
 
+function isBlockedHeroHost(hostname: string): boolean {
+  if (hostname === PLACEHOLDER_CDN_HOST) return true;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+  return false;
+}
+
 const DEFAULT_HERO_WIDTH = 1920;
 const DEFAULT_HERO_HEIGHT = 1080;
 
@@ -28,7 +34,7 @@ export const SOCIETY_MEDIA_BLUR_DATA_URL =
 export function isResolvableImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname === PLACEHOLDER_CDN_HOST) return false;
+    if (isBlockedHeroHost(parsed.hostname)) return false;
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
