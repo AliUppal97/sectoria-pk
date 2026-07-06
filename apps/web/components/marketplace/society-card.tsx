@@ -24,7 +24,7 @@ export function SocietyCard({ society }: { society: SocietySummary }) {
         "hover:-translate-y-0.5 hover:border-brand-navy-light hover:shadow-md",
       )}
     >
-      <SocietyThumbnail name={society.name} />
+      <SocietyThumbnail name={society.name} imageUrl={society.heroImageUrl} />
 
       <div className="flex flex-1 flex-col gap-3 p-6">
         <div className="flex flex-wrap items-center gap-1.5">

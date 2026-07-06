@@ -10,10 +10,10 @@ const PRIMARY_SOCIETY = "dha-lahore";
 const COMPARE_SOCIETY = "bahria-town-lahore";
 const PRIMARY_CITY = "lahore";
 
-/** Society cards are full-card links — disambiguate via the thumbnail alt text. */
+/** Society cards are full-card links — disambiguate via the card title heading. */
 function societyCardLink(page: Page, societyName: string) {
-  return page.getByRole("link", {
-    name: new RegExp(`${societyName} cover image`, "i"),
+  return page.getByRole("link").filter({
+    has: page.getByRole("heading", { level: 3, name: societyName }),
   });
 }
 

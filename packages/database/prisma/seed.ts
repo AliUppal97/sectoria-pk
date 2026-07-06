@@ -52,6 +52,7 @@ import {
   seedUrbanCityDevelopers,
   seedUrbanCityLahore,
 } from "./seed-urban-city-lahore.js";
+import { societyCardHeroUrl } from "./fixtures/society-card-images.js";
 
 const prisma = new PrismaClient();
 
@@ -462,7 +463,7 @@ async function main(): Promise<void> {
         longitude: spec.longitude,
         developmentStage: spec.developmentStage,
         developmentPct: spec.developmentPct,
-        heroImageUrl: `https://images.sectoria.pk/societies/${spec.slug}.jpg`,
+        heroImageUrl: societyCardHeroUrl(spec.slug),
         addressLine: spec.addressLine,
         district: spec.district,
         totalLandKanal: new Prisma.Decimal(spec.totalLandKanal.toFixed(2)),
@@ -1171,7 +1172,7 @@ async function main(): Promise<void> {
         {
           societyId: seeded.id,
           kind: "HERO",
-          storageKey: `societies/${spec.slug}/hero.jpg`,
+          storageKey: societyCardHeroUrl(spec.slug),
           alt: `${spec.name} aerial view`,
           sortOrder: 0,
           width: 1920,

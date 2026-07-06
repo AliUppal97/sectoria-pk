@@ -1,14 +1,16 @@
+import Image from "next/image";
 import { cn } from "@sectoria/ui";
+import {
+  SOCIETY_MEDIA_BLUR_DATA_URL,
+  isResolvableImageUrl,
+} from "@/lib/society-media";
 
 /**
- * Branded placeholder for society imagery.
+ * Society cover for cards and profile fallbacks.
  *
- * Seed data points `heroImageUrl` at a placeholder CDN host that does not
- * resolve, so rendering a real `next/image` would produce a broken request and
- * a poor first impression on a trust-led product. Until real imagery is wired,
- * we draw a deterministic navy panel with the society's initials — no network,
- * no layout shift, and a consistent look. When a loadable URL exists later,
- * swap this for `next/image` with explicit dimensions (nextjs-app-router.mdc).
+ * Seed societies use a placeholder CDN host that does not resolve — those keep
+ * the deterministic initials panel. Real URLs (e.g. Urban City official CDN)
+ * render via `next/image`.
  */
 function initials(name: string): string {
   return name
@@ -20,20 +22,47 @@ function initials(name: string): string {
 
 export function SocietyThumbnail({
   name,
+  imageUrl,
   className,
   rounded = "top",
 }: {
   name: string;
+  imageUrl?: string | null;
   className?: string;
   rounded?: "top" | "all";
 }) {
+  const roundedClass = rounded === "top" ? "rounded-t-2xl" : "rounded-2xl";
+  const src = imageUrl && isResolvableImageUrl(imageUrl) ? imageUrl : null;
+
+  if (src) {
+    return (
+      <div
+        className={cn(
+          "relative h-40 w-full overflow-hidden bg-brand-navy",
+          roundedClass,
+          className,
+        )}
+      >
+        <Image
+          src={src}
+          alt={`${name} cover photo`}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          placeholder="blur"
+          blurDataURL={SOCIETY_MEDIA_BLUR_DATA_URL}
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       role="img"
       aria-label={`${name} cover image placeholder`}
       className={cn(
         "flex h-40 items-center justify-center bg-gradient-to-br from-brand-navy to-brand-navy-mid",
-        rounded === "top" ? "rounded-t-2xl" : "rounded-2xl",
+        roundedClass,
         className,
       )}
     >

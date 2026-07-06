@@ -57,6 +57,11 @@ function storageImageRemotePatterns(): NonNullable<
       hostname: "cdn.prod.website-files.com",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "images.unsplash.com",
+      pathname: "/**",
+    },
   ];
 
   const base = process.env.STORAGE_PUBLIC_BASE_URL?.trim();

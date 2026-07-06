@@ -109,6 +109,8 @@ export interface SocietySummary {
   readonly developedLandKanal: string | null;
   readonly bookingStatus: SocietyBookingStatus;
   readonly latestUpdateTitle: string | null;
+  /** Loadable cover image for directory cards; null → initials placeholder. */
+  readonly heroImageUrl: string | null;
 }
 
 /** Canonical, SEO-friendly path to a society profile. */
