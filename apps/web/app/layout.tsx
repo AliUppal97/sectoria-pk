@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { NavigationScrollReset } from "@/components/navigation-scroll-reset";
 import { SITE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -61,6 +62,7 @@ export default function RootLayout({
         className="font-sans text-text-primary antialiased"
         suppressHydrationWarning
       >
+        <NavigationScrollReset />
         {children}
       </body>
     </html>
