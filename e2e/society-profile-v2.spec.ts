@@ -60,7 +60,9 @@ test.describe("Society profile v2 — enriched sections", () => {
     await expect(page.getByText("McDonald's Kala Shah Kaku")).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Developer" })).toBeVisible();
-    await expect(page.getByText("Urban City Lahore")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Urban City Lahore logo/i }),
+    ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Development roadmap" })).toBeVisible();
     await expect(
@@ -80,14 +82,13 @@ test.describe("Society profile v2 — enriched sections", () => {
     await expect(page.getByRole("button", { name: /Book Now/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Start booking/i })).toHaveCount(0);
 
-    const firstCategoryLink = page
-      .locator(`#inventory a[href*="/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/"]`)
-      .first();
-    await expect(firstCategoryLink).toBeVisible();
-    await firstCategoryLink.click();
+    // City Oasis categories are sold out — use an open City Venture category for quote CTA.
+    await page.goto(
+      `/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/city-venture-3-marla-residential`,
+    );
 
     await expect(page).toHaveURL(
-      new RegExp(`/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/[^/]+$`),
+      `/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/city-venture-3-marla-residential`,
     );
     await expect(page.getByRole("button", { name: "Request best price" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Start booking/i })).toHaveCount(0);
