@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
+import {
+  getMarketplaceHeaderNavLinks,
+  MARKETPLACE_ROUTES,
+} from "@/lib/marketplace-nav";
 import { SITE } from "@/lib/site";
 import { SiteHeaderNav } from "./site-header-nav";
 
@@ -31,7 +35,10 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <SiteHeaderNav />
+        <SiteHeaderNav
+          navLinks={getMarketplaceHeaderNavLinks()}
+          cta={MARKETPLACE_ROUTES.support}
+        />
       </div>
     </header>
   );
