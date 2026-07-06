@@ -18,6 +18,7 @@ Legend: ✅ allowed · ❌ denied · 🔶 allowed only if resource-owned (see no
 | View ops lead pipeline | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Assign advisor / update lead status | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Create/send advisor quotes | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Mark deal won / set installment routing | ❌ | ❌ | ❌ | ✅ | ✅ |
 | View dealer net price matrix | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Upsert dealer net price sheets | ❌ | 🔶 authorized categories only | ❌ | ❌ | ✅ |
 | View fulfillment orders (no buyer PII) | ❌ | 🔶 own orders only | ❌ | ✅ | ✅ all |

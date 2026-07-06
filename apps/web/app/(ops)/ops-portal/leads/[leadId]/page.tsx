@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LeadStatus } from "@sectoria/types";
 import { Button, StatusBadge, formatDate, formatPKR } from "@sectoria/ui";
 import { PageHeader } from "@/components/buyer/page-header";
+import { MarkDealWonAction } from "@/components/ops/mark-deal-won-action";
 import { getAuthedApi } from "@/lib/trpc/server";
 
 export const metadata: Metadata = {
@@ -33,11 +35,18 @@ export default async function OpsLeadDetailPage({
         title={lead.name}
         description={`${lead.source} · ${formatDate(lead.createdAt)}`}
         action={
-          <Button asChild>
-            <Link href={`/ops-portal/quotes/new?leadId=${lead.id}`}>
-              Create quote
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <MarkDealWonAction
+              leadId={lead.id}
+              leadStatus={lead.status}
+              quotes={quotes}
+            />
+            <Button asChild>
+              <Link href={`/ops-portal/quotes/new?leadId=${lead.id}`}>
+                Create quote
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -58,7 +67,11 @@ export default async function OpsLeadDetailPage({
             <div>
               <dt className="text-text-tertiary">Status</dt>
               <dd>
-                <StatusBadge variant="info">{lead.status}</StatusBadge>
+                <StatusBadge
+                  variant={lead.status === LeadStatus.WON ? "success" : "info"}
+                >
+                  {lead.status}
+                </StatusBadge>
               </dd>
             </div>
           </dl>

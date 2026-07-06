@@ -38,6 +38,9 @@ import {
   LeadSource,
   LeadStatus,
   QuoteStatus,
+  QuotePaymentType,
+  QuotePaymentStatus,
+  FulfillmentStatus,
   UserRole,
   idSchema,
   pkrAmountSchema,
@@ -1013,9 +1016,9 @@ async function main(): Promise<void> {
     },
   });
 
-  // Second buyer fixture: accepted quote with direct installments (not Buyer 1 — keeps E2E deterministic).
+  // Second buyer fixture: accepted quote with token paid (enables ops "mark deal won" demo).
   const secondBuyer = requireDefined(buyers[1], "second buyer");
-  await prisma.quote.create({
+  const acceptedQuote = await prisma.quote.create({
     data: {
       leadId: sampleLead.id,
       societyId: dhaSociety.id,
@@ -1031,6 +1034,25 @@ async function main(): Promise<void> {
       installmentsDirect: true,
       createdById: salesAdvisor.id,
       buyerUserId: secondBuyer.id,
+    },
+  });
+
+  await prisma.quotePayment.create({
+    data: {
+      quoteId: acceptedQuote.id,
+      type: QuotePaymentType.TOKEN,
+      amountPkr: tokenAmountPkr,
+      status: QuotePaymentStatus.CONFIRMED,
+      externalEventId: randomUUID(),
+    },
+  });
+
+  await prisma.fulfillmentOrder.create({
+    data: {
+      quoteId: acceptedQuote.id,
+      dealerId: firstDealer.id,
+      orderRef: `FO-${acceptedQuote.id.slice(-8).toUpperCase()}`,
+      status: FulfillmentStatus.PENDING,
     },
   });
 
