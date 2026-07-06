@@ -70,8 +70,12 @@ test.describe("Society profile v2 — enriched sections", () => {
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "By phase" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "City Oasis", level: 3 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "City Venture", level: 3 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "City Oasis", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "City Venture", exact: true }),
+    ).toBeVisible();
   });
 
   test("primary purchase CTAs use concierge quote flow — no booking or dealer paths", async ({
