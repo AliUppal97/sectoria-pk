@@ -197,9 +197,19 @@ export const quoteRouter = router({
     .query(async ({ ctx, input }) => {
       const quotes = await ctx.db.quote.findMany({
         where: { leadId: input.leadId },
+        include: {
+          payments: {
+            where: { status: QuotePaymentStatus.CONFIRMED },
+          },
+        },
         orderBy: { createdAt: "desc" },
       });
-      return quotes.map(toOpsQuoteDto);
+      return quotes.map((quote) => ({
+        ...toOpsQuoteDto(quote),
+        tokenPaid: quote.payments.some(
+          (payment) => payment.type === QuotePaymentType.TOKEN,
+        ),
+      }));
     }),
 
   listForBuyer: protectedProcedure.query(async ({ ctx }) => {
