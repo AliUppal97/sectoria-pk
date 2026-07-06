@@ -3,7 +3,7 @@
  *
  * Generates realistic Pakistani-context data (real cities, valid-format CNIC/NTN
  * patterns, plausible PKR amounts) per Section 10 of the build prompt:
- *   - 5 societies across Lahore, Islamabad, Karachi (varied tiers/stages)
+ *   - 6 societies (including Urban City Lahore benchmark) across Lahore, Islamabad, Karachi
  *   - 4–6 inventory categories per society, 2–3 payment plans each
  *   - 8–10 dealers (some DNFBP-verified, some pending)
  *   - 15–20 buyers with varied ATL statuses
@@ -48,6 +48,10 @@ import {
   type PlotType as PlotTypeType,
 } from "@sectoria/types";
 import { encrypt } from "../src/encryption.js";
+import {
+  seedUrbanCityDevelopers,
+  seedUrbanCityLahore,
+} from "./seed-urban-city-lahore.js";
 
 const prisma = new PrismaClient();
 
@@ -1124,6 +1128,8 @@ async function main(): Promise<void> {
     ],
   });
 
+  const urbanCityDevs = await seedUrbanCityDevelopers(prisma);
+
   /** Maps society slug → developer for linking. */
   const developerBySlug: Record<string, string> = {
     "dha-lahore": dhaDeveloper.id,
@@ -1418,6 +1424,15 @@ async function main(): Promise<void> {
       ],
     });
   }
+
+  // Urban City Lahore — benchmark society profile with real website data (v2).
+  const urbanCityResult = await seedUrbanCityLahore(prisma, {
+    superAdminId: superAdmin.id,
+    developerId: urbanCityDevs.urbanCityDeveloperId,
+    userSeqStart: userSeq,
+  });
+  userSeq = urbanCityResult.nextUserSeq;
+  seededSocieties.push(urbanCityResult.society);
 
   // M8 — blog articles
   await prisma.article.createMany({

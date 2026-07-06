@@ -1,4 +1,5 @@
 import type { StorageAdapter } from "./interface.js";
+import { isAbsoluteHttpUrl, resolvePublicUrl } from "./resolve-public-url.js";
 import {
   DEFAULT_SIGNED_URL_TTL_SECONDS,
   DEFAULT_UPLOAD_URL_TTL_SECONDS,
@@ -24,7 +25,7 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   getPublicUrl(key: string): string {
-    return `${this.publicBaseUrl}/${key}`;
+    return resolvePublicUrl(this.publicBaseUrl, key);
   }
 
   async getUploadUrl(params: GetUploadUrlParams): Promise<{
@@ -44,6 +45,7 @@ export class LocalStorageAdapter implements StorageAdapter {
   async getSignedDownloadUrl(
     params: GetSignedDownloadUrlParams,
   ): Promise<string> {
+    if (isAbsoluteHttpUrl(params.key)) return params.key;
     const ttl = params.ttlSeconds ?? DEFAULT_SIGNED_URL_TTL_SECONDS;
     const expiresMs = this.now().getTime() + ttl * 1000;
     const url = new URL(`${this.publicBaseUrl}/signed/${params.key}`);

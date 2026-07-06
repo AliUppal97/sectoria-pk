@@ -52,6 +52,11 @@ function storageImageRemotePatterns(): NonNullable<
       hostname: "images.sectoria.pk",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "cdn.prod.website-files.com",
+      pathname: "/**",
+    },
   ];
 
   const base = process.env.STORAGE_PUBLIC_BASE_URL?.trim();

@@ -2,10 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 /** Seeded published society with full profile v2 fixtures (packages/database/prisma/seed.ts). */
 const PRIMARY_CITY = "lahore";
-const PRIMARY_SOCIETY = "dha-lahore";
-const PRIMARY_SOCIETY_NAME = "DHA Lahore";
-const DEVELOPER_SLUG = "dha-pakistan";
-const PUBLISHED_ARTICLE_SLUG = "why-gated-communities-lahore-2026";
+const PRIMARY_SOCIETY = "urban-city-lahore";
+const PRIMARY_SOCIETY_NAME = "Urban City Lahore";
+const DEVELOPER_SLUG = "urban-city-lahore-developers";
+const PUBLISHED_ARTICLE_SLUG = "why-urban-city-future-real-estate-investment";
 const DRAFT_SOCIETY_SLUG = "orchard-gardens-faisalabad";
 const DRAFT_ARTICLE_SLUG = "draft-article-not-published";
 
@@ -44,26 +44,38 @@ test.describe("Society profile v2 — enriched sections", () => {
       page.getByRole("heading", { level: 1, name: PRIMARY_SOCIETY_NAME }),
     ).toBeVisible();
 
-    await expect(page.getByRole("img", { name: `${PRIMARY_SOCIETY_NAME} aerial view` })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Urban City Lahore aerial view" })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Photos" })).toBeVisible();
     await expect(
       page.getByRole("button", {
-        name: new RegExp(`View full size: ${PRIMARY_SOCIETY_NAME} main boulevard`, "i"),
+        name: /View full size: City Oasis district at Urban City Lahore/i,
       }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Documents & downloads" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Master Plan/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /City Oasis District Marketing Map/i })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Connectivity" })).toBeVisible();
-    await expect(page.getByText("Allama Iqbal International Airport")).toBeVisible();
+    await expect(page.getByText("McDonald's Kala Shah Kaku")).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Developer" })).toBeVisible();
-    await expect(page.getByText("Defence Housing Authority")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Urban City Lahore logo/i }),
+    ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Development roadmap" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "NOC Approval", level: 3 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Urban City Lahore Ground Breaking", level: 3 }),
+    ).toBeVisible();
+
+    await expect(page.getByRole("heading", { name: "By phase" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "City Oasis", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "City Venture", exact: true }),
+    ).toBeVisible();
   });
 
   test("primary purchase CTAs use concierge quote flow — no booking or dealer paths", async ({
@@ -74,14 +86,13 @@ test.describe("Society profile v2 — enriched sections", () => {
     await expect(page.getByRole("button", { name: /Book Now/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Start booking/i })).toHaveCount(0);
 
-    const firstCategoryLink = page
-      .locator(`#inventory a[href*="/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/"]`)
-      .first();
-    await expect(firstCategoryLink).toBeVisible();
-    await firstCategoryLink.click();
+    // City Oasis categories are sold out — use an open City Venture category for quote CTA.
+    await page.goto(
+      `/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/city-venture-3-marla-residential`,
+    );
 
     await expect(page).toHaveURL(
-      new RegExp(`/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/[^/]+$`),
+      `/societies/${PRIMARY_CITY}/${PRIMARY_SOCIETY}/city-venture-3-marla-residential`,
     );
     await expect(page.getByRole("button", { name: "Request best price" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Start booking/i })).toHaveCount(0);
@@ -105,7 +116,7 @@ test.describe("SEO — structured data, sitemap, and OG images", () => {
     expect(types.filter((type) => type === "VideoObject").length).toBeGreaterThanOrEqual(2);
 
     const ogImage = page.locator('meta[property="og:image"]');
-    await expect(ogImage).toHaveAttribute("content", /dha-lahore\/hero/i);
+    await expect(ogImage).toHaveAttribute("content", /website-files\.com/i);
   });
 
   test("developer and blog pages emit Organization/Article JSON-LD with dedicated OG images", async ({
@@ -116,7 +127,7 @@ test.describe("SEO — structured data, sitemap, and OG images", () => {
     expect(schemaTypes(schemas)).toContain("Organization");
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       "content",
-      /developers\/dha-pakistan/i,
+      /developers\/urban-city-lahore-developers|website-files\.com/i,
     );
 
     await page.goto(`/blog/${PUBLISHED_ARTICLE_SLUG}`);
@@ -124,7 +135,7 @@ test.describe("SEO — structured data, sitemap, and OG images", () => {
     expect(schemaTypes(schemas)).toContain("Article");
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       "content",
-      /blog\/gated-communities-lahore/i,
+      /website-files\.com/i,
     );
     await expect(page.getByRole("button", { name: "Request best price" })).toBeVisible();
   });
