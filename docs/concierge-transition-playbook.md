@@ -2,7 +2,11 @@
 
 Companion to [`docs/architecture/ADR-007-concierge-pivot.md`](architecture/ADR-007-concierge-pivot.md). Use this playbook when executing the pivot from self-serve marketplace to **managed concierge** model.
 
-**Per-session ritual:** new chat → set model tier → attach `@docs/concierge-transition-playbook.md`, `@docs/architecture/ADR-007-concierge-pivot.md`, `@docs/Sectoria_File_Structure.md` (UI sessions also attach `@docs/design/Sectoria_Design_System.md`) → run prompt → test gate → `pnpm turbo run test lint typecheck` → commit.
+> **To finish the pivot:** follow **[`concierge-transition-remaining-sessions.md`](concierge-transition-remaining-sessions.md)** — Step 1 → Step 5 in order. That file is the only execution guide you need (copy-paste prompts, attach lists, test gates). Do **not** restart from T1.
+>
+> Audit reference: [`concierge-transition-status.md`](concierge-transition-status.md) (what’s done vs partial).
+
+**Per-session ritual (remaining work):** new chat → set model tier → attach files listed in the current **Step** of `concierge-transition-remaining-sessions.md` → paste that step’s prompt → test gate → `pnpm turbo run test lint typecheck` → commit → next step.
 
 ## Business model (one page)
 
