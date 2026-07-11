@@ -1030,7 +1030,7 @@ async function main(): Promise<void> {
       validUntil: quoteValidUntil,
       status: QuoteStatus.ACCEPTED,
       paymentPlanLabel: "3-Year Installments",
-      installmentsDirect: true,
+      installmentsDirect: false,
       createdById: salesAdvisor.id,
       buyerUserId: secondBuyer.id,
     },

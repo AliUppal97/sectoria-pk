@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { QuoteStatus } from "@sectoria/types";
+import { QuoteStatus, type QuoteInstallmentScheduleRow } from "@sectoria/types";
 import {
   Button,
   Dialog,
@@ -11,8 +11,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
   StatusBadge,
+  formatDate,
   formatPKR,
 } from "@sectoria/ui";
 import { api } from "@/lib/trpc/react";
@@ -27,6 +27,8 @@ export interface BuyerQuoteRow {
   installmentsDirect: boolean;
   tokenPaid: boolean;
   installmentsPaidPkr: number;
+  installmentSchedule: readonly QuoteInstallmentScheduleRow[];
+  nextInstallmentIndex: number | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -69,12 +71,18 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
 
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
-  const [installmentAmount, setInstallmentAmount] = useState("");
 
   const canAccept = status === QuoteStatus.SENT;
   const canPayToken = status === QuoteStatus.ACCEPTED && !tokenPaid;
-  const canPayInstallment =
-    status === QuoteStatus.ACCEPTED && tokenPaid && !quote.installmentsDirect;
+  const nextInstallment =
+    quote.nextInstallmentIndex !== null
+      ? quote.installmentSchedule.find(
+          (row) => row.index === quote.nextInstallmentIndex,
+        )
+      : undefined;
+  const showSchedule =
+    tokenPaid && !quote.installmentsDirect && quote.installmentSchedule.length > 0;
+  const canPayInstallment = showSchedule && nextInstallment !== undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -101,6 +109,39 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
           Sectoria is coordinating allocation with the authorized dealer. We will
           contact you when your plot reference is confirmed.
         </p>
+      ) : null}
+
+      {showSchedule ? (
+        <div className="rounded-lg border border-border-base bg-surface-subtle/40 p-3">
+          <p className="font-sans text-xs font-medium text-text-secondary">
+            Installment schedule
+          </p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {quote.installmentSchedule.map((row) => (
+              <li
+                key={row.index}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-sans text-text-primary">{row.dueLabel}</p>
+                  <p className="font-sans text-xs text-text-tertiary">
+                    Due {formatDate(row.dueDate)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-text-primary">
+                    {formatPKR(row.amountPkr)}
+                  </span>
+                  <StatusBadge
+                    variant={row.status === "PAID" ? "success" : "warning"}
+                  >
+                    {row.status === "PAID" ? "Paid" : "Pending"}
+                  </StatusBadge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -153,14 +194,14 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
           </>
         ) : null}
 
-        {canPayInstallment ? (
+        {canPayInstallment && nextInstallment !== undefined ? (
           <>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => setInstallmentDialogOpen(true)}
             >
-              Pay installment
+              Pay next installment
             </Button>
             <Dialog
               open={installmentDialogOpen}
@@ -168,19 +209,13 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Pay installment on platform</DialogTitle>
+                  <DialogTitle>Confirm installment payment</DialogTitle>
                   <DialogDescription>
-                    Enter the installment amount shown on your payment schedule.
-                    Paid so far: {formatPKR(quote.installmentsPaidPkr)}.
+                    You are paying {formatPKR(nextInstallment.amountPkr)} for{" "}
+                    {nextInstallment.dueLabel} on-platform. Paid so far:{" "}
+                    {formatPKR(quote.installmentsPaidPkr)}.
                   </DialogDescription>
                 </DialogHeader>
-                <Input
-                  type="number"
-                  min={1}
-                  value={installmentAmount}
-                  onChange={(e) => setInstallmentAmount(e.target.value)}
-                  placeholder="Amount in PKR"
-                />
                 <DialogFooter>
                   <Button
                     variant="ghost"
@@ -191,18 +226,15 @@ export function QuoteActions({ quote }: { quote: BuyerQuoteRow }) {
                   <Button
                     disabled={payInstallment.isPending}
                     onClick={() => {
-                      const amountPkr = Number.parseInt(installmentAmount, 10);
-                      if (!Number.isFinite(amountPkr) || amountPkr <= 0) return;
                       void payInstallment
                         .mutateAsync({
                           quoteId: quote.id,
-                          installmentIndex: 0,
-                          amountPkr,
+                          installmentIndex: nextInstallment.index,
                         })
                         .then(() => setInstallmentDialogOpen(false));
                     }}
                   >
-                    Confirm payment
+                    Confirm & pay {formatPKR(nextInstallment.amountPkr)}
                   </Button>
                 </DialogFooter>
               </DialogContent>

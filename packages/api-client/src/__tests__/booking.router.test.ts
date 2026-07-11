@@ -56,6 +56,10 @@ function seedBaseFixtures(store: Store): void {
   store.paymentPlans.set(PAYMENT_PLAN_ID, {
     id: PAYMENT_PLAN_ID,
     categoryId: CATEGORY_ID,
+    label: "3-Year Installments",
+    downPaymentPct: "20.00",
+    installmentCount: 36,
+    installmentInterval: "monthly",
   });
 }
 

@@ -8,6 +8,7 @@ import {
   QuoteStatus,
   createQuoteDraftInputSchema,
   idSchema,
+  installmentIntervalSchema,
   pkrAmountSchema,
 } from "@sectoria/types";
 import { createLedgerEvent } from "@sectoria/domain-ledger";
@@ -18,7 +19,14 @@ import {
   superAdminProcedure,
 } from "../procedures.js";
 import { calculateQuoteMargin } from "../lib/calculate-quote-margin.js";
+import {
+  DEFAULT_INSTALLMENT_SERVICING_FEE_PCT,
+  deriveQuoteInstallmentSchedule,
+  findNextUnpaidInstallmentIndex,
+  matchPaymentPlanByLabel,
+} from "../lib/derive-quote-installment-schedule.js";
 import { persistLedgerEvent } from "../lib/persist-ledger-event.js";
+import { assertNoForbiddenBuyerFields } from "../lib/society-profile-dto.js";
 import { toId } from "../lib/ids.js";
 
 function toQuoteDto(quote: {
@@ -62,6 +70,92 @@ function toQuoteDto(quote: {
 function toBuyerQuoteDto(quote: Parameters<typeof toQuoteDto>[0]) {
   const dto = toQuoteDto(quote);
   return dto;
+}
+
+type QuoteWithPayments = {
+  quotedPricePkr: number;
+  tokenAmountPkr: number;
+  paymentPlanLabel: string | null;
+  installmentsDirect: boolean;
+  payments: Array<{
+    type: string;
+    installmentIndex: number | null;
+    status: string;
+    createdAt: Date;
+  }>;
+};
+
+type PaymentPlanRow = {
+  label: string;
+  installmentCount: number;
+  installmentInterval: string;
+};
+
+function toSchedulePaymentPlan(
+  plan: PaymentPlanRow,
+): Parameters<typeof deriveQuoteInstallmentSchedule>[0]["paymentPlan"] {
+  return {
+    label: plan.label,
+    installmentCount: plan.installmentCount,
+    installmentInterval: installmentIntervalSchema.parse(plan.installmentInterval),
+  };
+}
+
+function paidInstallmentIndexes(
+  payments: QuoteWithPayments["payments"],
+): Set<number> {
+  const indexes = new Set<number>();
+  for (const payment of payments) {
+    if (
+      payment.type === QuotePaymentType.INSTALLMENT &&
+      payment.status === QuotePaymentStatus.CONFIRMED &&
+      payment.installmentIndex !== null
+    ) {
+      indexes.add(payment.installmentIndex);
+    }
+  }
+  return indexes;
+}
+
+function tokenPaymentDate(payments: QuoteWithPayments["payments"]): Date | null {
+  const tokenPayment = payments.find(
+    (payment) =>
+      payment.type === QuotePaymentType.TOKEN &&
+      payment.status === QuotePaymentStatus.CONFIRMED,
+  );
+  return tokenPayment?.createdAt ?? null;
+}
+
+function buildBuyerInstallmentSchedule(
+  quote: QuoteWithPayments,
+  paymentPlans: readonly PaymentPlanRow[],
+) {
+  if (quote.installmentsDirect) {
+    return { installmentSchedule: [] as const, nextInstallmentIndex: null };
+  }
+
+  const plan = matchPaymentPlanByLabel(paymentPlans, quote.paymentPlanLabel);
+  if (plan === null || plan.installmentCount <= 0) {
+    return { installmentSchedule: [] as const, nextInstallmentIndex: null };
+  }
+
+  const anchor = tokenPaymentDate(quote.payments);
+  if (anchor === null) {
+    return { installmentSchedule: [] as const, nextInstallmentIndex: null };
+  }
+
+  const schedule = deriveQuoteInstallmentSchedule({
+    quotedPricePkr: quote.quotedPricePkr,
+    tokenAmountPkr: quote.tokenAmountPkr,
+    paymentPlan: toSchedulePaymentPlan(plan),
+    scheduleAnchor: anchor,
+    paidInstallmentIndexes: paidInstallmentIndexes(quote.payments),
+  });
+
+  return {
+    installmentSchedule: schedule,
+    nextInstallmentIndex: findNextUnpaidInstallmentIndex(schedule),
+  };
 }
 
 /** Ops quote with margin fields. */
@@ -219,18 +313,29 @@ export const quoteRouter = router({
         payments: {
           where: { status: QuotePaymentStatus.CONFIRMED },
         },
+        category: {
+          include: { paymentPlans: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
-    return quotes.map((quote) => ({
-      ...toBuyerQuoteDto(quote),
-      tokenPaid: quote.payments.some(
-        (payment) => payment.type === QuotePaymentType.TOKEN,
-      ),
-      installmentsPaidPkr: quote.payments
-        .filter((payment) => payment.type === QuotePaymentType.INSTALLMENT)
-        .reduce((sum, payment) => sum + payment.amountPkr, 0),
-    }));
+    const payload = quotes.map((quote) => {
+      const { installmentSchedule, nextInstallmentIndex } =
+        buildBuyerInstallmentSchedule(quote, quote.category.paymentPlans);
+      return {
+        ...toBuyerQuoteDto(quote),
+        tokenPaid: quote.payments.some(
+          (payment) => payment.type === QuotePaymentType.TOKEN,
+        ),
+        installmentsPaidPkr: quote.payments
+          .filter((payment) => payment.type === QuotePaymentType.INSTALLMENT)
+          .reduce((sum, payment) => sum + payment.amountPkr, 0),
+        installmentSchedule,
+        nextInstallmentIndex,
+      };
+    });
+    assertNoForbiddenBuyerFields(payload);
+    return payload;
   }),
 
   getByIdOps: opsProcedure
@@ -327,12 +432,20 @@ export const quoteRouter = router({
       z.object({
         quoteId: idSchema,
         installmentIndex: z.number().int().nonnegative(),
-        amountPkr: pkrAmountSchema,
+        amountPkr: pkrAmountSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.quoteId },
+        include: {
+          payments: {
+            where: { status: QuotePaymentStatus.CONFIRMED },
+          },
+          category: {
+            include: { paymentPlans: true },
+          },
+        },
       });
       if (quote === null) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
@@ -346,6 +459,75 @@ export const quoteRouter = router({
           message: "Installments for this quote are collected off-platform.",
         });
       }
+      if (quote.status !== QuoteStatus.ACCEPTED) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Accept the quote before paying installments.",
+        });
+      }
+      const tokenPaid = quote.payments.some(
+        (payment) => payment.type === QuotePaymentType.TOKEN,
+      );
+      if (!tokenPaid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Pay the booking token before installments.",
+        });
+      }
+
+      const existingPayment = await ctx.db.quotePayment.findFirst({
+        where: {
+          quoteId: quote.id,
+          type: QuotePaymentType.INSTALLMENT,
+          installmentIndex: input.installmentIndex,
+          status: QuotePaymentStatus.CONFIRMED,
+        },
+      });
+      if (existingPayment !== null) {
+        return { ok: true as const, alreadyPaid: true as const };
+      }
+
+      const { installmentSchedule, nextInstallmentIndex } =
+        buildBuyerInstallmentSchedule(quote, quote.category.paymentPlans);
+      if (installmentSchedule.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No installment schedule is configured for this quote.",
+        });
+      }
+      if (nextInstallmentIndex === null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "All installments for this quote are already paid.",
+        });
+      }
+      if (input.installmentIndex !== nextInstallmentIndex) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Pay installment ${nextInstallmentIndex + 1} next.`,
+        });
+      }
+
+      const scheduledRow = installmentSchedule.find(
+        (row) => row.index === input.installmentIndex,
+      );
+      if (scheduledRow === undefined) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Installment index is outside the payment schedule.",
+        });
+      }
+
+      const amountPkr = scheduledRow.amountPkr;
+      if (
+        input.amountPkr !== undefined &&
+        input.amountPkr !== scheduledRow.amountPkr
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Installment amount does not match the schedule.",
+        });
+      }
 
       const eventId = ctx.generateId();
       await ctx.db.$transaction(async (tx) => {
@@ -353,7 +535,7 @@ export const quoteRouter = router({
           data: {
             quoteId: quote.id,
             type: QuotePaymentType.INSTALLMENT,
-            amountPkr: input.amountPkr,
+            amountPkr,
             installmentIndex: input.installmentIndex,
             status: QuotePaymentStatus.CONFIRMED,
             externalEventId: eventId,
@@ -365,8 +547,13 @@ export const quoteRouter = router({
           entityId: toId(quote.id),
           payload: {
             type: QuotePaymentType.INSTALLMENT,
-            amountPkr: input.amountPkr,
+            amountPkr,
             installmentIndex: input.installmentIndex,
+            platformFee: {
+              spreadPkr: quote.spreadPkr,
+              tokenAmountPkr: quote.tokenAmountPkr,
+              servicingFeePct: DEFAULT_INSTALLMENT_SERVICING_FEE_PCT,
+            },
           },
           actor: {
             actorId: ctx.session.user.id,
@@ -377,7 +564,7 @@ export const quoteRouter = router({
         await persistLedgerEvent(tx, ledger);
       });
 
-      return { ok: true as const };
+      return { ok: true as const, alreadyPaid: false as const };
     }),
 
   markDealWon: opsProcedure
