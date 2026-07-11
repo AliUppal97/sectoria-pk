@@ -4,7 +4,7 @@
 
 Reference (do not re-implement): [`architecture/ADR-007-concierge-pivot.md`](architecture/ADR-007-concierge-pivot.md) · [`.cursor/rules/concierge-model.mdc`](../.cursor/rules/concierge-model.mdc)
 
-**Last audited:** 2026-07-06
+**Last audited:** 2026-07-11
 
 ---
 
@@ -55,10 +55,10 @@ pnpm turbo run test lint typecheck
 
 | Step | Title | Status |
 |---:|---|---|
-| 1 | Ops “mark deal won” UI | ⬜ |
-| 2 | Option B installment schedule | ⬜ |
-| 3 | CRM router integration tests | ⬜ |
-| 4 | Security audit + doc closure | ⬜ |
+| 1 | Ops “mark deal won” UI | ✅ |
+| 2 | Option B installment schedule | ✅ |
+| 3 | CRM router integration tests | ✅ |
+| 4 | Security audit + doc closure | ✅ |
 | 5 | Encryption key rotation runbook (optional) | ⬜ |
 | 6 | Quote payment PSP webhook (defer until PSP) | ⬜ skip for now |
 
@@ -224,10 +224,10 @@ Do not add new features — audit and doc fixes only.
 
 **Test gate:**
 
-- [ ] No raw CNIC/NTN patterns in logs/errors (document grep commands run)
-- [ ] No dealer net/spread in buyer-facing tRPC responses
-- [ ] `pnpm turbo run test lint typecheck` clean
-- [ ] Audit notes appended to this file
+- [x] No raw CNIC/NTN patterns in logs/errors (document grep commands run)
+- [x] No dealer net/spread in buyer-facing tRPC responses
+- [x] `pnpm turbo run test lint typecheck` clean
+- [x] Audit notes appended to this file
 
 **Commit:** `docs(security): concierge audit and close remaining session tracker`
 
@@ -316,4 +316,36 @@ Add tests for signature failure, idempotent retry, and happy path.
 
 ## Security audit log
 
-<!-- Step 4 appends dated findings here -->
+### Security audit 2026-07-11
+
+**Grep commands run:**
+
+```bash
+# CNIC/NTN in console / logger calls
+rg -i 'console\.(log|error|warn|info|debug)\([^)]*(cnic|ntn)' --glob '*.{ts,tsx,js,jsx}'
+rg -i 'logger\.(info|error|warn).*?(cnic|ntn)' --glob '*.{ts,tsx}' apps/web
+
+# CNIC/NTN interpolated into thrown error messages
+rg -i '(message|throw|Error|TRPCError)\([^)]*(cnic|ntn)' --glob '*.{ts,tsx}'
+rg 'message:.*cnic|message:.*ntn' --glob '*.{ts,tsx}' packages/api-client/src
+
+# Buyer/public margin leakage
+rg 'dealerNetPkr|spreadPkr|commission' --glob '*.{ts,tsx}'
+rg 'dealerNetPkr|spreadPkr' --glob 'apps/web/**/*.{ts,tsx}'
+rg 'dealerNetPkr|spreadPkr|commission' --glob '**/buyer/**/*.{ts,tsx}'
+
+# Dealer fulfillment PII
+rg -i 'cnic|ntn|buyerName|buyerPhone|buyerEmail|lead\.name|lead\.phone' \
+  --glob '**/dealer-portal/**/*.{ts,tsx}' --glob '**/fulfillment*'
+
+# Decrypt usage (plaintext rehydration)
+rg 'decrypt\(' --glob '*.{ts,tsx}'
+```
+
+**Findings (no product-code fixes required):**
+
+- **CNIC/NTN logs/errors:** No `console.*` / logger calls include CNIC or NTN. Error messages reference field names only (e.g. format guidance), never raw values. `verification.router` encrypts CNIC/NTN at rest and omits them from ledger payloads and tRPC responses. `decrypt()` is used only in `packages/database` encryption unit tests — no runtime decrypt path in API/UI.
+- **Buyer margin fields:** `toBuyerQuoteDto` / `toQuoteDto` omit `dealerNetPkr` and `spreadPkr`; `listForBuyer` runs `assertNoForbiddenBuyerFields`. Buyer UI under `apps/web` has no `dealerNetPkr`/`spreadPkr`/`commission` references. Ops/admin remittance/revenue surfaces correctly retain margin fields.
+- **Dealer fulfillment:** `fulfillment.listForDealer` returns order ref, status, society/category labels, plot ref only — no buyer name/phone/CNIC/email. Dealer fulfillment page copy states buyer contact is withheld. Ops `listAll` may include `leadName` + `spreadPkr` (ops-only).
+- **Society profile v2:** Codebase matches feature-complete definition (M0–M8 + S9–S11 landed on `main`). Spec status updated Proposed → Implemented.
+- **Steps 1–3:** Confirmed merged (`feat(ops): mark deal won…`, `feat(concierge): structured installment schedule…`, `test(api): concierge … router guards`). Progress tracker marked ✅.
