@@ -94,6 +94,41 @@ export interface PlotRow {
 export interface PaymentPlanRow {
   id: string;
   categoryId: string;
+  label: string;
+  downPaymentPct: string;
+  installmentCount: number;
+  installmentInterval: string;
+}
+
+export interface QuoteRow {
+  id: string;
+  leadId: string;
+  societyId: string;
+  categoryId: string;
+  dealerId: string;
+  dealerNetPkr: number;
+  quotedPricePkr: number;
+  spreadPkr: number;
+  tokenAmountPkr: number;
+  validUntil: Date;
+  status: string;
+  paymentPlanLabel: string | null;
+  installmentsDirect: boolean;
+  createdById: string;
+  buyerUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface QuotePaymentRow {
+  id: string;
+  quoteId: string;
+  type: string;
+  amountPkr: number;
+  installmentIndex: number | null;
+  status: string;
+  externalEventId: string | null;
+  createdAt: Date;
 }
 
 export interface BookingRow {
@@ -125,6 +160,8 @@ export class Store {
   categories = new Map<string, CategoryRow>();
   plots = new Map<string, PlotRow>();
   paymentPlans = new Map<string, PaymentPlanRow>();
+  quotes = new Map<string, QuoteRow>();
+  quotePayments = new Map<string, QuotePaymentRow>();
   bookings = new Map<string, BookingRow>();
   reviews = new Map<string, ReviewRow>();
   ledgerEvents = new Map<string, LedgerRow>();
@@ -141,6 +178,12 @@ export class Store {
 
   private bookingCounter = 0;
   private societyCounter = 0;
+  private quotePaymentCounter = 0;
+
+  nextQuotePaymentId(): string {
+    this.quotePaymentCounter += 1;
+    return `qp_${this.quotePaymentCounter}`;
+  }
 
   nextBookingId(): string {
     this.bookingCounter += 1;
@@ -164,6 +207,8 @@ function snapshot(store: Store): Map<string, unknown>[] {
     clone(store.categories),
     clone(store.plots),
     clone(store.paymentPlans),
+    clone(store.quotes),
+    clone(store.quotePayments),
     clone(store.bookings),
     clone(store.reviews),
     clone(store.ledgerEvents),
@@ -186,6 +231,8 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
     categories,
     plots,
     paymentPlans,
+    quotes,
+    quotePayments,
     bookings,
     reviews,
     ledger,
@@ -204,6 +251,8 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
   store.categories = categories as Map<string, CategoryRow>;
   store.plots = plots as Map<string, PlotRow>;
   store.paymentPlans = paymentPlans as Map<string, PaymentPlanRow>;
+  store.quotes = quotes as Map<string, QuoteRow>;
+  store.quotePayments = quotePayments as Map<string, QuotePaymentRow>;
   store.bookings = bookings as Map<string, BookingRow>;
   store.reviews = reviews as Map<string, ReviewRow>;
   store.ledgerEvents = ledger as Map<string, LedgerRow>;
@@ -538,10 +587,19 @@ function buildClient(store: Store): PrismaClient {
       },
       findUnique: async (args: {
         where: { id: string };
-        include?: { plots?: { where?: { status?: string } } };
+        include?: {
+          plots?: { where?: { status?: string } };
+          paymentPlans?: boolean;
+        };
       }) => {
         const category = store.categories.get(args.where.id);
         if (category === undefined) return null;
+        const paymentPlans =
+          args.include?.paymentPlans === true
+            ? [...store.paymentPlans.values()].filter(
+                (plan) => plan.categoryId === category.id,
+              )
+            : undefined;
         if (args.include?.plots !== undefined) {
           const statusFilter = args.include.plots.where?.status;
           const plots = [...store.plots.values()]
@@ -550,9 +608,11 @@ function buildClient(store: Store): PrismaClient {
               statusFilter === undefined ? true : p.status === statusFilter,
             )
             .sort((a, b) => a.serialNo.localeCompare(b.serialNo));
-          return { ...category, plots };
+          return { ...category, plots, paymentPlans };
         }
-        return { ...category };
+        return paymentPlans === undefined
+          ? { ...category }
+          : { ...category, paymentPlans };
       },
       update: async (args: WhereId & { data: Record<string, unknown> }) => {
         const row = store.categories.get(args.where.id);
@@ -574,6 +634,196 @@ function buildClient(store: Store): PrismaClient {
         Object.assign(row, args.data);
         return row;
       },
+    },
+
+    quote: {
+      findMany: async (args?: {
+        where?: { buyerUserId?: string; leadId?: string };
+        include?: {
+          payments?: { where?: { status?: string } };
+          category?: { include?: { paymentPlans?: boolean } };
+        };
+        orderBy?: { createdAt?: "asc" | "desc" };
+      }) => {
+        let rows = [...store.quotes.values()].filter((quote) => {
+          if (
+            args?.where?.buyerUserId !== undefined &&
+            quote.buyerUserId !== args.where.buyerUserId
+          ) {
+            return false;
+          }
+          if (
+            args?.where?.leadId !== undefined &&
+            quote.leadId !== args.where.leadId
+          ) {
+            return false;
+          }
+          return true;
+        });
+        if (args?.orderBy?.createdAt === "desc") {
+          rows = rows.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+          );
+        }
+        return rows.map((quote) => {
+          const payments = [...store.quotePayments.values()].filter((payment) => {
+            if (payment.quoteId !== quote.id) return false;
+            const statusFilter = args?.include?.payments?.where?.status;
+            return statusFilter === undefined
+              ? true
+              : payment.status === statusFilter;
+          });
+          const category = store.categories.get(quote.categoryId);
+          const paymentPlans =
+            args?.include?.category?.include?.paymentPlans === true && category
+              ? [...store.paymentPlans.values()].filter(
+                  (plan) => plan.categoryId === category.id,
+                )
+              : undefined;
+          return {
+            ...quote,
+            payments,
+            category:
+              category === undefined
+                ? undefined
+                : paymentPlans === undefined
+                  ? category
+                  : { ...category, paymentPlans },
+          };
+        });
+      },
+      findUnique: async (args: {
+        where: { id: string };
+        include?: {
+          payments?: { where?: { status?: string } };
+          category?: { include?: { paymentPlans?: boolean } };
+        };
+      }) => {
+        const quote = store.quotes.get(args.where.id);
+        if (quote === undefined) return null;
+        const payments = [...store.quotePayments.values()].filter((payment) => {
+          if (payment.quoteId !== quote.id) return false;
+          const statusFilter = args.include?.payments?.where?.status;
+          return statusFilter === undefined
+            ? true
+            : payment.status === statusFilter;
+        });
+        const category = store.categories.get(quote.categoryId);
+        const paymentPlans =
+          args.include?.category?.include?.paymentPlans === true && category
+            ? [...store.paymentPlans.values()].filter(
+                (plan) => plan.categoryId === category.id,
+              )
+            : undefined;
+        return {
+          ...quote,
+          payments,
+          category:
+            category === undefined
+              ? undefined
+              : paymentPlans === undefined
+                ? category
+                : { ...category, paymentPlans },
+        };
+      },
+      findUniqueOrThrow: async (args: {
+        where: { id: string };
+        include?: {
+          payments?: { where?: { status?: string } };
+          category?: { include?: { paymentPlans?: boolean } };
+        };
+      }) => {
+        const quote = store.quotes.get(args.where.id);
+        if (quote === undefined) throw new Error("quote not found");
+        const payments = [...store.quotePayments.values()].filter((payment) => {
+          if (payment.quoteId !== quote.id) return false;
+          const statusFilter = args.include?.payments?.where?.status;
+          return statusFilter === undefined
+            ? true
+            : payment.status === statusFilter;
+        });
+        const category = store.categories.get(quote.categoryId);
+        const paymentPlans =
+          args.include?.category?.include?.paymentPlans === true && category
+            ? [...store.paymentPlans.values()].filter(
+                (plan) => plan.categoryId === category.id,
+              )
+            : undefined;
+        return {
+          ...quote,
+          payments,
+          category:
+            category === undefined
+              ? undefined
+              : paymentPlans === undefined
+                ? category
+                : { ...category, paymentPlans },
+        };
+      },
+    },
+
+    quotePayment: {
+      findFirst: async (args: {
+        where: {
+          quoteId?: string;
+          type?: string;
+          installmentIndex?: number;
+          status?: string;
+        };
+      }) => {
+        return (
+          [...store.quotePayments.values()].find((payment) => {
+            if (
+              args.where.quoteId !== undefined &&
+              payment.quoteId !== args.where.quoteId
+            ) {
+              return false;
+            }
+            if (
+              args.where.type !== undefined &&
+              payment.type !== args.where.type
+            ) {
+              return false;
+            }
+            if (
+              args.where.installmentIndex !== undefined &&
+              payment.installmentIndex !== args.where.installmentIndex
+            ) {
+              return false;
+            }
+            if (
+              args.where.status !== undefined &&
+              payment.status !== args.where.status
+            ) {
+              return false;
+            }
+            return true;
+          }) ?? null
+        );
+      },
+      create: async (args: { data: Record<string, unknown> }) => {
+        const id = store.nextQuotePaymentId();
+        const row: QuotePaymentRow = {
+          id,
+          quoteId: String(args.data.quoteId),
+          type: String(args.data.type),
+          amountPkr: Number(args.data.amountPkr),
+          installmentIndex:
+            (args.data.installmentIndex as number | null | undefined) ?? null,
+          status: String(args.data.status),
+          externalEventId: (args.data.externalEventId as string | null) ?? null,
+          createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        };
+        store.quotePayments.set(id, row);
+        return row;
+      },
+    },
+
+    fulfillmentOrder: {
+      create: async (args: { data: Record<string, unknown> }) => ({
+        id: "fo_1",
+        ...args.data,
+      }),
     },
 
     booking: {

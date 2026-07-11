@@ -51,3 +51,26 @@ export const createQuoteDraftInputSchema = z.object({
   paymentPlanLabel: z.string().optional(),
 });
 export type CreateQuoteDraftInput = z.infer<typeof createQuoteDraftInputSchema>;
+
+export const QuoteInstallmentScheduleStatus = {
+  PAID: "PAID",
+  PENDING: "PENDING",
+} as const;
+export type QuoteInstallmentScheduleStatus =
+  (typeof QuoteInstallmentScheduleStatus)[keyof typeof QuoteInstallmentScheduleStatus];
+export const quoteInstallmentScheduleStatusSchema = z.enum([
+  QuoteInstallmentScheduleStatus.PAID,
+  QuoteInstallmentScheduleStatus.PENDING,
+]);
+
+/** One row in a buyer-visible installment schedule (Option B). */
+export const quoteInstallmentScheduleRowSchema = z.object({
+  index: z.number().int().nonnegative(),
+  dueDate: isoDateTimeSchema,
+  dueLabel: z.string().min(1),
+  amountPkr: pkrAmountSchema,
+  status: quoteInstallmentScheduleStatusSchema,
+});
+export type QuoteInstallmentScheduleRow = z.infer<
+  typeof quoteInstallmentScheduleRowSchema
+>;
