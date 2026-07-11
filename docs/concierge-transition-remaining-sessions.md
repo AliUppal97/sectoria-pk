@@ -255,8 +255,8 @@ No application code changes unless a doc references wrong env var names — fix 
 
 **Test gate:**
 
-- [ ] `docs/runbooks/rotating-encryption-keys.md` exists and ADR-005 links to it
-- [ ] Steps match the versioned ciphertext format in encryption.ts
+- [x] `docs/runbooks/rotating-encryption-keys.md` exists and ADR-005 links to it
+- [x] Steps match the versioned ciphertext format in encryption.ts
 
 **Commit:** `docs(runbook): encryption key rotation procedure`
 

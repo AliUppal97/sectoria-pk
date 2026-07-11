@@ -37,9 +37,9 @@ We need encryption that:
    - Background job or on-login hook re-encrypts stale rows over time — no
      single maintenance window required for a full table rewrite.
 
-Operational steps for a rotation event belong in a runbook
-(`docs/runbooks/rotating-encryption-keys.md` when added); this ADR records the
-*why* and the versioned-format contract.
+Operational steps for a rotation event:
+[`docs/runbooks/rotating-encryption-keys.md`](../runbooks/rotating-encryption-keys.md).
+This ADR records the *why* and the versioned-format contract.
 
 ## Consequences
 
