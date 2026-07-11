@@ -100,6 +100,24 @@ export interface PaymentPlanRow {
   installmentInterval: string;
 }
 
+export interface LeadRow {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  societyIds: string[];
+  categoryId: string | null;
+  budgetPkr: number | null;
+  paymentPlanPreference: string | null;
+  source: string;
+  status: string;
+  notes: string | null;
+  buyerUserId: string | null;
+  assignedAdvisorId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface QuoteRow {
   id: string;
   leadId: string;
@@ -131,6 +149,35 @@ export interface QuotePaymentRow {
   createdAt: Date;
 }
 
+export interface DealerProfileRow {
+  id: string;
+  userId: string;
+  slug: string;
+  agencyName: string;
+}
+
+export interface DealerNetSheetRow {
+  id: string;
+  dealerId: string;
+  categoryId: string;
+  netPricePkr: number;
+  paymentPlanTerms: string | null;
+  refreshedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FulfillmentOrderRow {
+  id: string;
+  quoteId: string;
+  dealerId: string;
+  orderRef: string;
+  status: string;
+  plotRef: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface BookingRow {
   id: string;
   buyerId: string;
@@ -160,8 +207,12 @@ export class Store {
   categories = new Map<string, CategoryRow>();
   plots = new Map<string, PlotRow>();
   paymentPlans = new Map<string, PaymentPlanRow>();
+  leads = new Map<string, LeadRow>();
   quotes = new Map<string, QuoteRow>();
   quotePayments = new Map<string, QuotePaymentRow>();
+  dealerProfiles = new Map<string, DealerProfileRow>();
+  dealerNetSheets = new Map<string, DealerNetSheetRow>();
+  fulfillmentOrders = new Map<string, FulfillmentOrderRow>();
   bookings = new Map<string, BookingRow>();
   reviews = new Map<string, ReviewRow>();
   ledgerEvents = new Map<string, LedgerRow>();
@@ -179,6 +230,10 @@ export class Store {
   private bookingCounter = 0;
   private societyCounter = 0;
   private quotePaymentCounter = 0;
+  private leadCounter = 0;
+  private quoteCounter = 0;
+  private fulfillmentCounter = 0;
+  private netSheetCounter = 0;
 
   nextQuotePaymentId(): string {
     this.quotePaymentCounter += 1;
@@ -194,6 +249,26 @@ export class Store {
     this.societyCounter += 1;
     return `soc_new_${this.societyCounter}`;
   }
+
+  nextLeadId(): string {
+    this.leadCounter += 1;
+    return `lead_${this.leadCounter}`;
+  }
+
+  nextQuoteId(): string {
+    this.quoteCounter += 1;
+    return `quote_new_${this.quoteCounter}`;
+  }
+
+  nextFulfillmentId(): string {
+    this.fulfillmentCounter += 1;
+    return `fo_${this.fulfillmentCounter}`;
+  }
+
+  nextNetSheetId(): string {
+    this.netSheetCounter += 1;
+    return `dns_${this.netSheetCounter}`;
+  }
 }
 
 type WhereId = { where: { id: string } };
@@ -207,8 +282,12 @@ function snapshot(store: Store): Map<string, unknown>[] {
     clone(store.categories),
     clone(store.plots),
     clone(store.paymentPlans),
+    clone(store.leads),
     clone(store.quotes),
     clone(store.quotePayments),
+    clone(store.dealerProfiles),
+    clone(store.dealerNetSheets),
+    clone(store.fulfillmentOrders),
     clone(store.bookings),
     clone(store.reviews),
     clone(store.ledgerEvents),
@@ -231,8 +310,12 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
     categories,
     plots,
     paymentPlans,
+    leads,
     quotes,
     quotePayments,
+    dealerProfiles,
+    dealerNetSheets,
+    fulfillmentOrders,
     bookings,
     reviews,
     ledger,
@@ -251,8 +334,12 @@ function restore(store: Store, snap: Map<string, unknown>[]): void {
   store.categories = categories as Map<string, CategoryRow>;
   store.plots = plots as Map<string, PlotRow>;
   store.paymentPlans = paymentPlans as Map<string, PaymentPlanRow>;
+  store.leads = leads as Map<string, LeadRow>;
   store.quotes = quotes as Map<string, QuoteRow>;
   store.quotePayments = quotePayments as Map<string, QuotePaymentRow>;
+  store.dealerProfiles = dealerProfiles as Map<string, DealerProfileRow>;
+  store.dealerNetSheets = dealerNetSheets as Map<string, DealerNetSheetRow>;
+  store.fulfillmentOrders = fulfillmentOrders as Map<string, FulfillmentOrderRow>;
   store.bookings = bookings as Map<string, BookingRow>;
   store.reviews = reviews as Map<string, ReviewRow>;
   store.ledgerEvents = ledger as Map<string, LedgerRow>;
@@ -636,14 +723,172 @@ function buildClient(store: Store): PrismaClient {
       },
     },
 
+    lead: {
+      findUnique: async (args: WhereId) => store.leads.get(args.where.id) ?? null,
+      findMany: async (args?: {
+        where?: { buyerUserId?: string };
+        orderBy?: { createdAt?: "asc" | "desc" };
+      }) => {
+        let rows = [...store.leads.values()].filter((lead) => {
+          if (
+            args?.where?.buyerUserId !== undefined &&
+            lead.buyerUserId !== args.where.buyerUserId
+          ) {
+            return false;
+          }
+          return true;
+        });
+        if (args?.orderBy?.createdAt === "desc") {
+          rows = rows.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+          );
+        }
+        return rows;
+      },
+      create: async (args: { data: Record<string, unknown> }) => {
+        const id = store.nextLeadId();
+        const now = new Date("2026-06-01T00:00:00.000Z");
+        const row: LeadRow = {
+          id,
+          name: String(args.data.name),
+          phone: String(args.data.phone),
+          email: (args.data.email as string | null) ?? null,
+          societyIds: (args.data.societyIds as string[]) ?? [],
+          categoryId: (args.data.categoryId as string | null) ?? null,
+          budgetPkr: (args.data.budgetPkr as number | null) ?? null,
+          paymentPlanPreference:
+            (args.data.paymentPlanPreference as string | null) ?? null,
+          source: String(args.data.source),
+          status: String(args.data.status),
+          notes: (args.data.notes as string | null) ?? null,
+          buyerUserId: (args.data.buyerUserId as string | null) ?? null,
+          assignedAdvisorId:
+            (args.data.assignedAdvisorId as string | null) ?? null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        store.leads.set(id, row);
+        return row;
+      },
+      update: async (args: WhereId & { data: Record<string, unknown> }) => {
+        const row = store.leads.get(args.where.id);
+        if (row === undefined) throw new Error("lead not found");
+        Object.assign(row, args.data, {
+          updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+        });
+        return row;
+      },
+    },
+
+    dealerProfile: {
+      findUnique: async (args: {
+        where: { id?: string; userId?: string };
+        select?: Record<string, boolean>;
+      }) => {
+        const row =
+          args.where.id !== undefined
+            ? (store.dealerProfiles.get(args.where.id) ?? null)
+            : ([...store.dealerProfiles.values()].find(
+                (dealer) => dealer.userId === args.where.userId,
+              ) ?? null);
+        return row;
+      },
+    },
+
+    dealerNetSheet: {
+      findMany: async (args?: {
+        where?: { dealerId?: string; categoryId?: string };
+        include?: {
+          dealer?: { select?: Record<string, boolean> };
+          category?: {
+            select?: Record<string, boolean | { select?: Record<string, boolean> }>;
+          };
+        };
+        orderBy?:
+          | { updatedAt?: "asc" | "desc"; netPricePkr?: "asc" | "desc" }
+          | Array<Record<string, "asc" | "desc">>;
+      }) => {
+        let rows = [...store.dealerNetSheets.values()].filter((sheet) => {
+          if (
+            args?.where?.dealerId !== undefined &&
+            sheet.dealerId !== args.where.dealerId
+          ) {
+            return false;
+          }
+          if (
+            args?.where?.categoryId !== undefined &&
+            sheet.categoryId !== args.where.categoryId
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        const clauses = Array.isArray(args?.orderBy)
+          ? args.orderBy
+          : args?.orderBy !== undefined
+            ? [args.orderBy]
+            : [];
+        if (clauses.length > 0) {
+          rows = [...rows].sort((a, b) => {
+            for (const clause of clauses) {
+              const [field, direction] = Object.entries(clause)[0] ?? [];
+              if (field === undefined) continue;
+              const av = (a as unknown as Record<string, unknown>)[field];
+              const bv = (b as unknown as Record<string, unknown>)[field];
+              const cmp =
+                av instanceof Date && bv instanceof Date
+                  ? av.getTime() - bv.getTime()
+                  : typeof av === "number" && typeof bv === "number"
+                    ? av - bv
+                    : String(av).localeCompare(String(bv));
+              if (cmp !== 0) return direction === "desc" ? -cmp : cmp;
+            }
+            return 0;
+          });
+        }
+
+        return rows.map((sheet) => {
+          const dealer = store.dealerProfiles.get(sheet.dealerId);
+          const category = store.categories.get(sheet.categoryId);
+          const society =
+            category !== undefined
+              ? store.societies.get(category.societyId)
+              : undefined;
+          return {
+            ...sheet,
+            dealer:
+              dealer === undefined
+                ? undefined
+                : {
+                    id: dealer.id,
+                    agencyName: dealer.agencyName,
+                    slug: dealer.slug,
+                  },
+            category:
+              category === undefined
+                ? undefined
+                : {
+                    ...category,
+                    society:
+                      society === undefined
+                        ? undefined
+                        : { name: society.name, slug: society.slug },
+                  },
+          };
+        });
+      },
+    },
+
     quote: {
       findMany: async (args?: {
         where?: { buyerUserId?: string; leadId?: string };
         include?: {
           payments?: { where?: { status?: string } };
           category?: { include?: { paymentPlans?: boolean } };
+          society?: { select?: { name?: boolean } };
         };
-        orderBy?: { createdAt?: "asc" | "desc" };
+        orderBy?: { createdAt?: "asc" | "desc"; updatedAt?: "asc" | "desc" };
       }) => {
         let rows = [...store.quotes.values()].filter((quote) => {
           if (
@@ -665,6 +910,11 @@ function buildClient(store: Store): PrismaClient {
             (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
           );
         }
+        if (args?.orderBy?.updatedAt === "desc") {
+          rows = rows.sort(
+            (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+          );
+        }
         return rows.map((quote) => {
           const payments = [...store.quotePayments.values()].filter((payment) => {
             if (payment.quoteId !== quote.id) return false;
@@ -680,9 +930,14 @@ function buildClient(store: Store): PrismaClient {
                   (plan) => plan.categoryId === category.id,
                 )
               : undefined;
+          const society = store.societies.get(quote.societyId);
           return {
             ...quote,
             payments,
+            society:
+              args?.include?.society !== undefined && society !== undefined
+                ? { name: society.name }
+                : undefined,
             category:
               category === undefined
                 ? undefined
@@ -760,6 +1015,64 @@ function buildClient(store: Store): PrismaClient {
                 : { ...category, paymentPlans },
         };
       },
+      create: async (args: { data: Record<string, unknown> }) => {
+        const id = store.nextQuoteId();
+        const now = new Date("2026-06-01T00:00:00.000Z");
+        const row: QuoteRow = {
+          id,
+          leadId: String(args.data.leadId),
+          societyId: String(args.data.societyId),
+          categoryId: String(args.data.categoryId),
+          dealerId: String(args.data.dealerId),
+          dealerNetPkr: Number(args.data.dealerNetPkr),
+          quotedPricePkr: Number(args.data.quotedPricePkr),
+          spreadPkr: Number(args.data.spreadPkr),
+          tokenAmountPkr: Number(args.data.tokenAmountPkr),
+          validUntil: args.data.validUntil as Date,
+          status: String(args.data.status),
+          paymentPlanLabel: (args.data.paymentPlanLabel as string | null) ?? null,
+          installmentsDirect: Boolean(args.data.installmentsDirect ?? false),
+          createdById: String(args.data.createdById),
+          buyerUserId: (args.data.buyerUserId as string | null) ?? null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        store.quotes.set(id, row);
+        return row;
+      },
+      update: async (args: WhereId & { data: Record<string, unknown> }) => {
+        const row = store.quotes.get(args.where.id);
+        if (row === undefined) throw new Error("quote not found");
+        Object.assign(row, args.data, {
+          updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+        });
+        return row;
+      },
+      updateMany: async (args: {
+        where: { leadId?: string; status?: string };
+        data: Record<string, unknown>;
+      }) => {
+        let count = 0;
+        for (const row of store.quotes.values()) {
+          if (
+            args.where.leadId !== undefined &&
+            row.leadId !== args.where.leadId
+          ) {
+            continue;
+          }
+          if (
+            args.where.status !== undefined &&
+            row.status !== args.where.status
+          ) {
+            continue;
+          }
+          Object.assign(row, args.data, {
+            updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+          });
+          count += 1;
+        }
+        return { count };
+      },
     },
 
     quotePayment: {
@@ -820,10 +1133,100 @@ function buildClient(store: Store): PrismaClient {
     },
 
     fulfillmentOrder: {
-      create: async (args: { data: Record<string, unknown> }) => ({
-        id: "fo_1",
-        ...args.data,
-      }),
+      create: async (args: { data: Record<string, unknown> }) => {
+        const id = store.nextFulfillmentId();
+        const now = new Date("2026-06-01T00:00:00.000Z");
+        const row: FulfillmentOrderRow = {
+          id,
+          quoteId: String(args.data.quoteId),
+          dealerId: String(args.data.dealerId),
+          orderRef: String(args.data.orderRef),
+          status: String(args.data.status),
+          plotRef: (args.data.plotRef as string | null) ?? null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        store.fulfillmentOrders.set(id, row);
+        return row;
+      },
+      findUnique: async (args: WhereId) =>
+        store.fulfillmentOrders.get(args.where.id) ?? null,
+      findMany: async (args?: {
+        where?: { dealerId?: string };
+        include?: {
+          quote?: {
+            select?: Record<string, unknown>;
+          };
+          dealer?: { select?: { agencyName?: boolean } };
+        };
+        orderBy?: { createdAt?: "asc" | "desc" };
+      }) => {
+        let rows = [...store.fulfillmentOrders.values()].filter((order) => {
+          if (
+            args?.where?.dealerId !== undefined &&
+            order.dealerId !== args.where.dealerId
+          ) {
+            return false;
+          }
+          return true;
+        });
+        if (args?.orderBy?.createdAt === "desc") {
+          rows = rows.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+          );
+        }
+
+        return rows.map((order) => {
+          const quote = store.quotes.get(order.quoteId);
+          const category =
+            quote !== undefined
+              ? store.categories.get(quote.categoryId)
+              : undefined;
+          const society =
+            category !== undefined
+              ? store.societies.get(category.societyId)
+              : undefined;
+          const lead =
+            quote !== undefined ? store.leads.get(quote.leadId) : undefined;
+          const dealer = store.dealerProfiles.get(order.dealerId);
+
+          return {
+            ...order,
+            dealer:
+              dealer === undefined
+                ? undefined
+                : { agencyName: dealer.agencyName },
+            quote:
+              quote === undefined
+                ? undefined
+                : {
+                    quotedPricePkr: quote.quotedPricePkr,
+                    spreadPkr: quote.spreadPkr,
+                    lead: lead === undefined ? undefined : { name: lead.name },
+                    category:
+                      category === undefined
+                        ? undefined
+                        : {
+                            phase: category.phase,
+                            block: category.block,
+                            sizeLabel: category.sizeLabel,
+                            society:
+                              society === undefined
+                                ? undefined
+                                : { name: society.name },
+                          },
+                  },
+          };
+        });
+      },
+      update: async (args: WhereId & { data: Record<string, unknown> }) => {
+        const row = store.fulfillmentOrders.get(args.where.id);
+        if (row === undefined) throw new Error("fulfillment order not found");
+        Object.assign(row, args.data, {
+          updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+        });
+        return row;
+      },
     },
 
     booking: {
