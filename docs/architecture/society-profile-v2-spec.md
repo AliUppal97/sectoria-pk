@@ -1,6 +1,6 @@
 # Society Profile V2 — Technical Specification (Index)
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-06-30
 **Owner:** Marketplace / Society experience
 **Related:** [ADR-007 (concierge pivot)](ADR-007-concierge-pivot.md), [ADR-008 (society profile maps)](ADR-008-society-profile-maps.md), [ADR-009 (media & document storage)](ADR-009-media-document-storage.md)
