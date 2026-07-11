@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { Button, EmptyState, ErrorState, JsonLd } from "@sectoria/ui";
-import type { VerificationTier } from "@sectoria/database";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyCard } from "@/components/marketplace/society-card";
 import { SocietyFilters } from "@/components/marketplace/society-filters";
@@ -11,45 +10,19 @@ import {
   listAuthorityFacets,
   listCityFacets,
   listSocietySummaries,
-  type SocietyFilters as Filters,
 } from "@/lib/queries";
 import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
+import {
+  parseSocietyDiscoveryParams,
+  serializeSocietyDiscoveryParams,
+} from "@/lib/society-discovery-params";
 
 // SSR: filters are URL search params so filtered views are crawlable/shareable
 // (seo.mdc). Accessing searchParams opts this route into dynamic rendering.
 export const dynamic = "force-dynamic";
 
-const VALID_TIERS: ReadonlySet<VerificationTier> = new Set([
-  "PENDING",
-  "VERIFIED",
-  "HSMS_LINKED",
-]);
-
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-/** Reads a single-valued search param, ignoring repeated/array values. */
-function readParam(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-): string | undefined {
-  const value = params[key];
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function parseFilters(
-  params: Record<string, string | string[] | undefined>,
-): Filters {
-  const citySlug = readParam(params, "citySlug");
-  const authority = readParam(params, "authority");
-  const search = readParam(params, "search");
-  const tierRaw = readParam(params, "verificationTier");
-  const verificationTier =
-    tierRaw && VALID_TIERS.has(tierRaw as VerificationTier)
-      ? (tierRaw as VerificationTier)
-      : undefined;
-  return { citySlug, authority, verificationTier, search };
-}
 
 export async function generateMetadata({
   searchParams,
@@ -57,7 +30,7 @@ export async function generateMetadata({
   searchParams: SearchParams;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const filters = parseFilters(params);
+  const filters = parseSocietyDiscoveryParams(params);
   const cities = await load(() => listCityFacets());
   const cityLabel =
     cities.status === "success" && filters.citySlug
@@ -66,11 +39,14 @@ export async function generateMetadata({
 
   const scope = cityLabel ? ` in ${cityLabel}` : " in Pakistan";
   const title = `Verified housing societies${scope}`;
-  const query = new URLSearchParams();
-  if (filters.citySlug) query.set("citySlug", filters.citySlug);
-  if (filters.authority) query.set("authority", filters.authority);
-  if (filters.verificationTier)
-    query.set("verificationTier", filters.verificationTier);
+  const query = serializeSocietyDiscoveryParams({
+    citySlug: filters.citySlug,
+    authority: filters.authority,
+    verificationTier: filters.verificationTier,
+    // Keep search out of the canonical path for now — H5 extends metadata
+    // descriptions when search is present without stuffing keywords.
+    search: undefined,
+  });
   const path =
     query.size > 0 ? `/societies?${query.toString()}` : "/societies";
 
@@ -87,7 +63,7 @@ export default async function SocietiesPage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
-  const filters = parseFilters(params);
+  const filters = parseSocietyDiscoveryParams(params);
 
   const [societies, cities, authorities] = await Promise.all([
     load(() => listSocietySummaries(filters)),
@@ -113,7 +89,7 @@ export default async function SocietiesPage({
       <SectionHeading
         eyebrow="Directory"
         title="Housing societies"
-        description="Filter by city, authority and verification status. Filtered views are shareable — the filters live in the URL."
+        description="Search by name or city, then filter by authority and verification status. Filtered views are shareable — the filters live in the URL."
       />
 
       <div className="mt-8 flex flex-col gap-8">
@@ -121,6 +97,7 @@ export default async function SocietiesPage({
           cities={cities.status === "success" ? cities.data : []}
           authorities={authorities.status === "success" ? authorities.data : []}
           current={{
+            search: filters.search,
             citySlug: filters.citySlug,
             verificationTier: filters.verificationTier,
             authority: filters.authority,
