@@ -67,6 +67,7 @@ Lean rules `ui-design-system-sectoria.mdc` and `ui-ux-excellence-sectoria.mdc` a
 3. **`@`-attach** exactly the files listed under **Attach**
 4. **Paste** the session’s **Prompt** block
 5. When the agent finishes, run the **Test Gate** — every box must pass
+6. **Stop.** Report Test Gate results. Do **not** commit, push, open a PR, or merge unless the human explicitly asks (e.g. “ship it” / invokes `ship-pr`).
 
 **Quality gate (after every session):**
 
@@ -74,16 +75,17 @@ Lean rules `ui-design-system-sectoria.mdc` and `ui-ux-excellence-sectoria.mdc` a
 pnpm turbo run test lint typecheck
 ```
 
-### B. Review (optional but recommended)
+### B. Review (human-triggered)
 
-6. Run **`session-ship-review`** (`@.cursor/skills/session-ship-review/SKILL.md`) — expert panel vs this session’s prompt + test gate. Fix blockers or sub-sessions before shipping.
+7. Human runs **`session-ship-review`** (`@.cursor/skills/session-ship-review/SKILL.md`) — expert panel vs this session’s prompt + test gate. Fix blockers or sub-sessions before shipping. Agents must **not** self-invoke review or treat the Test Gate as permission to ship.
 
-### C. Ship (`ship-pr`)
+### C. Ship (`ship-pr`, human-triggered)
 
-7. Invoke **`ship-pr`** (`@.cursor/skills/ship-pr/SKILL.md`) — branch → scoped commit → push → PR → wait for CI → merge → sync `main`
-8. **Tick** the session in the Progress tracker below, then start the next session in a **new chat**
+8. Human invokes **`ship-pr`** (`@.cursor/skills/ship-pr/SKILL.md`) — branch → scoped commit → push → PR → wait for CI → merge → sync `main`
+9. **Tick** the session in the Progress tracker below, then start the next session in a **new chat**
 
 > **One session = one PR.** Do not batch H0 and H1 into a single PR.
+> **Handoff:** Implement chat ends at a green Test Gate. Review and ship are separate, human-started steps.
 
 ---
 
@@ -137,7 +139,7 @@ feat(marketplace): directory search param helper and search input
 - [ ] Vitest covers parse/serialize helpers.
 - [ ] No new Prisma migration in this session.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual (commit + PR).
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -196,7 +198,7 @@ feat(discovery): rich society filters, startingPricePkr, enriched facets
 - [ ] Public reads still exclude non-PUBLISHED; no `ratingDesc` in schema.
 - [ ] Params helper extended + unit tests for price pair drop.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -253,7 +255,7 @@ feat(marketplace): shared SocietyDiscoveryBar with rich filters
 - [ ] Public verification options exclude `PENDING`.
 - [ ] Mobile layout usable at ~390px width (manual check).
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -306,7 +308,7 @@ feat(marketplace): search-first homepage with listFeatured ranking
 - [ ] `listFeatured` ranking matches HSMS → VERIFIED → price → name (test).
 - [ ] Empty/error for featured still handled.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -345,7 +347,7 @@ feat(discovery): society suggest typeahead for discovery bar
 - [ ] `rateLimit({ scope: "society:suggest", by: "ip" })` is applied (not deferred).
 - [ ] Bar typeahead keyboard-accessible; reduced-motion safe.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -383,7 +385,7 @@ feat(marketplace): discovery SearchAction SEO and city chip a11y
 - [ ] City chips accessible and capped at 6 with muted counts.
 - [ ] No ranking / analytics stub / featuredRank in the diff.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 ---
 
 ## Session H6 — E2E discovery path
@@ -418,7 +420,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 - [ ] New E2E spec passes locally against seeded DB.
 - [ ] Concierge assertion: no Book Now on discovery surfaces.
 - [ ] `pnpm turbo run test lint typecheck` clean (and e2e job if separate).
-- [ ] Ship via session ritual.
+- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
