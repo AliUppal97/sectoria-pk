@@ -6,6 +6,7 @@ import {
   appRouter,
   createCallerFactory,
   createTRPCContext,
+  type RateLimiter,
   type Session,
 } from "../../index.js";
 
@@ -73,6 +74,8 @@ const createCaller = createCallerFactory(appRouter);
 export function createTestCaller(options: {
   db: PrismaClient;
   session?: Session | null;
+  rateLimiter?: RateLimiter | null;
+  clientId?: string | null;
 }): ReturnType<typeof createCaller> {
   let ledgerCounter = 0;
   const ctx = createTRPCContext({
@@ -82,6 +85,8 @@ export function createTestCaller(options: {
       mock: { minLatencyMs: 0, maxLatencyMs: 0 },
     }),
     storage: createStorageAdapter({ now: () => FIXED_NOW }),
+    rateLimiter: options.rateLimiter ?? null,
+    clientId: options.clientId ?? null,
     now: () => FIXED_NOW,
     generateId: () => {
       ledgerCounter += 1;
