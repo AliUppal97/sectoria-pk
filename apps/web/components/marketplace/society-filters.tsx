@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import {
   Button,
+  Input,
   Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  useDebouncedValue,
 } from "@sectoria/ui";
 
 /**
@@ -19,17 +21,25 @@ import {
  * seo.mdc) — not in client-only state. Changing a filter rewrites the query
  * string; the server component re-runs the filtered query and re-renders.
  *
+ * Free-text search uses debounced `router.replace` (≥300ms) via
+ * `useDebouncedValue` — not submit-on-Enter (discovery-search §2.1 directory).
+ *
  * Radix Select forbids an empty-string item value, so the "all" sentinel maps
  * to *removing* the param. Below `md`, native `<select>` is used because Radix
  * dropdowns are unreliable on iOS Safari touch.
+ *
+ * Public verification options exclude `PENDING` (foundations §2) — ops/admin
+ * surfaces may still filter by it via the API.
  */
 
 const ALL = "all";
 
+/** Directory search debounce — locked ≥300ms (discovery-search §2.1). */
+const SEARCH_DEBOUNCE_MS = 300;
+
 const TIER_OPTIONS = [
   { value: "HSMS_LINKED", label: "HSMS live-linked" },
   { value: "VERIFIED", label: "LOP + NOC verified" },
-  { value: "PENDING", label: "Verification pending" },
 ] as const;
 
 const nativeSelectClassName =
@@ -39,6 +49,7 @@ export interface SocietyFiltersProps {
   readonly cities: readonly { slug: string; label: string }[];
   readonly authorities: readonly string[];
   readonly current: {
+    readonly search?: string;
     readonly citySlug?: string;
     readonly verificationTier?: string;
     readonly authority?: string;
@@ -54,6 +65,11 @@ export function SocietyFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  const [searchInput, setSearchInput] = useState(current.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+  /** Last search value we wrote to the URL — distinguishes Reset/back from typing. */
+  const lastWrittenSearch = useRef(current.search ?? "");
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -72,16 +88,61 @@ export function SocietyFilters({
     [pathname, router, searchParams],
   );
 
+  // External URL change (Reset filters, browser back) — resync the input.
+  useEffect(() => {
+    const urlSearch = current.search ?? "";
+    if (urlSearch !== lastWrittenSearch.current) {
+      lastWrittenSearch.current = urlSearch;
+      setSearchInput(urlSearch);
+    }
+  }, [current.search]);
+
+  // Debounced replace for free-text search (directory locked behavior).
+  useEffect(() => {
+    const next = debouncedSearch.trim();
+    const existing = searchParams.get("search") ?? "";
+    if (next === existing) return;
+
+    lastWrittenSearch.current = next;
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.length > 0) {
+      params.set("search", next);
+    } else {
+      params.delete("search");
+    }
+    startTransition(() => {
+      router.replace(params.size > 0 ? `${pathname}?${params}` : pathname, {
+        scroll: false,
+      });
+    });
+  }, [debouncedSearch, pathname, router, searchParams]);
+
   const hasActiveFilter =
+    Boolean(current.search) ||
     Boolean(current.citySlug) ||
     Boolean(current.verificationTier) ||
-    Boolean(current.authority);
+    Boolean(current.authority) ||
+    searchInput.trim().length > 0;
 
   return (
     <div
       className="flex flex-col gap-4 rounded-xl border border-border-base bg-surface-card p-5"
       aria-busy={isPending}
     >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="filter-search">Search</Label>
+        <Input
+          id="filter-search"
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search societies or cities"
+          aria-label="Search societies or cities"
+          autoComplete="off"
+          className="h-11"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-city">City</Label>
@@ -202,11 +263,13 @@ export function SocietyFilters({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
+            onClick={() => {
+              lastWrittenSearch.current = "";
+              setSearchInput("");
               startTransition(() =>
                 router.replace(pathname, { scroll: false }),
-              )
-            }
+              );
+            }}
           >
             <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
             Reset filters
