@@ -3,6 +3,7 @@ import {
   BUDGET_PRESETS,
   PUBLIC_VERIFICATION_OPTIONS,
   budgetPresetToPriceBounds,
+  buildAppliedDiscoveryChips,
   countFiltersBehindSheet,
   matchBudgetPresetId,
 } from "../society-discovery-ui.js";
@@ -82,5 +83,99 @@ describe("countFiltersBehindSheet (first-look lock)", () => {
         "directory",
       ),
     ).toBe(2);
+  });
+});
+
+describe("buildAppliedDiscoveryChips", () => {
+  const facets = {
+    cities: [{ slug: "lahore", label: "Lahore", count: 3 }],
+    authorities: [{ value: "LDA", count: 2 }],
+    tiers: [],
+    plotTypes: [],
+    sizeLabels: [],
+    developmentStages: [],
+    bookingStatuses: [],
+  };
+
+  it("returns chips for toolbar + sheet dimensions in Tier A → Tier B order", () => {
+    const chips = buildAppliedDiscoveryChips(
+      {
+        search: "bahria",
+        citySlug: "lahore",
+        priceMinPkr: 5_000_000,
+        priceMaxPkr: 10_000_000,
+        plotType: "RESIDENTIAL",
+        verificationTier: "HSMS_LINKED",
+        authority: "LDA",
+        sort: "priceAsc",
+      },
+      facets,
+      "",
+      "home",
+    );
+
+    expect(chips.map((chip) => chip.id)).toEqual([
+      "search",
+      "citySlug",
+      "budget",
+      "plotType",
+      "verificationTier",
+      "authority",
+      "sort",
+    ]);
+    expect(chips.find((chip) => chip.id === "citySlug")?.label).toBe("Lahore");
+    expect(chips.find((chip) => chip.id === "citySlug")?.category).toBe("City");
+    expect(chips.find((chip) => chip.id === "budget")?.label).toBe(
+      "50 lakh – 1 crore",
+    );
+    expect(chips.find((chip) => chip.id === "budget")?.clear).toEqual({
+      priceMinPkr: undefined,
+      priceMaxPkr: undefined,
+    });
+    expect(chips.find((chip) => chip.id === "search")?.clearsSearchInput).toBe(
+      true,
+    );
+  });
+
+  it("mode=directory also chips toolbar Tier A (city, budget, plot type)", () => {
+    const chips = buildAppliedDiscoveryChips(
+      {
+        search: "bahria",
+        citySlug: "lahore",
+        priceMinPkr: 5_000_000,
+        priceMaxPkr: 10_000_000,
+        plotType: "RESIDENTIAL",
+        verificationTier: "VERIFIED",
+        authority: "LDA",
+        sizeLabel: "5 Marla",
+      },
+      facets,
+      "",
+      "directory",
+    );
+
+    expect(chips.map((chip) => chip.id)).toEqual([
+      "search",
+      "citySlug",
+      "budget",
+      "plotType",
+      "verificationTier",
+      "authority",
+      "sizeLabel",
+    ]);
+  });
+
+  it("uses pendingSearch when URL search is empty (debounce lag)", () => {
+    const chips = buildAppliedDiscoveryChips({}, facets, "  dha  ");
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toMatchObject({
+      id: "search",
+      label: "dha",
+      clearsSearchInput: true,
+    });
+  });
+
+  it("returns an empty list when nothing is applied", () => {
+    expect(buildAppliedDiscoveryChips({}, facets)).toEqual([]);
   });
 });

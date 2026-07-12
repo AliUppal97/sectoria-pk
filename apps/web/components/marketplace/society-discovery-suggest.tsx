@@ -137,7 +137,7 @@ export function SocietyDiscoverySuggestListbox({
         id={listboxId}
         role="listbox"
         aria-label="Society and city suggestions"
-        className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border-base bg-surface-card shadow-md"
+        className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border-base bg-surface-card shadow-md"
       >
         <ul className="space-y-2 p-3" aria-hidden="true">
           {[0, 1, 2].map((row) => (
@@ -158,7 +158,7 @@ export function SocietyDiscoverySuggestListbox({
         id={listboxId}
         role="listbox"
         aria-label="Society and city suggestions"
-        className="absolute inset-x-0 top-full z-20 mt-1 rounded-xl border border-border-base bg-surface-card p-3 shadow-md"
+        className="absolute inset-x-0 top-full z-50 mt-1 rounded-xl border border-border-base bg-surface-card p-3 shadow-md"
       >
         <p className="font-sans text-sm text-text-secondary" role="status">
           Suggestions could not be loaded. You can still press Search.
@@ -173,7 +173,7 @@ export function SocietyDiscoverySuggestListbox({
         id={listboxId}
         role="listbox"
         aria-label="Society and city suggestions"
-        className="absolute inset-x-0 top-full z-20 mt-1 rounded-xl border border-border-base bg-surface-card p-3 shadow-md"
+        className="absolute inset-x-0 top-full z-50 mt-1 rounded-xl border border-border-base bg-surface-card p-3 shadow-md"
       >
         <p className="font-sans text-sm text-text-secondary" role="status">
           No societies or cities match this search.
@@ -200,7 +200,7 @@ export function SocietyDiscoverySuggestListbox({
       id={listboxId}
       role="listbox"
       aria-label="Society and city suggestions"
-      className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border-base bg-surface-card py-1 shadow-md"
+      className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border-base bg-surface-card py-1 shadow-md"
     >
       {societyOptions.length > 0 ? (
         <div>

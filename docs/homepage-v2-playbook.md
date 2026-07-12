@@ -35,6 +35,7 @@ These sessions turn `/` into a **search-first discovery cockpit** for verified P
 | H2 | Shared `SocietyDiscoveryBar` on `/societies` (full Tier A) | B | Agent |
 | H3 | Homepage IA + slim bar + `listFeatured` | B | Agent |
 | H4 | Typeahead `society.suggest` + bar integration | **A** | Agent |
+| H4a | DiscoveryBar typeahead + applied-chips UX (ship-review follow-up) | B | Agent |
 | H5 | SEO SearchAction + city-chip a11y polish | B | Agent |
 | H6 | E2E discovery path | B | Agent |
 
@@ -42,7 +43,7 @@ These sessions turn `/` into a **search-first discovery cockpit** for verified P
 
 ## Design documentation (attach in UI sessions)
 
-**Attach** `@docs/design/Sectoria_Design_System.md` in **H0, H2, H3, H5**.  
+**Attach** `@docs/design/Sectoria_Design_System.md` in **H0, H2, H3, H4a, H5**.  
 **Do not attach it** in H1 (data/API) or H4 (API + listbox a11y from foundations/discovery-search is enough). **H6** attaches foundations + homepage-ia + existing e2e patterns.
 
 Lean rules `ui-design-system-sectoria.mdc` and `ui-ux-excellence-sectoria.mdc` auto-load on `apps/web/app/**` and `packages/ui/**`.
@@ -449,6 +450,49 @@ feat(discovery): society suggest typeahead for discovery bar
 
 ---
 
+## Session H4a — DiscoveryBar typeahead + applied-chips UX (ship-review follow-up)
+
+- **Model:** Tier B
+- **Mode:** Agent
+- **Parent:** H4 — run after H4 Test Gate passes; complete before H5
+- **Attach:** `@docs/architecture/homepage-v2/foundations.md` + `@docs/architecture/homepage-v2/discovery-search.md` + `@docs/design/Sectoria_Design_System.md`
+- **Rules expected to load:** `ui-ux-excellence-sectoria`, `ui-design-system-sectoria`, `concierge-model`.
+
+**Prompt:**
+```
+@docs/architecture/homepage-v2/foundations.md @docs/architecture/homepage-v2/discovery-search.md @docs/design/Sectoria_Design_System.md
+
+H4a closes post-H4 DiscoveryBar UX gaps (typeahead + applied-state). Do NOT
+start H5 SEO / city-chip work or H6 E2E.
+
+1. Typeahead: ensure the suggest listbox is not clipped by hero
+   `overflow-hidden`; keep listbox z-index above following homepage sections.
+   Do not let a late-mounting Reset control steal width from the search
+   column while typing.
+
+2. Applied filters: add a compact chip row under the toolbar with a
+   "Filters" label and "Clear all". Chip every active dimension (search,
+   city, budget, plot type, sheet filters). Category · value + dismiss.
+   Pure helper + Vitest in apps/web/lib/society-discovery-ui.ts.
+
+3. Density: keep the bar slim (tight padding/gap); directory search column
+   takes leftover width; city/budget/plot type stay content-capped. Tokens
+   only; no Book Now; preserve 44px primary control heights.
+
+Commit message:
+fix(discovery): polish discovery bar typeahead and applied filter chips
+```
+
+**Test Gate:**
+- [x] Typeahead listbox paints over the trust strip (no hero overflow clip).
+- [x] Search column does not shrink when applied state appears.
+- [x] `buildAppliedDiscoveryChips` covers toolbar + sheet dimensions; Vitest green.
+- [x] Chip row shows Filters label + Clear all; dismiss patches URL / home draft.
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+
+---
+
 ## Session H5 — SEO SearchAction + chip a11y polish
 
 - **Model:** Tier B
@@ -533,6 +577,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ✅ |
 | H3 | Homepage IA + slim bar + `listFeatured` | First ship | ✅ |
 | H4 | Typeahead `society.suggest` | Hardening | ✅ |
+| H4a | DiscoveryBar typeahead + applied-chips UX | Hardening | ✅ |
 | H5 | SEO SearchAction + chip a11y polish | Hardening | ⬜ |
 | H6 | E2E discovery path | Hardening | ⬜ |
 

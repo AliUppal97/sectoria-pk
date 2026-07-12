@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Filter, RotateCcw, Search } from "lucide-react";
+import { Filter, Search, X } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -44,13 +44,14 @@ import {
   SEARCH_DEBOUNCE_MS,
   SORT_OPTIONS,
   budgetPresetToPriceBounds,
+  buildAppliedDiscoveryChips,
   countFiltersBehindSheet,
   developmentStageOptions,
-  hasAnyDiscoveryFilter,
   isBookingStatus,
   isPlotType,
   matchBudgetPresetId,
   sizeLabelOptions,
+  type AppliedDiscoveryChip,
   type DiscoveryBarMode,
   type SocietyDiscoveryFacets,
 } from "@/lib/society-discovery-ui";
@@ -113,12 +114,24 @@ function DualSelect({
   ariaLabel,
   controlClassName = CONTROL_HEIGHT_DIRECTORY,
 }: DualSelectProps) {
+  const isActive = value !== DISCOVERY_ALL;
+
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="flex min-w-0 flex-col gap-1">
+      <Label
+        htmlFor={id}
+        className="text-2xs font-semibold uppercase tracking-[0.04em] text-text-tertiary"
+      >
+        {label}
+      </Label>
       <select
         id={id}
-        className={cn(nativeSelectBaseClassName, controlClassName)}
+        className={cn(
+          nativeSelectBaseClassName,
+          controlClassName,
+          // Quiet active: stronger border + weight — recognition lives in chips.
+          isActive && "border-border-strong font-medium",
+        )}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label={ariaLabel}
@@ -132,7 +145,11 @@ function DualSelect({
       </select>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
-          className={cn("hidden md:flex", controlClassName)}
+          className={cn(
+            "hidden md:flex",
+            controlClassName,
+            isActive && "border-border-strong font-medium",
+          )}
           aria-label={ariaLabel}
         >
           <SelectValue placeholder={allLabel} />
@@ -515,6 +532,21 @@ export function SocietyDiscoveryBar({
     ],
   );
 
+  const clearAppliedChip = useCallback(
+    (chip: AppliedDiscoveryChip) => {
+      if (chip.clearsSearchInput) {
+        setSearchInput("");
+        setPrevUrlSearch("");
+      }
+      if (mode === "home") {
+        setHomeDraft((prev) => ({ ...prev, ...chip.clear }));
+      } else {
+        replaceParams({ ...filtersFromUrl(), ...chip.clear });
+      }
+    },
+    [filtersFromUrl, mode, replaceParams],
+  );
+
   const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const isHomeMode = mode === "home";
     if (event.key === "Escape") {
@@ -566,7 +598,12 @@ export function SocietyDiscoveryBar({
   };
 
   const sheetFilterCount = countFiltersBehindSheet(activeFilters, mode);
-  const showReset = hasAnyDiscoveryFilter(activeFilters, searchInput);
+  const appliedChips = buildAppliedDiscoveryChips(
+    activeFilters,
+    facets,
+    searchInput,
+    mode,
+  );
   const isHome = mode === "home";
   const controlHeight = isHome
     ? CONTROL_HEIGHT_HOME
@@ -583,9 +620,11 @@ export function SocietyDiscoveryBar({
   );
 
   const barClassName = cn(
-    "flex flex-col gap-4 rounded-xl border border-border-base bg-surface-card p-5",
-    isHome && "shadow-sm transition-shadow duration-150 ease-default",
-    isHome && isFocused && "shadow-md",
+    "relative flex flex-col gap-2.5 rounded-lg border border-border-base bg-surface-card p-3 shadow-sm sm:p-3.5",
+    // Keep the typeahead listbox above the next homepage section.
+    showSuggest && "z-30",
+    "transition-shadow duration-150 ease-default motion-reduce:transition-none",
+    isFocused && "shadow-md",
   );
 
   return (
@@ -611,66 +650,83 @@ export function SocietyDiscoveryBar({
 
       {/*
         items-end: labelled fields + unlabelled actions share one baseline.
-        Home: 3 cols (search grows, city fixed, actions hug). Directory: 5 cols.
+        Home: search grows, city capped, actions hug.
+        Directory: search takes leftover width; city/budget/type stay
+        content-capped so they do not inflate and starve the input.
       */}
       <div
         className={cn(
-          "grid items-end gap-3 md:gap-4",
+          "grid items-end gap-2 md:gap-2.5",
           isHome
             ? "md:grid-cols-[minmax(0,1fr)_minmax(11rem,13rem)_auto]"
-            : "md:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))_auto]",
+            : "md:grid-cols-[minmax(0,1fr)_repeat(3,minmax(8.5rem,11rem))_auto]",
         )}
       >
-        <div className="relative flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor={`${baseId}-search`}>Search</Label>
-          <Input
-            id={`${baseId}-search`}
-            type="search"
-            role="combobox"
-            aria-expanded={showSuggest}
-            aria-controls={listboxId}
-            aria-autocomplete="list"
-            aria-activedescendant={
-              showSuggest && clampedSuggestIndex >= 0
-                ? suggestOptionId(listboxId, clampedSuggestIndex)
-                : undefined
-            }
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value);
-              setListboxDismissed(false);
-              setActiveSuggestIndex(-1);
-              if (isHome) {
-                patchHome({
-                  search: event.target.value.trim() || undefined,
-                });
-              }
-            }}
-            onFocus={() => {
-              setSearchFocused(true);
-              setListboxDismissed(false);
-            }}
-            onBlur={() => {
-              setSearchFocused(false);
-              setActiveSuggestIndex(-1);
-            }}
-            onKeyDown={onSearchKeyDown}
-            placeholder="Search societies or cities"
-            aria-label="Search societies or cities"
-            autoComplete="off"
-            className={controlHeight}
-          />
-          {showSuggest ? (
-            <SocietyDiscoverySuggestListbox
-              listboxId={listboxId}
-              options={suggestOptions}
-              activeIndex={clampedSuggestIndex}
-              isLoading={suggestLoading}
-              isError={suggestError}
-              onSelect={selectSuggestOption}
-              onActiveIndexChange={setActiveSuggestIndex}
+        <div className="relative flex min-w-0 flex-col gap-1">
+          <Label
+            htmlFor={`${baseId}-search`}
+            className="text-2xs font-semibold uppercase tracking-[0.04em] text-text-tertiary"
+          >
+            Search
+          </Label>
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-text-tertiary"
             />
-          ) : null}
+            <Input
+              id={`${baseId}-search`}
+              type="search"
+              role="combobox"
+              aria-expanded={showSuggest}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                showSuggest && clampedSuggestIndex >= 0
+                  ? suggestOptionId(listboxId, clampedSuggestIndex)
+                  : undefined
+              }
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setListboxDismissed(false);
+                setActiveSuggestIndex(-1);
+                if (isHome) {
+                  patchHome({
+                    search: event.target.value.trim() || undefined,
+                  });
+                }
+              }}
+              onFocus={() => {
+                setSearchFocused(true);
+                setListboxDismissed(false);
+              }}
+              onBlur={() => {
+                setSearchFocused(false);
+                setActiveSuggestIndex(-1);
+              }}
+              onKeyDown={onSearchKeyDown}
+              placeholder="Search societies or cities"
+              aria-label="Search societies or cities"
+              autoComplete="off"
+              className={cn(
+                controlHeight,
+                "pl-10",
+                searchInput.trim().length > 0 && "border-border-strong",
+              )}
+            />
+            {showSuggest ? (
+              <SocietyDiscoverySuggestListbox
+                listboxId={listboxId}
+                options={suggestOptions}
+                activeIndex={clampedSuggestIndex}
+                isLoading={suggestLoading}
+                isError={suggestError}
+                onSelect={selectSuggestOption}
+                onActiveIndexChange={setActiveSuggestIndex}
+              />
+            ) : null}
+          </div>
         </div>
 
         <DualSelect
@@ -735,11 +791,16 @@ export function SocietyDiscoveryBar({
           </>
         ) : null}
 
-        <div className="flex w-full flex-nowrap items-center gap-2 md:w-auto">
+        <div className="flex w-full flex-nowrap items-end gap-2 md:w-auto">
           <Button
             type="button"
             variant="ghost"
-            className={cn(controlHeight, "shrink-0 px-3")}
+            className={cn(
+              controlHeight,
+              "shrink-0 px-3",
+              sheetFilterCount > 0 &&
+                "border border-border-strong bg-surface-subtle font-medium text-text-primary hover:bg-surface-subtle",
+            )}
             onClick={openSheet}
             aria-label={
               sheetFilterCount > 0
@@ -750,7 +811,7 @@ export function SocietyDiscoveryBar({
             <Filter aria-hidden="true" className="h-4 w-4 shrink-0" />
             Filters
             {sheetFilterCount > 0 ? (
-              <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-md bg-brand-navy px-1.5 font-mono text-xs text-text-inverse">
+              <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-md bg-brand-navy px-1.5 font-mono text-2xs font-semibold text-text-inverse">
                 {sheetFilterCount}
               </span>
             ) : null}
@@ -771,21 +832,68 @@ export function SocietyDiscoveryBar({
               Search
             </Button>
           ) : null}
-
-          {showReset ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={cn(controlHeight, "shrink-0 px-3")}
-              onClick={resetAll}
-            >
-              <RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-              Reset
-            </Button>
-          ) : null}
         </div>
       </div>
+
+      {appliedChips.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border-base pt-2.5">
+          <span className="shrink-0 font-sans text-2xs font-semibold text-brand-navy-mid">
+            Filters
+          </span>
+          <ul
+            className="flex min-w-0 flex-1 flex-wrap gap-1"
+            aria-label="Applied filters"
+          >
+            {appliedChips.map((chip) => (
+              <li key={chip.id}>
+                <button
+                  type="button"
+                  onClick={() => clearAppliedChip(chip)}
+                  aria-label={chip.ariaLabel}
+                  className={cn(
+                    "group inline-flex h-8 max-w-[11rem] items-center gap-0.5 rounded-md border border-border-base bg-surface-subtle py-0 pl-2 pr-0.5",
+                    "font-sans text-xs text-text-primary",
+                    "transition-colors duration-150 ease-default",
+                    "hover:border-border-strong hover:bg-surface-card",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus",
+                    "motion-reduce:transition-none",
+                  )}
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="text-text-tertiary">{chip.category}</span>
+                    <span className="mx-0.5 text-text-disabled" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="font-medium">{chip.label}</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm",
+                      "text-text-tertiary group-hover:text-text-primary",
+                    )}
+                    aria-hidden="true"
+                  >
+                    <X className="h-3 w-3" strokeWidth={2} />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={resetAll}
+            className={cn(
+              "shrink-0 font-sans text-2xs font-semibold text-brand-navy-mid",
+              "underline-offset-2 transition-colors duration-150 ease-default",
+              "hover:text-brand-navy hover:underline",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus",
+              "motion-reduce:transition-none",
+            )}
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
         <DialogContent
