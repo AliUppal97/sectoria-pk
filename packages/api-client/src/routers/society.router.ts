@@ -15,9 +15,11 @@ import {
   societyBookingStatusSchema,
   societyCreateInputSchema,
   societyImportBatchInputSchema,
+  PAKISTAN_CITIES,
   societyListFeaturedInputSchema,
   societyListSummariesInputSchema,
   societySetPublishStatusInputSchema,
+  societySuggestInputSchema,
   UserRole,
   VerificationTier,
   verificationTierSchema,
@@ -37,6 +39,7 @@ import {
 } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
 import { resolveOwnedSocietyId } from "../middleware/resolve-owned-society-id.js";
+import { rateLimit } from "../middleware/rate-limit.js";
 import { mapDomainError } from "../lib/map-domain-error.js";
 import { persistLedgerEvent } from "../lib/persist-ledger-event.js";
 import { toId } from "../lib/ids.js";
@@ -45,6 +48,26 @@ import {
   type SocietyCompleteness,
 } from "../lib/society-completeness.js";
 import { pickSocietyCardHeroUrl } from "../lib/society-hero-url.js";
+
+/** Cap society typeahead hits (foundations §7 / discovery-search §3.6). */
+const SUGGEST_SOCIETY_LIMIT = 5;
+/** Cap city typeahead hits. */
+const SUGGEST_CITY_LIMIT = 3;
+
+/**
+ * Matches curated {@link PAKISTAN_CITIES} by slug or label (case-insensitive).
+ * Facet cities are the same curated set once published — no extra DB round-trip.
+ */
+function matchSuggestCities(q: string): { slug: string; label: string }[] {
+  const needle = q.toLowerCase();
+  return PAKISTAN_CITIES.filter(
+    (city) =>
+      city.slug.toLowerCase().includes(needle) ||
+      city.label.toLowerCase().includes(needle),
+  )
+    .slice(0, SUGGEST_CITY_LIMIT)
+    .map(({ slug, label }) => ({ slug, label }));
+}
 
 /** Fields needed to map a society row into a directory/homepage summary card. */
 type SocietySummarySource = {
@@ -800,6 +823,39 @@ export const societyRouter = router({
 
       const items = await enrichSocietySummaryPage(ctx, page);
       return { items };
+    }),
+
+  /**
+   * Discovery typeahead (H4 / discovery-search §3.6). Rate-limited by IP —
+   * abuse-prone public read. Societies: trigram-backed name search, PUBLISHED
+   * only, ≤5. Cities: curated PAKISTAN_CITIES match, ≤3. No dealer/PII fields.
+   */
+  suggest: publicProcedure
+    .use(rateLimit({ scope: "society:suggest", by: "ip" }))
+    .input(societySuggestInputSchema)
+    .query(async ({ ctx, input }) => {
+      // Name search is trigram-backed (pg_trgm GIN on Society.name). Suggest
+      // intentionally does *not* OR city contains — that stays on listSummaries.
+      const societies = await ctx.db.society.findMany({
+        where: {
+          publishStatus: SocietyPublishStatus.PUBLISHED,
+          name: { contains: input.q, mode: "insensitive" },
+        },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: SUGGEST_SOCIETY_LIMIT,
+        select: {
+          slug: true,
+          name: true,
+          citySlug: true,
+          city: true,
+          verificationTier: true,
+        },
+      });
+
+      return {
+        societies,
+        cities: matchSuggestCities(input.q),
+      };
     }),
 
   /**
