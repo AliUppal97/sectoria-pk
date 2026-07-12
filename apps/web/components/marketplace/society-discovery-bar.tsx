@@ -6,6 +6,7 @@ import {
   useId,
   useState,
   useTransition,
+  type KeyboardEvent,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Filter, RotateCcw, Search } from "lucide-react";
@@ -53,6 +54,15 @@ import {
   type DiscoveryBarMode,
   type SocietyDiscoveryFacets,
 } from "@/lib/society-discovery-ui";
+import { societyPath } from "@/lib/marketplace";
+import {
+  SUGGEST_MIN_CHARS,
+  SocietyDiscoverySuggestListbox,
+  flattenSuggestOptions,
+  suggestOptionId,
+  useSocietySuggest,
+  type SuggestOption,
+} from "@/components/marketplace/society-discovery-suggest";
 
 /**
  * Shared society discovery bar for homepage (`mode=home`) and `/societies`
@@ -308,13 +318,41 @@ export function SocietyDiscoveryBar({
   const [isPending, startTransition] = useTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [listboxDismissed, setListboxDismissed] = useState(false);
+  const [activeSuggestIndex, setActiveSuggestIndex] = useState(-1);
   const baseId = useId();
+  const listboxId = `${baseId}-suggest`;
 
   // Home: compose locally until Search. Directory: URL drives `current`.
   const [homeDraft, setHomeDraft] = useState<SocietyDiscoveryParams>(current);
   const [searchInput, setSearchInput] = useState(current.search ?? "");
   const [prevUrlSearch, setPrevUrlSearch] = useState(current.search ?? "");
+  // SEARCH_DEBOUNCE_MS is 300 (≥200 required for typeahead — foundations §7).
   const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+
+  const suggestQuery = debouncedSearch.trim();
+  const canSuggest = suggestQuery.length >= SUGGEST_MIN_CHARS;
+  const showSuggest =
+    searchFocused && canSuggest && !listboxDismissed && !sheetOpen;
+  const {
+    data: suggestData,
+    isLoading: suggestLoading,
+    isError: suggestError,
+  } = useSocietySuggest(suggestQuery, showSuggest);
+  const suggestOptions = flattenSuggestOptions(suggestData);
+
+  // Clamp highlight during render when the result set shrinks (react.dev —
+  // adjust state when props change; avoid setState-in-effect).
+  const clampedSuggestIndex =
+    activeSuggestIndex >= suggestOptions.length
+      ? suggestOptions.length > 0
+        ? 0
+        : -1
+      : activeSuggestIndex;
+  if (clampedSuggestIndex !== activeSuggestIndex) {
+    setActiveSuggestIndex(clampedSuggestIndex);
+  }
 
   // Sheet draft — Tier B (and home budget/type) before Apply.
   const [sheetDraft, setSheetDraft] = useState<SocietyDiscoveryParams>(current);
@@ -433,6 +471,100 @@ export function SocietyDiscoveryBar({
     });
   };
 
+  const selectSuggestOption = useCallback(
+    (option: SuggestOption) => {
+      setListboxDismissed(true);
+      setActiveSuggestIndex(-1);
+      setSearchFocused(false);
+
+      if (option.kind === "society") {
+        startTransition(() => {
+          router.push(
+            societyPath(option.society.citySlug, option.society.slug),
+          );
+        });
+        return;
+      }
+
+      // City → directory with citySlug (discovery-search §2.2).
+      const next: SocietyDiscoveryParams = {
+        ...(mode === "home" ? homeDraft : filtersFromUrl()),
+        citySlug: option.city.slug,
+        search: undefined,
+      };
+      setSearchInput("");
+      setPrevUrlSearch("");
+      if (mode === "home") {
+        setHomeDraft(next);
+        const params = serializeSocietyDiscoveryParams(next);
+        startTransition(() => {
+          router.push(
+            params.size > 0 ? `/societies?${params.toString()}` : "/societies",
+          );
+        });
+      } else {
+        replaceParams(next);
+      }
+    },
+    [
+      filtersFromUrl,
+      homeDraft,
+      mode,
+      replaceParams,
+      router,
+    ],
+  );
+
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const isHomeMode = mode === "home";
+    if (event.key === "Escape") {
+      if (showSuggest) {
+        event.preventDefault();
+        setListboxDismissed(true);
+        setActiveSuggestIndex(-1);
+      }
+      return;
+    }
+
+    if (!showSuggest) {
+      if (isHomeMode && event.key === "Enter") {
+        event.preventDefault();
+        submitHome();
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (suggestOptions.length === 0) return;
+      setActiveSuggestIndex((prev) =>
+        prev < suggestOptions.length - 1 ? prev + 1 : 0,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (suggestOptions.length === 0) return;
+      setActiveSuggestIndex((prev) =>
+        prev <= 0 ? suggestOptions.length - 1 : prev - 1,
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (clampedSuggestIndex >= 0 && suggestOptions[clampedSuggestIndex]) {
+        selectSuggestOption(suggestOptions[clampedSuggestIndex]);
+        return;
+      }
+      if (isHomeMode) {
+        setListboxDismissed(true);
+        submitHome();
+      }
+    }
+  };
+
   const sheetFilterCount = countFiltersBehindSheet(activeFilters, mode);
   const showReset = hasAnyDiscoveryFilter(activeFilters, searchInput);
   const isHome = mode === "home";
@@ -489,31 +621,56 @@ export function SocietyDiscoveryBar({
             : "md:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))_auto]",
         )}
       >
-        <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="relative flex min-w-0 flex-col gap-1.5">
           <Label htmlFor={`${baseId}-search`}>Search</Label>
           <Input
             id={`${baseId}-search`}
             type="search"
+            role="combobox"
+            aria-expanded={showSuggest}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-activedescendant={
+              showSuggest && clampedSuggestIndex >= 0
+                ? suggestOptionId(listboxId, clampedSuggestIndex)
+                : undefined
+            }
             value={searchInput}
             onChange={(event) => {
               setSearchInput(event.target.value);
+              setListboxDismissed(false);
+              setActiveSuggestIndex(-1);
               if (isHome) {
                 patchHome({
                   search: event.target.value.trim() || undefined,
                 });
               }
             }}
-            onKeyDown={(event) => {
-              if (isHome && event.key === "Enter") {
-                event.preventDefault();
-                submitHome();
-              }
+            onFocus={() => {
+              setSearchFocused(true);
+              setListboxDismissed(false);
             }}
+            onBlur={() => {
+              setSearchFocused(false);
+              setActiveSuggestIndex(-1);
+            }}
+            onKeyDown={onSearchKeyDown}
             placeholder="Search societies or cities"
             aria-label="Search societies or cities"
             autoComplete="off"
             className={controlHeight}
           />
+          {showSuggest ? (
+            <SocietyDiscoverySuggestListbox
+              listboxId={listboxId}
+              options={suggestOptions}
+              activeIndex={clampedSuggestIndex}
+              isLoading={suggestLoading}
+              isError={suggestError}
+              onSelect={selectSuggestOption}
+              onActiveIndexChange={setActiveSuggestIndex}
+            />
+          ) : null}
         </div>
 
         <DualSelect

@@ -159,3 +159,12 @@ export const societyListFeaturedInputSchema = z.object({
 export type SocietyListFeaturedInput = z.infer<
   typeof societyListFeaturedInputSchema
 >;
+
+/**
+ * Typeahead suggest input (H4 / discovery-search §3.6). Min 2 chars so we
+ * never fire an unbounded prefix scan on a single keystroke.
+ */
+export const societySuggestInputSchema = z.object({
+  q: z.string().trim().min(2).max(80),
+});
+export type SocietySuggestInput = z.infer<typeof societySuggestInputSchema>;

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { TRPCError } from "@trpc/server";
 import {
   createInMemoryDb,
   Store,
@@ -716,6 +717,101 @@ describe("societyRouter — directory scale (M0.7)", () => {
       "pending-cheap",
     ]);
     expect(items.every((item) => item.slug !== "draft-featured")).toBe(true);
+  });
+});
+
+describe("societyRouter — suggest (H4)", () => {
+  let store: Store;
+  let db: ReturnType<typeof createInMemoryDb>["db"];
+
+  beforeEach(() => {
+    const fake = createInMemoryDb();
+    store = fake.store;
+    db = fake.db;
+  });
+
+  it("rejects queries shorter than 2 characters", async () => {
+    const caller = createTestCaller({ db, session: null });
+    await expect(caller.society.suggest({ q: "d" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    await expect(caller.society.suggest({ q: "  " })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+
+  it("returns only PUBLISHED societies and caps societies at 5 / cities at 3", async () => {
+    for (let i = 1; i <= 7; i += 1) {
+      store.societies.set(
+        `soc_bahria_${i}`,
+        makeSociety({
+          id: `soc_bahria_${i}`,
+          slug: `bahria-town-${i}`,
+          name: `Bahria Town Phase ${i}`,
+          city: "Lahore",
+          citySlug: "lahore",
+          publishStatus: "PUBLISHED",
+        }),
+      );
+    }
+    store.societies.set(
+      "soc_draft_bahria",
+      makeSociety({
+        id: "soc_draft_bahria",
+        slug: "bahria-draft",
+        name: "Bahria Draft",
+        publishStatus: "DRAFT",
+      }),
+    );
+
+    const caller = createTestCaller({ db, session: null });
+    const result = await caller.society.suggest({ q: "bahria" });
+
+    expect(result.societies).toHaveLength(5);
+    expect(result.societies.every((s) => s.slug !== "bahria-draft")).toBe(true);
+    expect(result.societies[0]).toMatchObject({
+      slug: expect.any(String),
+      name: expect.any(String),
+      citySlug: expect.any(String),
+      city: expect.any(String),
+      verificationTier: expect.any(String),
+    });
+
+    const cities = await caller.society.suggest({ q: "la" });
+    expect(cities.cities.length).toBeLessThanOrEqual(3);
+    expect(cities.cities.some((c) => c.slug === "lahore")).toBe(true);
+  });
+
+  it("applies rateLimit by IP with society:suggest scope", async () => {
+    store.societies.set(SOCIETY_ID, makeSociety());
+    const limitedKeys: string[] = [];
+
+    const denied = createTestCaller({
+      db,
+      session: null,
+      clientId: "203.0.113.10",
+      rateLimiter: {
+        limit: async () => ({ success: false }),
+      },
+    });
+    await expect(denied.society.suggest({ q: "dh" })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS",
+    );
+
+    const allowed = createTestCaller({
+      db,
+      session: null,
+      clientId: "203.0.113.10",
+      rateLimiter: {
+        limit: async (key) => {
+          limitedKeys.push(key);
+          return { success: true };
+        },
+      },
+    });
+    await allowed.society.suggest({ q: "dh" });
+    expect(limitedKeys).toEqual(["society:suggest:203.0.113.10"]);
   });
 });
 

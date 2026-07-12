@@ -441,11 +441,11 @@ feat(discovery): society suggest typeahead for discovery bar
 ```
 
 **Test Gate:**
-- [ ] `suggest` tests cover limits + PUBLISHED-only + min length.
-- [ ] `rateLimit({ scope: "society:suggest", by: "ip" })` is applied (not deferred).
-- [ ] Bar typeahead keyboard-accessible; reduced-motion safe.
-- [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+- [x] `suggest` tests cover limits + PUBLISHED-only + min length.
+- [x] `rateLimit({ scope: "society:suggest", by: "ip" })` is applied (not deferred).
+- [x] Bar typeahead keyboard-accessible; reduced-motion safe.
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -532,7 +532,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H1b | Seed from persisted `pricePerSqft` (ship-review gap) | First ship | ✅ |
 | H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ✅ |
 | H3 | Homepage IA + slim bar + `listFeatured` | First ship | ✅ |
-| H4 | Typeahead `society.suggest` | Hardening | ⬜ |
+| H4 | Typeahead `society.suggest` | Hardening | ✅ |
 | H5 | SEO SearchAction + chip a11y polish | Hardening | ⬜ |
 | H6 | E2E discovery path | Hardening | ⬜ |
 
