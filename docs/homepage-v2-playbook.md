@@ -30,6 +30,8 @@ These sessions turn `/` into a **search-first discovery cockpit** for verified P
 |---|---|---|---|
 | H0 | Params helper + directory free-text search (no homepage hero) | B | Agent |
 | H1 | Types + `startingPricePkr` + rich `listSummaries` / `facets` | **A** | Agent |
+| H1a | Seed `startingPricePkr` after category inserts (ship-review gap) | **A** | Agent |
+| H1b | Seed `startingPricePkr` from persisted `pricePerSqft` (ship-review gap) | **A** | Agent |
 | H2 | Shared `SocietyDiscoveryBar` on `/societies` (full Tier A) | B | Agent |
 | H3 | Homepage IA + slim bar + `listFeatured` | B | Agent |
 | H4 | Typeahead `society.suggest` + bar integration | **A** | Agent |
@@ -198,7 +200,103 @@ feat(discovery): rich society filters, startingPricePkr, enriched facets
 - [ ] Public reads still exclude non-PUBLISHED; no `ratingDesc` in schema.
 - [ ] Params helper extended + unit tests for price pair drop.
 - [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+- [x] H1a complete (ship-review gap — seed must set `startingPricePkr`).
+- [x] H1b complete (ship-review gap — seed must use persisted `pricePerSqft`).
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+
+---
+
+## Session H1a — Seed `startingPricePkr` (ship-review gap)
+
+- **Model:** Tier A
+- **Mode:** Agent
+- **Parent:** H1 — run after H1 Test Gate (implementation) passes; complete before H2 / before shipping H1
+- **Attach:** `@docs/architecture/homepage-v2/foundations.md` + `@docs/architecture/homepage-v2/discovery-search.md` + `@docs/architecture/ADR-010-search-first-homepage.md`
+- **Rules expected to load:** `database`, `scalability-and-performance`, `oop-and-domain-modeling`.
+
+**Prompt:**
+```
+@docs/architecture/homepage-v2/foundations.md @docs/architecture/homepage-v2/discovery-search.md @docs/architecture/ADR-010-search-first-homepage.md
+
+H1a — close the seed gap for denormalized Society.startingPricePkr.
+
+Seeds create InventoryCategory rows via Prisma directly (not inventoryCategory
+router), so recomputeSocietyStartingPrice never runs on seed. After migrate +
+seed, startingPricePkr stays null and price filter/sort / H3 listFeatured /
+H6 budget E2E break on fresh DBs.
+
+1. packages/database/prisma/seed.ts: after each society's categories are
+   created, set Society.startingPricePkr = min(round(pricePerSqft * sizeSqft))
+   for that society (same formula as recomputeSocietyStartingPrice / migration
+   backfill). Prefer a small shared helper in packages/database (or inline the
+   min formula once per society) — do not import @sectoria/api-client into seed.
+
+2. packages/database/prisma/seed-urban-city-lahore.ts: same update after its
+   inventory categories are created.
+
+3. Societies with zero categories remain null (correct).
+
+Do not build SocietyDiscoveryBar (H2). Do not change homepage IA (H3).
+Do not add city trigram or ratingDesc.
+
+Commit message:
+fix(database): seed Society.startingPricePkr from category totals
+```
+
+**Test Gate:**
+- [x] Fresh seed leaves non-null `startingPricePkr` on societies that have categories (manual SQL or seed assertion).
+- [ ] Formula matches migration / `recomputeSocietyStartingPrice` (`round(pricePerSqft * sizeSqft)` min). → **H1b** (seed must use persisted `pricePerSqft`, not raw float).
+- [x] Urban City Lahore seed also sets `startingPricePkr`.
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] H1b complete (ship-review gap — persisted Decimal input).
+- [x] Ready for human review / ship with H1 (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+
+---
+
+## Session H1b — Seed `startingPricePkr` from persisted `pricePerSqft` (ship-review gap)
+
+- **Model:** Tier A
+- **Mode:** Agent
+- **Parent:** H1a — run after H1a implementation; complete before shipping H1 / before H2
+- **Attach:** `@docs/architecture/homepage-v2/foundations.md` + `@docs/architecture/homepage-v2/discovery-search.md` + `@docs/architecture/ADR-010-search-first-homepage.md`
+- **Rules expected to load:** `database`, `scalability-and-performance`, `oop-and-domain-modeling`.
+
+**Prompt:**
+```
+@docs/architecture/homepage-v2/foundations.md @docs/architecture/homepage-v2/discovery-search.md @docs/architecture/ADR-010-search-first-homepage.md
+
+H1b — close the seed formula-drift gap for Society.startingPricePkr.
+
+H1a sets startingPricePkr via computeSocietyStartingPricePkr, but seeds pass the
+raw in-memory pricePerSqftRupees float while InventoryCategory rows are stored
+as Decimal(pricePerSqftRupees.toFixed(2)). Migration backfill and
+recomputeSocietyStartingPrice read the persisted Decimal. On Urban City Lahore
+inventory this drifts by 1–23 PKR per category (e.g. 1-kanal: seed 6500000 vs
+recompute 6500023), so seed values do not match the H1a/H1 formula gate.
+
+1. packages/database/prisma/seed.ts and seed-urban-city-lahore.ts: when calling
+   computeSocietyStartingPricePkr, pass pricePerSqft from the value actually
+   persisted (Number(pricePerSqftRupees.toFixed(2)) or Number(created
+   category.pricePerSqft)) — not the raw division/float before toFixed(2).
+
+2. packages/database/src/__tests__/society-starting-price.test.ts (or a small
+   colocated seed-helper test): assert at least one Urban City fixture case
+   where raw float ≠ toFixed(2) input produces different totals, and that the
+   seed path uses the persisted-rounded input (same as recompute).
+
+3. Do not change the migration SQL or recomputeSocietyStartingPrice formula.
+   Do not build SocietyDiscoveryBar (H2) or homepage IA (H3).
+
+Commit message:
+fix(database): seed startingPricePkr from persisted category pricePerSqft
+```
+
+**Test Gate:**
+- [x] Seed compute input uses persisted/rounded `pricePerSqft` (code review + test).
+- [x] Urban City fixture case that previously drifted now matches
+      `Math.round(Number(raw.toFixed(2)) * sizeSqft)` (test).
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / re-run `session-ship-review` on H1a+H1b before `ship-pr`.
 
 ---
 
@@ -428,8 +526,10 @@ test(marketplace): e2e coverage for homepage discovery funnel
 
 | Session | Title | Wave | Status |
 |---|---|---|---|
-| H0 | Params helper + directory search | First ship | ⬜ |
-| H1 | Rich filters API + `startingPricePkr` | First ship | ⬜ |
+| H0 | Params helper + directory search | First ship | ✅ |
+| H1 | Rich filters API + `startingPricePkr` | First ship | ✅ |
+| H1a | Seed `startingPricePkr` (ship-review gap) | First ship | ✅ |
+| H1b | Seed from persisted `pricePerSqft` (ship-review gap) | First ship | ✅ |
 | H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ⬜ |
 | H3 | Homepage IA + slim bar + `listFeatured` | First ship | ⬜ |
 | H4 | Typeahead `society.suggest` | Hardening | ⬜ |

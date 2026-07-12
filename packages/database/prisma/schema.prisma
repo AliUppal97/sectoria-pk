@@ -102,6 +102,11 @@ model Society {
   virtualTourUrl        String? // Matterport/YouTube/360 embed (M1)
   promoVideoUrl         String? // promotional video embed (M1)
   developerId           String? // platform-curated builder (M5)
+  // Denormalized min category total (round(pricePerSqft * sizeSqft)) for
+  // directory price filter/sort (ADR-010 / H1). Maintained via
+  // recomputeSocietyStartingPrice on inventory category writes. Int PKR
+  // (not Decimal) is intentional — directory bounds are whole-rupee ints.
+  startingPricePkr      Int?
   createdAt             DateTime         @default(now())
 
   categories            InventoryCategory[]
@@ -126,6 +131,7 @@ model Society {
   @@index([verificationTier])
   @@index([publishStatus])
   @@index([publishStatus, citySlug])
+  @@index([publishStatus, startingPricePkr])
   @@index([developerId])
 }
 

@@ -12,6 +12,8 @@ encryption helper for CNIC/NTN.
   monorepo imports persistence types from here, not from `@prisma/client`.
 - Provides `encrypt` / `decrypt` for the two PII fields that must never be
   stored in plaintext: `User.cnicEncrypted` and `User.ntnEncrypted`.
+- Provides `computeSocietyStartingPricePkr` — pure min category total used by
+  seeds and by `recomputeSocietyStartingPrice` (ADR-010 / H1a).
 
 ## What it deliberately does NOT do
 

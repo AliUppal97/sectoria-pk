@@ -557,16 +557,21 @@ export const societyRouter = router({
     }),
 
   /**
-   * Cursor-paginated directory listing (M0.7). Replaces the old N+1 fan-out:
-   * category counts/starting price and review averages are resolved in a
-   * *bounded* number of queries (one page fetch + one categories fetch + one
-   * review groupBy), never one-per-society. Name/city search is index-backed via
-   * the pg_trgm trigram index. Public — only PUBLISHED societies appear.
+   * Cursor-paginated directory listing (M0.7 + H1). Replaces the old N+1
+   * fan-out: category counts and review averages are resolved in a *bounded*
+   * number of queries. Price filter/sort uses denormalized `startingPricePkr`
+   * (ADR-010). Public — only PUBLISHED societies appear.
    */
   listSummaries: publicProcedure
     .input(societyListSummariesInputSchema.optional())
     .query(async ({ ctx, input }) => {
       const limit = input?.limit ?? 24;
+      const sort = input?.sort ?? "name";
+      const hasPriceBound =
+        input?.priceMinPkr !== undefined || input?.priceMaxPkr !== undefined;
+      const hasCategoryFilter =
+        input?.plotType !== undefined || input?.sizeLabel !== undefined;
+
       const where: Prisma.SocietyWhereInput = {
         publishStatus: SocietyPublishStatus.PUBLISHED,
         ...(input?.citySlug !== undefined ? { citySlug: input.citySlug } : {}),
@@ -576,6 +581,42 @@ export const societyRouter = router({
         ...(input?.verificationTier !== undefined
           ? { verificationTier: input.verificationTier }
           : {}),
+        ...(input?.developmentStage !== undefined
+          ? { developmentStage: input.developmentStage }
+          : {}),
+        ...(input?.bookingStatus !== undefined
+          ? { bookingStatus: input.bookingStatus }
+          : {}),
+        ...(hasPriceBound
+          ? {
+              startingPricePkr: {
+                ...(input?.priceMinPkr !== undefined
+                  ? { gte: input.priceMinPkr }
+                  : {}),
+                ...(input?.priceMaxPkr !== undefined
+                  ? { lte: input.priceMaxPkr }
+                  : {}),
+              },
+            }
+          : {}),
+        // Plot type ∩ size: AND inside one categories.some (foundations §3.3).
+        ...(hasCategoryFilter
+          ? {
+              categories: {
+                some: {
+                  ...(input?.plotType !== undefined
+                    ? { plotType: input.plotType }
+                    : {}),
+                  ...(input?.sizeLabel !== undefined
+                    ? { sizeLabel: input.sizeLabel }
+                    : {}),
+                },
+              },
+            }
+          : {}),
+        // Name search is trigram-backed (pg_trgm GIN on Society.name). City
+        // match is case-insensitive contains without a city trigram — V2 keeps
+        // the smallest correct diff (foundations §3.4).
         ...(input?.search !== undefined
           ? {
               OR: [
@@ -586,10 +627,23 @@ export const societyRouter = router({
           : {}),
       };
 
+      const orderBy: Prisma.SocietyOrderByWithRelationInput[] =
+        sort === "priceAsc"
+          ? [
+              { startingPricePkr: { sort: "asc", nulls: "last" } },
+              { id: "asc" },
+            ]
+          : sort === "priceDesc"
+            ? [
+                { startingPricePkr: { sort: "desc", nulls: "last" } },
+                { id: "asc" },
+              ]
+            : [{ name: "asc" }, { id: "asc" }];
+
       // Query 1: one page of societies (+1 to detect a next page).
       const rows = await ctx.db.society.findMany({
         where,
-        orderBy: [{ name: "asc" }, { id: "asc" }],
+        orderBy,
         take: limit + 1,
         ...(input?.cursor != null
           ? { cursor: { id: input.cursor }, skip: 1 }
@@ -608,11 +662,7 @@ export const societyRouter = router({
           : await Promise.all([
               ctx.db.inventoryCategory.findMany({
                 where: { societyId: { in: societyIds } },
-                select: {
-                  societyId: true,
-                  pricePerSqft: true,
-                  sizeSqft: true,
-                },
+                select: { societyId: true },
               }),
               ctx.db.review.groupBy({
                 by: ["subjectSocietyId"],
@@ -634,27 +684,12 @@ export const societyRouter = router({
         }
       }
 
-      const categoryStats = new Map<
-        string,
-        { count: number; startingPrice: number | null }
-      >();
+      const categoryCountBySociety = new Map<string, number>();
       for (const category of categoryRows) {
-        const totalPrice = Math.round(
-          Number(category.pricePerSqft) * category.sizeSqft,
+        categoryCountBySociety.set(
+          category.societyId,
+          (categoryCountBySociety.get(category.societyId) ?? 0) + 1,
         );
-        const current = categoryStats.get(category.societyId);
-        if (current === undefined) {
-          categoryStats.set(category.societyId, {
-            count: 1,
-            startingPrice: totalPrice,
-          });
-        } else {
-          current.count += 1;
-          current.startingPrice =
-            current.startingPrice === null
-              ? totalPrice
-              : Math.min(current.startingPrice, totalPrice);
-        }
       }
 
       const ratingBySociety = new Map<
@@ -671,7 +706,6 @@ export const societyRouter = router({
       }
 
       const items = page.map((society) => {
-        const stats = categoryStats.get(society.id);
         return {
           id: society.id,
           slug: society.slug,
@@ -683,8 +717,9 @@ export const societyRouter = router({
           hsmsLinked: society.hsmsLinked,
           developmentStage: society.developmentStage,
           developmentPct: society.developmentPct,
-          categoryCount: stats?.count ?? 0,
-          startingPrice: stats?.startingPrice ?? null,
+          categoryCount: categoryCountBySociety.get(society.id) ?? 0,
+          // Prefer denormalized column so display never drifts from filters.
+          startingPrice: society.startingPricePkr ?? null,
           rating: ratingBySociety.get(society.id) ?? null,
           latitude: society.latitude,
           longitude: society.longitude,
@@ -710,23 +745,54 @@ export const societyRouter = router({
     }),
 
   /**
-   * Directory facet counts (M0.7): city, authority, and verification-tier
-   * tallies for the filter UI. A single `groupBy` replaces the three full-table
-   * `list()` scans the old `apps/web/lib/queries.ts` helpers ran. Public — only
-   * PUBLISHED societies are counted.
+   * Directory facet counts (M0.7 + H1). Bounded groupBy/aggregates over
+   * PUBLISHED societies (and their categories). V2 counts are *global*
+   * PUBLISHED tallies — not scoped to the active filter set (V2.1 if needed).
    */
   facets: publicProcedure.query(async ({ ctx }) => {
-    const groups = await ctx.db.society.groupBy({
-      by: ["citySlug", "city", "authority", "verificationTier"],
-      where: { publishStatus: SocietyPublishStatus.PUBLISHED },
-      _count: { _all: true },
-    });
+    const publishedWhere = {
+      publishStatus: SocietyPublishStatus.PUBLISHED,
+    } as const;
+
+    const [
+      societyGroups,
+      stageGroups,
+      bookingGroups,
+      plotTypeGroups,
+      sizeLabelGroups,
+    ] = await Promise.all([
+      ctx.db.society.groupBy({
+        by: ["citySlug", "city", "authority", "verificationTier"],
+        where: publishedWhere,
+        _count: { _all: true },
+      }),
+      ctx.db.society.groupBy({
+        by: ["developmentStage"],
+        where: publishedWhere,
+        _count: { _all: true },
+      }),
+      ctx.db.society.groupBy({
+        by: ["bookingStatus"],
+        where: publishedWhere,
+        _count: { _all: true },
+      }),
+      ctx.db.inventoryCategory.groupBy({
+        by: ["plotType"],
+        where: { society: publishedWhere },
+        _count: { _all: true },
+      }),
+      ctx.db.inventoryCategory.groupBy({
+        by: ["sizeLabel"],
+        where: { society: publishedWhere },
+        _count: { _all: true },
+      }),
+    ]);
 
     const cityCounts = new Map<string, { label: string; count: number }>();
     const authorityCounts = new Map<string, number>();
     const tierCounts = new Map<string, number>();
 
-    for (const group of groups) {
+    for (const group of societyGroups) {
       const count = group._count._all;
       const city = cityCounts.get(group.citySlug);
       cityCounts.set(group.citySlug, {
@@ -743,6 +809,8 @@ export const societyRouter = router({
       );
     }
 
+    const SIZE_LABEL_FACET_CAP = 24;
+
     return {
       cities: [...cityCounts.entries()]
         .map(([slug, { label, count }]) => ({ slug, label, count }))
@@ -754,6 +822,31 @@ export const societyRouter = router({
         tier: tier as VerificationTier,
         count,
       })),
+      plotTypes: plotTypeGroups
+        .map((group) => ({
+          value: group.plotType,
+          count: group._count._all,
+        }))
+        .sort((a, b) => a.value.localeCompare(b.value)),
+      sizeLabels: sizeLabelGroups
+        .map((group) => ({
+          value: group.sizeLabel,
+          count: group._count._all,
+        }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+        .slice(0, SIZE_LABEL_FACET_CAP),
+      developmentStages: stageGroups
+        .map((group) => ({
+          value: group.developmentStage,
+          count: group._count._all,
+        }))
+        .sort((a, b) => a.value.localeCompare(b.value)),
+      bookingStatuses: bookingGroups
+        .map((group) => ({
+          value: group.bookingStatus,
+          count: group._count._all,
+        }))
+        .sort((a, b) => a.value.localeCompare(b.value)),
     };
   }),
 

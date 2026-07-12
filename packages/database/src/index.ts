@@ -21,6 +21,7 @@ export {
   decrypt,
   isEncrypted,
 } from "./encryption.js";
+export { computeSocietyStartingPricePkr } from "./society-starting-price.js";
 
 // Re-export the generated Prisma namespace so consumers get model + enum types
 // (User, Booking, EscrowState, Prisma.JsonValue, …) without depending on

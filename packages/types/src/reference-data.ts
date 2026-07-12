@@ -97,3 +97,40 @@ export function isKnownAuthority(code: string): boolean {
 export function cityLabelForSlug(slug: string): string | undefined {
   return PAKISTAN_CITIES.find((city) => city.slug === slug)?.label;
 }
+
+/** A curated development-stage value shown in discovery filters (H1 / ADR-010). */
+export interface DevelopmentStageReference {
+  readonly value: string;
+  readonly label: string;
+}
+
+/**
+ * Common society development stages. Filter UI prefers this catalog; facets may
+ * still return live `Society.developmentStage` strings (union in the UI).
+ * Labels match seed-common strings where possible — V2 does not migrate free-text
+ * rows (discovery-search §3.2).
+ */
+export const DEVELOPMENT_STAGES = [
+  { value: "Planning", label: "Planning" },
+  { value: "Under Development", label: "Under Development" },
+  { value: "Possession Underway", label: "Possession Underway" },
+] as const satisfies readonly DevelopmentStageReference[];
+
+/** A curated plot size label for discovery filters (exact match on category). */
+export interface PlotSizeLabelReference {
+  readonly value: string;
+  readonly label: string;
+}
+
+/**
+ * Common residential plot size labels. Filter UI prefers this catalog; facets
+ * may list live `InventoryCategory.sizeLabel` values (top N by count).
+ */
+export const COMMON_PLOT_SIZE_LABELS = [
+  { value: "3 Marla", label: "3 Marla" },
+  { value: "5 Marla", label: "5 Marla" },
+  { value: "7 Marla", label: "7 Marla" },
+  { value: "10 Marla", label: "10 Marla" },
+  { value: "1 Kanal", label: "1 Kanal" },
+  { value: "2 Kanal", label: "2 Kanal" },
+] as const satisfies readonly PlotSizeLabelReference[];

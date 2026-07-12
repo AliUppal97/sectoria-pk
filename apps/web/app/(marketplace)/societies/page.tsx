@@ -75,7 +75,14 @@ export default async function SocietiesPage({
     Boolean(filters.citySlug) ||
     Boolean(filters.authority) ||
     Boolean(filters.verificationTier) ||
-    Boolean(filters.search);
+    Boolean(filters.search) ||
+    Boolean(filters.plotType) ||
+    Boolean(filters.sizeLabel) ||
+    filters.priceMinPkr !== undefined ||
+    filters.priceMaxPkr !== undefined ||
+    Boolean(filters.developmentStage) ||
+    Boolean(filters.bookingStatus) ||
+    Boolean(filters.sort && filters.sort !== "name");
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-12 sm:px-6">
@@ -101,6 +108,13 @@ export default async function SocietiesPage({
             citySlug: filters.citySlug,
             verificationTier: filters.verificationTier,
             authority: filters.authority,
+            plotType: filters.plotType,
+            sizeLabel: filters.sizeLabel,
+            priceMinPkr: filters.priceMinPkr,
+            priceMaxPkr: filters.priceMaxPkr,
+            developmentStage: filters.developmentStage,
+            bookingStatus: filters.bookingStatus,
+            sort: filters.sort,
           }}
         />
 

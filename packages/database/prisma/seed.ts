@@ -50,6 +50,7 @@ import {
   type PlotType as PlotTypeType,
 } from "@sectoria/types";
 import { encrypt } from "../src/encryption.js";
+import { computeSocietyStartingPricePkr } from "../src/society-starting-price.js";
 import {
   seedUrbanCityDevelopers,
   seedUrbanCityLahore,
@@ -622,6 +623,22 @@ async function main(): Promise<void> {
         nextPlotIndex: 0,
       });
     }
+
+    // Seeds bypass inventoryCategory router, so recompute never runs —
+    // set denormalized startingPricePkr here (H1a / ADR-010).
+    // Use persisted Decimal rounding (toFixed(2)), not the raw float used
+    // before create — otherwise seed drifts from recompute/backfill (H1b).
+    await prisma.society.update({
+      where: { id: society.id },
+      data: {
+        startingPricePkr: computeSocietyStartingPricePkr(
+          categories.map((category) => ({
+            pricePerSqft: Number(category.pricePerSqftRupees.toFixed(2)),
+            sizeSqft: category.sizeSqft,
+          })),
+        ),
+      },
+    });
 
     seededSocieties.push({
       id: society.id,
@@ -1507,10 +1524,33 @@ async function main(): Promise<void> {
     },
   });
 
+  // H1a — societies with inventory must have denormalized startingPricePkr
+  // (draft with zero categories correctly stays null).
+  const pricedWithoutCategories = await prisma.society.count({
+    where: {
+      startingPricePkr: { not: null },
+      categories: { none: {} },
+    },
+  });
+  const unpricedWithCategories = await prisma.society.count({
+    where: {
+      startingPricePkr: null,
+      categories: { some: {} },
+    },
+  });
+  if (pricedWithoutCategories > 0 || unpricedWithCategories > 0) {
+    throw new Error(
+      `startingPricePkr seed invariant failed: ${pricedWithoutCategories} priced with no categories, ${unpricedWithCategories} unpriced with categories`,
+    );
+  }
+
   const counts = {
     societies: await prisma.society.count(),
     draftSocieties: await prisma.society.count({
       where: { publishStatus: "DRAFT" },
+    }),
+    societiesWithStartingPrice: await prisma.society.count({
+      where: { startingPricePkr: { not: null } },
     }),
     developers: await prisma.developer.count(),
     developerProjects: await prisma.developerProject.count(),
