@@ -4,19 +4,16 @@ import { Building2 } from "lucide-react";
 import { Button, EmptyState, ErrorState, JsonLd } from "@sectoria/ui";
 import { SectionHeading } from "@/components/marketplace/section-heading";
 import { SocietyCard } from "@/components/marketplace/society-card";
-import { SocietyFilters } from "@/components/marketplace/society-filters";
+import { SocietyDiscoveryBar } from "@/components/marketplace/society-discovery-bar";
 import { load } from "@/lib/fetch";
-import {
-  listAuthorityFacets,
-  listCityFacets,
-  listSocietySummaries,
-} from "@/lib/queries";
+import { listCityFacets, listSocietyFacets, listSocietySummaries } from "@/lib/queries";
 import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 import {
   parseSocietyDiscoveryParams,
   serializeSocietyDiscoveryParams,
 } from "@/lib/society-discovery-params";
+import { EMPTY_DISCOVERY_FACETS } from "@/lib/society-discovery-ui";
 
 // SSR: filters are URL search params so filtered views are crawlable/shareable
 // (seo.mdc). Accessing searchParams opts this route into dynamic rendering.
@@ -65,10 +62,9 @@ export default async function SocietiesPage({
   const params = await searchParams;
   const filters = parseSocietyDiscoveryParams(params);
 
-  const [societies, cities, authorities] = await Promise.all([
+  const [societies, facets] = await Promise.all([
     load(() => listSocietySummaries(filters)),
-    load(() => listCityFacets()),
-    load(() => listAuthorityFacets()),
+    load(() => listSocietyFacets()),
   ]);
 
   const hasFilters =
@@ -96,26 +92,17 @@ export default async function SocietiesPage({
       <SectionHeading
         eyebrow="Directory"
         title="Housing societies"
-        description="Search by name or city, then filter by authority and verification status. Filtered views are shareable — the filters live in the URL."
+        description="Search by name or city, then filter by budget, plot type, authority and verification. Filtered views are shareable — the filters live in the URL."
       />
 
       <div className="mt-8 flex flex-col gap-8">
-        <SocietyFilters
-          cities={cities.status === "success" ? cities.data : []}
-          authorities={authorities.status === "success" ? authorities.data : []}
-          current={{
-            search: filters.search,
-            citySlug: filters.citySlug,
-            verificationTier: filters.verificationTier,
-            authority: filters.authority,
-            plotType: filters.plotType,
-            sizeLabel: filters.sizeLabel,
-            priceMinPkr: filters.priceMinPkr,
-            priceMaxPkr: filters.priceMaxPkr,
-            developmentStage: filters.developmentStage,
-            bookingStatus: filters.bookingStatus,
-            sort: filters.sort,
-          }}
+        <SocietyDiscoveryBar
+          mode="directory"
+          facets={
+            facets.status === "success" ? facets.data : EMPTY_DISCOVERY_FACETS
+          }
+          facetsError={facets.status === "error"}
+          current={filters}
         />
 
         {societies.status === "error" ? (
@@ -134,7 +121,7 @@ export default async function SocietiesPage({
             }
             description={
               hasFilters
-                ? "Try widening your filters — a different city, authority, or verification level."
+                ? "Try widening your filters — a different city, budget, or verification level."
                 : "Verified societies will appear here as they complete onboarding."
             }
             action={
