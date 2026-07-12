@@ -72,7 +72,10 @@ export function organizationSchema(): JsonLdSchema {
   };
 }
 
-/** schema.org `WebSite` with a search action for the directory. */
+/**
+ * schema.org `WebSite` with a SearchAction that mirrors real directory UX
+ * (`/societies?search=…` — discovery-search.md §5 / homepage H5).
+ */
 export function webSiteSchema(): JsonLdSchema {
   return {
     "@type": "WebSite",
@@ -80,8 +83,8 @@ export function webSiteSchema(): JsonLdSchema {
     url: SITE.url,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${SITE.url}/societies?city={city}`,
-      "query-input": "required name=city",
+      target: `${SITE.url}/societies?search={search_term_string}`,
+      "query-input": "required name=search_term_string",
     },
   };
 }

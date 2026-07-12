@@ -523,11 +523,11 @@ feat(marketplace): discovery SearchAction SEO and city chip a11y
 ```
 
 **Test Gate:**
-- [ ] SearchAction JSON-LD matches real search UX.
-- [ ] City chips accessible and capped at 6 with muted counts.
-- [ ] No ranking / analytics stub / featuredRank in the diff.
-- [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+- [x] SearchAction JSON-LD matches real search UX.
+- [x] City chips accessible and capped at 6 with muted counts.
+- [x] No ranking / analytics stub / featuredRank in the diff.
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 ---
 
 ## Session H6 — E2E discovery path
@@ -578,7 +578,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H3 | Homepage IA + slim bar + `listFeatured` | First ship | ✅ |
 | H4 | Typeahead `society.suggest` | Hardening | ✅ |
 | H4a | DiscoveryBar typeahead + applied-chips UX | Hardening | ✅ |
-| H5 | SEO SearchAction + chip a11y polish | Hardening | ⬜ |
+| H5 | SEO SearchAction + chip a11y polish | Hardening | ✅ |
 | H6 | E2E discovery path | Hardening | ⬜ |
 
 ---
