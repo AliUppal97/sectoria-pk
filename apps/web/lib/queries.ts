@@ -184,6 +184,15 @@ export async function listSocietyFacets(): Promise<{
   return getFacets();
 }
 
+/** Homepage featured societies — trust-first ranking (homepage-ia §2.2). */
+export async function listFeaturedSocieties(
+  limit = 6,
+): Promise<SocietySummary[]> {
+  const api = getApi();
+  const { items } = await api.society.listFeatured({ limit });
+  return items;
+}
+
 /** Distinct city facets (slug + label + count) for directory / homepage chips. */
 export async function listCityFacets(): Promise<
   { slug: string; label: string; count: number }[]
