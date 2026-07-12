@@ -30,9 +30,11 @@ export async function HomeHero() {
     .slice(0, CITY_CHIP_LIMIT);
 
   return (
-    <section className="relative overflow-hidden border-b border-border-base bg-surface-base">
+    // No overflow-hidden: typeahead listbox is absolute and must paint over
+    // the trust strip below (overflow would clip it).
+    <section className="relative border-b border-border-base bg-surface-base">
       <BackgroundGrid />
-      <div className="relative mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-16 sm:px-6 sm:py-24">
+      <div className="relative z-10 mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-16 sm:px-6 sm:py-24">
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-success-border bg-success-bg px-3 py-1 font-sans text-2xs font-semibold text-success-text">
           <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5" />
           Verified before it&apos;s listed

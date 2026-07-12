@@ -221,3 +221,204 @@ export function isBookingStatus(
     value as SocietyBookingStatusValue,
   );
 }
+
+/** Stable id for an applied-filter chip (one chip per filter dimension). */
+export type AppliedDiscoveryChipId =
+  | "search"
+  | "citySlug"
+  | "budget"
+  | "plotType"
+  | "verificationTier"
+  | "authority"
+  | "sizeLabel"
+  | "developmentStage"
+  | "bookingStatus"
+  | "sort";
+
+/**
+ * A dismissible applied-filter chip. `clear` is a partial params patch that
+ * removes this dimension (callers merge into URL / home draft). Pure — no I/O.
+ */
+export interface AppliedDiscoveryChip {
+  readonly id: AppliedDiscoveryChipId;
+  /** Dimension label shown muted before the value (e.g. "City"). */
+  readonly category: string;
+  /** Short human label for the active value. */
+  readonly label: string;
+  /** Accessible name: "Remove city filter: Lahore". */
+  readonly ariaLabel: string;
+  readonly clear: Partial<SocietyDiscoveryParams>;
+  /** When true, the search input must be cleared alongside `clear`. */
+  readonly clearsSearchInput?: boolean;
+}
+
+/** Budget chip label for non-preset bounds (avoids importing UI formatters). */
+function formatBudgetChipLabel(
+  priceMinPkr: number | undefined,
+  priceMaxPkr: number | undefined,
+): string {
+  const presetId = matchBudgetPresetId(priceMinPkr, priceMaxPkr);
+  if (presetId !== undefined) {
+    return (
+      BUDGET_PRESETS.find((preset) => preset.id === presetId)?.label ??
+      "Budget"
+    );
+  }
+  if (priceMinPkr !== undefined && priceMaxPkr !== undefined) {
+    return `PKR ${priceMinPkr.toLocaleString("en-PK")} – ${priceMaxPkr.toLocaleString("en-PK")}`;
+  }
+  if (priceMaxPkr !== undefined) {
+    return `Up to PKR ${priceMaxPkr.toLocaleString("en-PK")}`;
+  }
+  if (priceMinPkr !== undefined) {
+    return `From PKR ${priceMinPkr.toLocaleString("en-PK")}`;
+  }
+  return "Budget";
+}
+
+/**
+ * Builds applied-filter chips for the DiscoveryBar row. Includes every active
+ * dimension (search, city, budget, plot type, sheet filters) so the user can
+ * scan and dismiss filters in one place. Uses facets for city display labels
+ * (in-memory). `pendingSearch` covers debounce lag / home draft text.
+ *
+ * `mode` is accepted for call-site stability; chip emission is mode-agnostic.
+ */
+export function buildAppliedDiscoveryChips(
+  filters: SocietyDiscoveryParams,
+  facets: SocietyDiscoveryFacets,
+  pendingSearch = "",
+  mode: DiscoveryBarMode = "home",
+): AppliedDiscoveryChip[] {
+  void mode;
+
+  const chips: AppliedDiscoveryChip[] = [];
+
+  const searchText = pendingSearch.trim() || filters.search?.trim() || "";
+  if (searchText.length > 0) {
+    chips.push({
+      id: "search",
+      category: "Search",
+      label: searchText,
+      ariaLabel: `Remove search filter: ${searchText}`,
+      clear: { search: undefined },
+      clearsSearchInput: true,
+    });
+  }
+
+  if (filters.citySlug) {
+    const cityLabel =
+      facets.cities.find((city) => city.slug === filters.citySlug)?.label ??
+      filters.citySlug;
+    chips.push({
+      id: "citySlug",
+      category: "City",
+      label: cityLabel,
+      ariaLabel: `Remove city filter: ${cityLabel}`,
+      clear: { citySlug: undefined },
+    });
+  }
+
+  if (
+    filters.priceMinPkr !== undefined ||
+    filters.priceMaxPkr !== undefined
+  ) {
+    const label = formatBudgetChipLabel(
+      filters.priceMinPkr,
+      filters.priceMaxPkr,
+    );
+    chips.push({
+      id: "budget",
+      category: "Budget",
+      label,
+      ariaLabel: `Remove budget filter: ${label}`,
+      clear: { priceMinPkr: undefined, priceMaxPkr: undefined },
+    });
+  }
+
+  if (filters.plotType) {
+    const label =
+      PLOT_TYPE_OPTIONS.find((option) => option.value === filters.plotType)
+        ?.label ?? filters.plotType;
+    chips.push({
+      id: "plotType",
+      category: "Type",
+      label,
+      ariaLabel: `Remove plot type filter: ${label}`,
+      clear: { plotType: undefined },
+    });
+  }
+
+  if (filters.verificationTier) {
+    const label =
+      PUBLIC_VERIFICATION_OPTIONS.find(
+        (option) => option.value === filters.verificationTier,
+      )?.label ?? filters.verificationTier;
+    chips.push({
+      id: "verificationTier",
+      category: "Verification",
+      label,
+      ariaLabel: `Remove verification filter: ${label}`,
+      clear: { verificationTier: undefined },
+    });
+  }
+
+  if (filters.authority) {
+    chips.push({
+      id: "authority",
+      category: "Authority",
+      label: filters.authority,
+      ariaLabel: `Remove authority filter: ${filters.authority}`,
+      clear: { authority: undefined },
+    });
+  }
+
+  if (filters.sizeLabel) {
+    chips.push({
+      id: "sizeLabel",
+      category: "Size",
+      label: filters.sizeLabel,
+      ariaLabel: `Remove plot size filter: ${filters.sizeLabel}`,
+      clear: { sizeLabel: undefined },
+    });
+  }
+
+  if (filters.developmentStage) {
+    chips.push({
+      id: "developmentStage",
+      category: "Stage",
+      label: filters.developmentStage,
+      ariaLabel: `Remove development stage filter: ${filters.developmentStage}`,
+      clear: { developmentStage: undefined },
+    });
+  }
+
+  if (filters.bookingStatus) {
+    const label =
+      BOOKING_STATUS_OPTIONS.find(
+        (option) => option.value === filters.bookingStatus,
+      )?.label ?? filters.bookingStatus;
+    chips.push({
+      id: "bookingStatus",
+      category: "Booking",
+      label,
+      ariaLabel: `Remove booking status filter: ${label}`,
+      clear: { bookingStatus: undefined },
+    });
+  }
+
+  if (filters.sort && filters.sort !== "name") {
+    const label =
+      SORT_OPTIONS.find((option) => option.value === filters.sort)?.label ??
+      filters.sort;
+    chips.push({
+      id: "sort",
+      category: "Sort",
+      label,
+      ariaLabel: `Remove sort: ${label}`,
+      clear: { sort: undefined },
+    });
+  }
+
+  return chips;
+}
