@@ -63,8 +63,15 @@ import {
  * no Book Now (concierge-model.mdc).
  */
 
-const nativeSelectClassName =
-  "flex h-11 min-h-[44px] w-full cursor-pointer touch-manipulation items-center rounded-md border border-border-base bg-surface-card px-3 font-sans text-sm text-text-primary md:hidden";
+/** Directory density — 44px touch target (design system). */
+const CONTROL_HEIGHT_DIRECTORY =
+  "h-11 min-h-[44px]";
+
+/** Home hero — 48px control row so Search reads as the product (foundations §6). */
+const CONTROL_HEIGHT_HOME = "h-12 min-h-12";
+
+const nativeSelectBaseClassName =
+  "flex w-full cursor-pointer touch-manipulation items-center rounded-md border border-border-base bg-surface-card px-3 font-sans text-sm text-text-primary md:hidden";
 
 export interface SocietyDiscoveryBarProps {
   readonly facets: SocietyDiscoveryFacets;
@@ -82,6 +89,8 @@ interface DualSelectProps {
   readonly allLabel: string;
   readonly options: readonly { value: string; label: string }[];
   readonly ariaLabel: string;
+  /** Shared height class for native + Radix triggers (align with sibling controls). */
+  readonly controlClassName?: string;
 }
 
 function DualSelect({
@@ -92,13 +101,14 @@ function DualSelect({
   allLabel,
   options,
   ariaLabel,
+  controlClassName = CONTROL_HEIGHT_DIRECTORY,
 }: DualSelectProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <select
         id={id}
-        className={nativeSelectClassName}
+        className={cn(nativeSelectBaseClassName, controlClassName)}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label={ariaLabel}
@@ -111,7 +121,10 @@ function DualSelect({
         ))}
       </select>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="hidden md:flex" aria-label={ariaLabel}>
+        <SelectTrigger
+          className={cn("hidden md:flex", controlClassName)}
+          aria-label={ariaLabel}
+        >
           <SelectValue placeholder={allLabel} />
         </SelectTrigger>
         <SelectContent>
@@ -422,6 +435,10 @@ export function SocietyDiscoveryBar({
 
   const sheetFilterCount = countFiltersBehindSheet(activeFilters, mode);
   const showReset = hasAnyDiscoveryFilter(activeFilters, searchInput);
+  const isHome = mode === "home";
+  const controlHeight = isHome
+    ? CONTROL_HEIGHT_HOME
+    : CONTROL_HEIGHT_DIRECTORY;
 
   const cityOptions = facets.cities.map((city) => ({
     value: city.slug,
@@ -435,8 +452,8 @@ export function SocietyDiscoveryBar({
 
   const barClassName = cn(
     "flex flex-col gap-4 rounded-xl border border-border-base bg-surface-card p-5",
-    mode === "home" && "shadow-sm transition-shadow duration-150 ease-default",
-    mode === "home" && isFocused && "shadow-md",
+    isHome && "shadow-sm transition-shadow duration-150 ease-default",
+    isHome && isFocused && "shadow-md",
   );
 
   return (
@@ -460,15 +477,19 @@ export function SocietyDiscoveryBar({
         </p>
       ) : null}
 
+      {/*
+        items-end: labelled fields + unlabelled actions share one baseline.
+        Home: 3 cols (search grows, city fixed, actions hug). Directory: 5 cols.
+      */}
       <div
         className={cn(
-          "grid gap-4",
-          mode === "home"
-            ? "md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto_auto]"
-            : "md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]",
+          "grid items-end gap-3 md:gap-4",
+          isHome
+            ? "md:grid-cols-[minmax(0,1fr)_minmax(11rem,13rem)_auto]"
+            : "md:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))_auto]",
         )}
       >
-        <div className="flex flex-col gap-1.5 md:col-span-1">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor={`${baseId}-search`}>Search</Label>
           <Input
             id={`${baseId}-search`}
@@ -476,14 +497,14 @@ export function SocietyDiscoveryBar({
             value={searchInput}
             onChange={(event) => {
               setSearchInput(event.target.value);
-              if (mode === "home") {
+              if (isHome) {
                 patchHome({
                   search: event.target.value.trim() || undefined,
                 });
               }
             }}
             onKeyDown={(event) => {
-              if (mode === "home" && event.key === "Enter") {
+              if (isHome && event.key === "Enter") {
                 event.preventDefault();
                 submitHome();
               }
@@ -491,10 +512,7 @@ export function SocietyDiscoveryBar({
             placeholder="Search societies or cities"
             aria-label="Search societies or cities"
             autoComplete="off"
-            className={cn(
-              "h-11 min-h-[44px]",
-              mode === "home" && "min-h-12 h-12",
-            )}
+            className={controlHeight}
           />
         </div>
 
@@ -505,9 +523,10 @@ export function SocietyDiscoveryBar({
           allLabel="All cities"
           ariaLabel="Filter by city"
           options={cityOptions}
+          controlClassName={controlHeight}
           onChange={(value) => {
             const citySlug = value === DISCOVERY_ALL ? undefined : value;
-            if (mode === "home") {
+            if (isHome) {
               patchHome({ citySlug });
             } else {
               patchDirectory({ citySlug });
@@ -527,6 +546,7 @@ export function SocietyDiscoveryBar({
                 value: preset.id,
                 label: preset.label,
               }))}
+              controlClassName={controlHeight}
               onChange={(value) => {
                 if (value === DISCOVERY_ALL) {
                   patchDirectory({
@@ -545,6 +565,7 @@ export function SocietyDiscoveryBar({
               allLabel="Any type"
               ariaLabel="Filter by plot type"
               options={PLOT_TYPE_OPTIONS}
+              controlClassName={controlHeight}
               onChange={(value) =>
                 patchDirectory({
                   plotType:
@@ -557,55 +578,55 @@ export function SocietyDiscoveryBar({
           </>
         ) : null}
 
-        <div className="flex flex-col gap-1.5 justify-end">
-          <span className="hidden md:block h-4" aria-hidden="true" />
-          <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-nowrap items-center gap-2 md:w-auto">
+          <Button
+            type="button"
+            variant="ghost"
+            className={cn(controlHeight, "shrink-0 px-3")}
+            onClick={openSheet}
+            aria-label={
+              sheetFilterCount > 0
+                ? `Filters, ${sheetFilterCount} active`
+                : "Filters"
+            }
+          >
+            <Filter aria-hidden="true" className="h-4 w-4 shrink-0" />
+            Filters
+            {sheetFilterCount > 0 ? (
+              <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-md bg-brand-navy px-1.5 font-mono text-xs text-text-inverse">
+                {sheetFilterCount}
+              </span>
+            ) : null}
+          </Button>
+
+          {isHome ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className={cn(
+                controlHeight,
+                "min-w-30 flex-1 px-5 md:flex-none",
+              )}
+              onClick={submitHome}
+            >
+              <Search aria-hidden="true" className="h-4 w-4 shrink-0" />
+              Search
+            </Button>
+          ) : null}
+
+          {showReset ? (
             <Button
               type="button"
               variant="ghost"
-              className="min-h-[44px]"
-              onClick={openSheet}
-              aria-label={
-                sheetFilterCount > 0
-                  ? `Filters, ${sheetFilterCount} active`
-                  : "Filters"
-              }
+              size="sm"
+              className={cn(controlHeight, "shrink-0 px-3")}
+              onClick={resetAll}
             >
-              <Filter aria-hidden="true" className="h-4 w-4" />
-              Filters
-              {sheetFilterCount > 0 ? (
-                <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-md bg-brand-navy px-1.5 font-mono text-xs text-text-inverse">
-                  {sheetFilterCount}
-                </span>
-              ) : null}
+              <RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+              Reset
             </Button>
-
-            {mode === "home" ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                className="min-h-[44px]"
-                onClick={submitHome}
-              >
-                <Search aria-hidden="true" className="h-4 w-4" />
-                Search
-              </Button>
-            ) : null}
-
-            {showReset ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-h-[44px]"
-                onClick={resetAll}
-              >
-                <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
-                Reset
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </div>
 
@@ -636,7 +657,7 @@ export function SocietyDiscoveryBar({
               setSheetDraft((prev) => ({ ...prev, ...patch }))
             }
             facets={facets}
-            includeBudgetAndPlotType={mode === "home"}
+            includeBudgetAndPlotType={isHome}
           />
 
           <DialogFooter>

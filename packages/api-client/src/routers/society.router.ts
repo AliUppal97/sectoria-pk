@@ -15,16 +15,19 @@ import {
   societyBookingStatusSchema,
   societyCreateInputSchema,
   societyImportBatchInputSchema,
+  societyListFeaturedInputSchema,
   societyListSummariesInputSchema,
   societySetPublishStatusInputSchema,
   UserRole,
   VerificationTier,
   verificationTierSchema,
+  type SocietyBookingStatus,
   type SocietyImportRowResult,
 } from "@sectoria/types";
 import { calculateTrustScore } from "@sectoria/domain-trust-score";
 import { createLedgerEvent } from "@sectoria/domain-ledger";
-import { Prisma } from "@sectoria/database";
+import { Prisma, PrismaClient } from "@sectoria/database";
+import type { StorageAdapter } from "@sectoria/storage";
 import { router, TRPCError } from "../trpc.js";
 import {
   opsProcedure,
@@ -42,6 +45,121 @@ import {
   type SocietyCompleteness,
 } from "../lib/society-completeness.js";
 import { pickSocietyCardHeroUrl } from "../lib/society-hero-url.js";
+
+/** Fields needed to map a society row into a directory/homepage summary card. */
+type SocietySummarySource = {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  citySlug: string;
+  authority: string;
+  verificationTier: VerificationTier;
+  hsmsLinked: boolean;
+  developmentStage: string;
+  developmentPct: number;
+  startingPricePkr: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  totalLandKanal: { toString(): string } | string | null;
+  developedLandKanal: { toString(): string } | string | null;
+  bookingStatus: SocietyBookingStatus;
+  heroImageUrl: string | null;
+};
+
+/**
+ * Bounded aggregates + DTO mapping for a page of societies (listSummaries /
+ * listFeatured). Category counts and review averages are resolved in a fixed
+ * number of queries — no per-society fan-out.
+ */
+async function enrichSocietySummaryPage(
+  ctx: {
+    db: Pick<PrismaClient, "inventoryCategory" | "review" | "societyMedia">;
+    storage: StorageAdapter;
+  },
+  page: readonly SocietySummarySource[],
+) {
+  const societyIds = page.map((society) => society.id);
+
+  const [categoryRows, reviewGroups, heroMediaRows] =
+    societyIds.length === 0
+      ? [[], [], []]
+      : await Promise.all([
+          ctx.db.inventoryCategory.findMany({
+            where: { societyId: { in: societyIds } },
+            select: { societyId: true },
+          }),
+          ctx.db.review.groupBy({
+            by: ["subjectSocietyId"],
+            where: { subjectSocietyId: { in: societyIds } },
+            _avg: { rating: true },
+            _count: { _all: true },
+          }),
+          ctx.db.societyMedia.findMany({
+            where: { societyId: { in: societyIds }, kind: "HERO" },
+            orderBy: [{ sortOrder: "asc" }],
+            select: { societyId: true, storageKey: true },
+          }),
+        ]);
+
+  const heroStorageKeyBySociety = new Map<string, string>();
+  for (const row of heroMediaRows) {
+    if (!heroStorageKeyBySociety.has(row.societyId)) {
+      heroStorageKeyBySociety.set(row.societyId, row.storageKey);
+    }
+  }
+
+  const categoryCountBySociety = new Map<string, number>();
+  for (const category of categoryRows) {
+    categoryCountBySociety.set(
+      category.societyId,
+      (categoryCountBySociety.get(category.societyId) ?? 0) + 1,
+    );
+  }
+
+  const ratingBySociety = new Map<string, { value: number; count: number }>();
+  for (const group of reviewGroups) {
+    if (group.subjectSocietyId === null) continue;
+    const count = group._count._all;
+    const value = group._avg.rating;
+    if (count > 0 && value !== null) {
+      ratingBySociety.set(group.subjectSocietyId, { value, count });
+    }
+  }
+
+  return page.map((society) => ({
+    id: society.id,
+    slug: society.slug,
+    name: society.name,
+    city: society.city,
+    citySlug: society.citySlug,
+    authority: society.authority,
+    verificationTier: society.verificationTier,
+    hsmsLinked: society.hsmsLinked,
+    developmentStage: society.developmentStage,
+    developmentPct: society.developmentPct,
+    categoryCount: categoryCountBySociety.get(society.id) ?? 0,
+    startingPrice: society.startingPricePkr ?? null,
+    rating: ratingBySociety.get(society.id) ?? null,
+    latitude: society.latitude,
+    longitude: society.longitude,
+    totalLandKanal:
+      society.totalLandKanal !== null
+        ? society.totalLandKanal.toString()
+        : null,
+    developedLandKanal:
+      society.developedLandKanal !== null
+        ? society.developedLandKanal.toString()
+        : null,
+    bookingStatus: society.bookingStatus,
+    latestUpdateTitle: null as string | null,
+    heroImageUrl: pickSocietyCardHeroUrl(
+      society.heroImageUrl,
+      heroStorageKeyBySociety.get(society.id),
+      ctx.storage,
+    ),
+  }));
+}
 
 function toSocietyDto<T extends Record<string, unknown>>(society: T) {
   const createdAt =
@@ -653,95 +771,35 @@ export const societyRouter = router({
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore ? (page.at(-1)?.id ?? null) : null;
-      const societyIds = page.map((society) => society.id);
-
-      // Query 2–4: bounded aggregates for the whole page (no per-society loop).
-      const [categoryRows, reviewGroups, heroMediaRows] =
-        societyIds.length === 0
-          ? [[], [], []]
-          : await Promise.all([
-              ctx.db.inventoryCategory.findMany({
-                where: { societyId: { in: societyIds } },
-                select: { societyId: true },
-              }),
-              ctx.db.review.groupBy({
-                by: ["subjectSocietyId"],
-                where: { subjectSocietyId: { in: societyIds } },
-                _avg: { rating: true },
-                _count: { _all: true },
-              }),
-              ctx.db.societyMedia.findMany({
-                where: { societyId: { in: societyIds }, kind: "HERO" },
-                orderBy: [{ sortOrder: "asc" }],
-                select: { societyId: true, storageKey: true },
-              }),
-            ]);
-
-      const heroStorageKeyBySociety = new Map<string, string>();
-      for (const row of heroMediaRows) {
-        if (!heroStorageKeyBySociety.has(row.societyId)) {
-          heroStorageKeyBySociety.set(row.societyId, row.storageKey);
-        }
-      }
-
-      const categoryCountBySociety = new Map<string, number>();
-      for (const category of categoryRows) {
-        categoryCountBySociety.set(
-          category.societyId,
-          (categoryCountBySociety.get(category.societyId) ?? 0) + 1,
-        );
-      }
-
-      const ratingBySociety = new Map<
-        string,
-        { value: number; count: number }
-      >();
-      for (const group of reviewGroups) {
-        if (group.subjectSocietyId === null) continue;
-        const count = group._count._all;
-        const value = group._avg.rating;
-        if (count > 0 && value !== null) {
-          ratingBySociety.set(group.subjectSocietyId, { value, count });
-        }
-      }
-
-      const items = page.map((society) => {
-        return {
-          id: society.id,
-          slug: society.slug,
-          name: society.name,
-          city: society.city,
-          citySlug: society.citySlug,
-          authority: society.authority,
-          verificationTier: society.verificationTier,
-          hsmsLinked: society.hsmsLinked,
-          developmentStage: society.developmentStage,
-          developmentPct: society.developmentPct,
-          categoryCount: categoryCountBySociety.get(society.id) ?? 0,
-          // Prefer denormalized column so display never drifts from filters.
-          startingPrice: society.startingPricePkr ?? null,
-          rating: ratingBySociety.get(society.id) ?? null,
-          latitude: society.latitude,
-          longitude: society.longitude,
-          totalLandKanal:
-            society.totalLandKanal !== null
-              ? society.totalLandKanal.toString()
-              : null,
-          developedLandKanal:
-            society.developedLandKanal !== null
-              ? society.developedLandKanal.toString()
-              : null,
-          bookingStatus: society.bookingStatus,
-          latestUpdateTitle: null as string | null,
-          heroImageUrl: pickSocietyCardHeroUrl(
-            society.heroImageUrl,
-            heroStorageKeyBySociety.get(society.id),
-            ctx.storage,
-          ),
-        };
-      });
+      const items = await enrichSocietySummaryPage(ctx, page);
 
       return { items, nextCursor };
+    }),
+
+  /**
+   * Homepage featured societies (H3 / homepage-ia §2.2). Trust-first ranking:
+   * HSMS_LINKED → VERIFIED → startingPricePkr asc (nulls last) → name.
+   * Relies on Postgres VerificationTier enum order (PENDING < VERIFIED <
+   * HSMS_LINKED) via `verificationTier: desc`. Not priceAsc-only.
+   */
+  listFeatured: publicProcedure
+    .input(societyListFeaturedInputSchema.optional())
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 6;
+
+      const page = await ctx.db.society.findMany({
+        where: { publishStatus: SocietyPublishStatus.PUBLISHED },
+        orderBy: [
+          { verificationTier: "desc" },
+          { startingPricePkr: { sort: "asc", nulls: "last" } },
+          { name: "asc" },
+          { id: "asc" },
+        ],
+        take: limit,
+      });
+
+      const items = await enrichSocietySummaryPage(ctx, page);
+      return { items };
     }),
 
   /**

@@ -355,6 +355,10 @@ feat(marketplace): shared SocietyDiscoveryBar with rich filters
 - [x] `pnpm turbo run test lint typecheck` clean.
 - [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
+---
+
+## Session H3 — Homepage IA + slim bar + `listFeatured`
+
 - **Model:** Tier B
 - **Mode:** Agent
 - **Attach:** `@docs/architecture/homepage-v2/foundations.md` + `@docs/architecture/homepage-v2/homepage-ia.md` + `@docs/design/Sectoria_Design_System.md`
@@ -397,12 +401,12 @@ feat(marketplace): search-first homepage with listFeatured ranking
 ```
 
 **Test Gate:**
-- [ ] First viewport: trust line + H1 + sentence + Search/City bar + ≤6 chips; no budget/type inline; no Explore primary; Why-bento not above search.
-- [ ] Page decomposed into section components.
-- [ ] `listFeatured` ranking matches HSMS → VERIFIED → price → name (test).
-- [ ] Empty/error for featured still handled.
-- [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+- [x] First viewport: trust line + H1 + sentence + Search/City bar + ≤6 chips; no budget/type inline; no Explore primary; Why-bento not above search.
+- [x] Page decomposed into section components.
+- [x] `listFeatured` ranking matches HSMS → VERIFIED → price → name (test).
+- [x] Empty/error for featured still handled.
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -527,7 +531,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H1a | Seed `startingPricePkr` (ship-review gap) | First ship | ✅ |
 | H1b | Seed from persisted `pricePerSqft` (ship-review gap) | First ship | ✅ |
 | H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ✅ |
-| H3 | Homepage IA + slim bar + `listFeatured` | First ship | ⬜ |
+| H3 | Homepage IA + slim bar + `listFeatured` | First ship | ✅ |
 | H4 | Typeahead `society.suggest` | Hardening | ⬜ |
 | H5 | SEO SearchAction + chip a11y polish | Hardening | ⬜ |
 | H6 | E2E discovery path | Hardening | ⬜ |

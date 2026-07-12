@@ -627,6 +627,96 @@ describe("societyRouter — directory scale (M0.7)", () => {
     const page = await caller.society.listSummaries({ limit: 24 });
     expect(page.items.every((item) => item.slug !== "draft")).toBe(true);
   });
+
+  it("listFeatured ranks HSMS_LINKED → VERIFIED → price asc nulls last → name", async () => {
+    store.societies.set(
+      "soc_pending_cheap",
+      makeSociety({
+        id: "soc_pending_cheap",
+        slug: "pending-cheap",
+        name: "Pending Cheap",
+        verificationTier: "PENDING",
+        startingPricePkr: 1_000_000,
+      }),
+    );
+    store.societies.set(
+      "soc_verified_hi",
+      makeSociety({
+        id: "soc_verified_hi",
+        slug: "verified-hi",
+        name: "Verified High",
+        verificationTier: "VERIFIED",
+        startingPricePkr: 9_000_000,
+      }),
+    );
+    store.societies.set(
+      "soc_verified_lo",
+      makeSociety({
+        id: "soc_verified_lo",
+        slug: "verified-lo",
+        name: "Verified Low",
+        verificationTier: "VERIFIED",
+        startingPricePkr: 3_000_000,
+      }),
+    );
+    store.societies.set(
+      "soc_hsms_b",
+      makeSociety({
+        id: "soc_hsms_b",
+        slug: "hsms-b",
+        name: "HSMS Bravo",
+        verificationTier: "HSMS_LINKED",
+        hsmsLinked: true,
+        startingPricePkr: 8_000_000,
+      }),
+    );
+    store.societies.set(
+      "soc_hsms_a",
+      makeSociety({
+        id: "soc_hsms_a",
+        slug: "hsms-a",
+        name: "HSMS Alpha",
+        verificationTier: "HSMS_LINKED",
+        hsmsLinked: true,
+        startingPricePkr: 8_000_000,
+      }),
+    );
+    store.societies.set(
+      "soc_verified_null",
+      makeSociety({
+        id: "soc_verified_null",
+        slug: "verified-null",
+        name: "Verified Null",
+        verificationTier: "VERIFIED",
+        startingPricePkr: null,
+      }),
+    );
+    store.societies.set(
+      "soc_draft",
+      makeSociety({
+        id: "soc_draft",
+        slug: "draft-featured",
+        name: "Draft Featured",
+        verificationTier: "HSMS_LINKED",
+        hsmsLinked: true,
+        startingPricePkr: 500_000,
+        publishStatus: "DRAFT",
+      }),
+    );
+
+    const caller = createTestCaller({ db, session: null });
+    const { items } = await caller.society.listFeatured({ limit: 6 });
+
+    expect(items.map((item) => item.slug)).toEqual([
+      "hsms-a",
+      "hsms-b",
+      "verified-lo",
+      "verified-hi",
+      "verified-null",
+      "pending-cheap",
+    ]);
+    expect(items.every((item) => item.slug !== "draft-featured")).toBe(true);
+  });
 });
 
 describe("inventoryCategoryRouter — startingPricePkr recompute", () => {

@@ -459,6 +459,17 @@ function matchesNumericFilter(
   return true;
 }
 
+/**
+ * Mirrors Postgres `VerificationTier` declaration order so `orderBy:
+ * { verificationTier: "desc" }` matches production enum ranking
+ * (PENDING < VERIFIED < HSMS_LINKED).
+ */
+const VERIFICATION_TIER_ORDINAL: Record<string, number> = {
+  PENDING: 0,
+  VERIFIED: 1,
+  HSMS_LINKED: 2,
+};
+
 /** Applies the subset of `orderBy` the society queries use. */
 function sortSocieties(rows: SocietyRow[], orderBy: unknown): SocietyRow[] {
   const clauses = Array.isArray(orderBy)
@@ -499,12 +510,18 @@ function sortSocieties(rows: SocietyRow[], orderBy: unknown): SocietyRow[] {
         return aNull ? 1 : -1;
       }
 
-      const cmp =
-        av instanceof Date && bv instanceof Date
-          ? av.getTime() - bv.getTime()
-          : typeof av === "number" && typeof bv === "number"
-            ? av - bv
-            : String(av).localeCompare(String(bv));
+      let cmp: number;
+      if (field === "verificationTier") {
+        cmp =
+          (VERIFICATION_TIER_ORDINAL[String(av)] ?? -1) -
+          (VERIFICATION_TIER_ORDINAL[String(bv)] ?? -1);
+      } else if (av instanceof Date && bv instanceof Date) {
+        cmp = av.getTime() - bv.getTime();
+      } else if (typeof av === "number" && typeof bv === "number") {
+        cmp = av - bv;
+      } else {
+        cmp = String(av).localeCompare(String(bv));
+      }
       if (cmp !== 0) return direction === "desc" ? -cmp : cmp;
     }
     return 0;

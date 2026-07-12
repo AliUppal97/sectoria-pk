@@ -151,3 +151,11 @@ export const societyListSummariesInputSchema = z
 export type SocietyListSummariesInput = z.infer<
   typeof societyListSummariesInputSchema
 >;
+
+/** Homepage featured grid — trust-first ranking, capped (homepage-ia §2.2). */
+export const societyListFeaturedInputSchema = z.object({
+  limit: z.number().int().min(1).max(12).default(6),
+});
+export type SocietyListFeaturedInput = z.infer<
+  typeof societyListFeaturedInputSchema
+>;
