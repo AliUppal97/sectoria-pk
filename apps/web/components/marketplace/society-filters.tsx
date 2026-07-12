@@ -46,13 +46,20 @@ const nativeSelectClassName =
   "flex h-11 min-h-[44px] w-full cursor-pointer touch-manipulation items-center rounded-md border border-border-base bg-surface-card px-3 font-sans text-sm text-text-primary md:hidden";
 
 export interface SocietyFiltersProps {
-  readonly cities: readonly { slug: string; label: string }[];
+  readonly cities: readonly { slug: string; label: string; count?: number }[];
   readonly authorities: readonly string[];
   readonly current: {
     readonly search?: string;
     readonly citySlug?: string;
     readonly verificationTier?: string;
     readonly authority?: string;
+    readonly plotType?: string;
+    readonly sizeLabel?: string;
+    readonly priceMinPkr?: number;
+    readonly priceMaxPkr?: number;
+    readonly developmentStage?: string;
+    readonly bookingStatus?: string;
+    readonly sort?: string;
   };
 }
 
@@ -122,6 +129,13 @@ export function SocietyFilters({
     Boolean(current.citySlug) ||
     Boolean(current.verificationTier) ||
     Boolean(current.authority) ||
+    Boolean(current.plotType) ||
+    Boolean(current.sizeLabel) ||
+    current.priceMinPkr !== undefined ||
+    current.priceMaxPkr !== undefined ||
+    Boolean(current.developmentStage) ||
+    Boolean(current.bookingStatus) ||
+    Boolean(current.sort && current.sort !== "name") ||
     searchInput.trim().length > 0;
 
   return (

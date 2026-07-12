@@ -57,6 +57,7 @@ function seedSocietyAndCategory(store: Store): void {
     publishStatus: "PUBLISHED",
     publishedAt: FIXED_NOW,
     createdById: null,
+    startingPricePkr: 1125 * 9000,
     createdAt: FIXED_NOW,
   });
   store.categories.set(CATEGORY_ID, {

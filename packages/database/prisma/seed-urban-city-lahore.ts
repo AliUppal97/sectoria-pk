@@ -5,6 +5,7 @@
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { AtlStatus, UserRole } from "@sectoria/types";
+import { computeSocietyStartingPricePkr } from "../src/society-starting-price.js";
 import {
   URBAN_CITY_CDN,
   URBAN_CITY_FILE_SIZES,
@@ -205,6 +206,22 @@ export async function seedUrbanCityLahore(
       nextPlotIndex: 0,
     });
   }
+
+  // Seeds bypass inventoryCategory router, so recompute never runs —
+  // set denormalized startingPricePkr here (H1a / ADR-010).
+  // Use persisted Decimal rounding (toFixed(2)), not the raw float used
+  // before create — otherwise seed drifts from recompute/backfill (H1b).
+  await prisma.society.update({
+    where: { id: society.id },
+    data: {
+      startingPricePkr: computeSocietyStartingPricePkr(
+        categories.map((category) => ({
+          pricePerSqft: Number(category.pricePerSqftRupees.toFixed(2)),
+          sizeSqft: category.sizeSqft,
+        })),
+      ),
+    },
+  });
 
   // M1 — media (official CDN URLs stored as absolute storage keys)
   await prisma.societyMedia.createMany({

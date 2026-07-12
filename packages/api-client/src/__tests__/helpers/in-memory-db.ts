@@ -56,6 +56,7 @@ export interface SocietyRow {
   publishStatus: string;
   publishedAt: Date | null;
   createdById: string | null;
+  startingPricePkr: number | null;
   createdAt: Date;
 }
 
@@ -399,15 +400,35 @@ function matchesStringFilter(value: string, filter: unknown): boolean {
 /** Minimal Prisma `where` matcher for the society directory/console queries. */
 function matchesSocietyWhere(
   row: SocietyRow,
-  where?: Record<string, unknown>,
+  where: Record<string, unknown> | undefined,
+  store: Store,
 ): boolean {
   if (where === undefined) return true;
   for (const [key, condition] of Object.entries(where)) {
     if (key === "OR") {
       const clauses = condition as Record<string, unknown>[];
-      if (!clauses.some((clause) => matchesSocietyWhere(row, clause))) {
+      if (!clauses.some((clause) => matchesSocietyWhere(row, clause, store))) {
         return false;
       }
+      continue;
+    }
+    if (key === "categories") {
+      const some = (condition as { some?: Record<string, unknown> }).some;
+      if (some === undefined) continue;
+      const match = [...store.categories.values()].some((category) => {
+        if (category.societyId !== row.id) return false;
+        for (const [field, expected] of Object.entries(some)) {
+          if ((category as unknown as Record<string, unknown>)[field] !== expected) {
+            return false;
+          }
+        }
+        return true;
+      });
+      if (!match) return false;
+      continue;
+    }
+    if (key === "startingPricePkr") {
+      if (!matchesNumericFilter(row.startingPricePkr, condition)) return false;
       continue;
     }
     const value = (row as unknown as Record<string, unknown>)[key];
@@ -420,24 +441,70 @@ function matchesSocietyWhere(
   return true;
 }
 
+/** Matches Prisma int filters (`gte`/`lte`) including null exclusion. */
+function matchesNumericFilter(
+  value: number | null,
+  condition: unknown,
+): boolean {
+  if (condition === null) return value === null;
+  if (typeof condition === "number") return value === condition;
+  if (condition !== null && typeof condition === "object") {
+    const op = condition as { gte?: number; lte?: number };
+    // Active price bounds exclude null starting prices (Prisma semantics).
+    if (value === null) return false;
+    if (typeof op.gte === "number" && value < op.gte) return false;
+    if (typeof op.lte === "number" && value > op.lte) return false;
+    return true;
+  }
+  return true;
+}
+
 /** Applies the subset of `orderBy` the society queries use. */
 function sortSocieties(rows: SocietyRow[], orderBy: unknown): SocietyRow[] {
   const clauses = Array.isArray(orderBy)
-    ? (orderBy as Record<string, "asc" | "desc">[])
+    ? (orderBy as unknown[])
     : orderBy !== undefined && orderBy !== null
-      ? [orderBy as Record<string, "asc" | "desc">]
+      ? [orderBy]
       : [];
   if (clauses.length === 0) return rows;
   return [...rows].sort((a, b) => {
     for (const clause of clauses) {
-      const [field, direction] = Object.entries(clause)[0] ?? [];
+      if (clause === null || typeof clause !== "object") continue;
+      const [field, rawDirection] = Object.entries(
+        clause as Record<string, unknown>,
+      )[0] ?? [];
       if (field === undefined) continue;
+
+      let direction: "asc" | "desc" = "asc";
+      let nulls: "first" | "last" | undefined;
+      if (typeof rawDirection === "string") {
+        direction = rawDirection === "desc" ? "desc" : "asc";
+      } else if (rawDirection !== null && typeof rawDirection === "object") {
+        const nested = rawDirection as {
+          sort?: "asc" | "desc";
+          nulls?: "first" | "last";
+        };
+        direction = nested.sort === "desc" ? "desc" : "asc";
+        nulls = nested.nulls;
+      }
+
       const av = (a as unknown as Record<string, unknown>)[field];
       const bv = (b as unknown as Record<string, unknown>)[field];
+
+      if (av === null || av === undefined || bv === null || bv === undefined) {
+        if (av === bv) continue;
+        const aNull = av === null || av === undefined;
+        if (nulls === "last") return aNull ? 1 : -1;
+        if (nulls === "first") return aNull ? -1 : 1;
+        return aNull ? 1 : -1;
+      }
+
       const cmp =
         av instanceof Date && bv instanceof Date
           ? av.getTime() - bv.getTime()
-          : String(av).localeCompare(String(bv));
+          : typeof av === "number" && typeof bv === "number"
+            ? av - bv
+            : String(av).localeCompare(String(bv));
       if (cmp !== 0) return direction === "desc" ? -cmp : cmp;
     }
     return 0;
@@ -508,7 +575,7 @@ function buildClient(store: Store): PrismaClient {
       }) => {
         store.dbCallCount += 1;
         let rows = [...store.societies.values()].filter((row) =>
-          matchesSocietyWhere(row, args?.where),
+          matchesSocietyWhere(row, args?.where, store),
         );
         rows = sortSocieties(rows, args?.orderBy);
         if (args?.cursor !== undefined) {
@@ -569,6 +636,8 @@ function buildClient(store: Store): PrismaClient {
           publishStatus: String(args.data.publishStatus ?? "DRAFT"),
           publishedAt: (args.data.publishedAt as Date | null) ?? null,
           createdById: (args.data.createdById as string | null) ?? null,
+          startingPricePkr:
+            (args.data.startingPricePkr as number | null | undefined) ?? null,
           createdAt: new Date("2026-06-01T00:00:00.000Z"),
         };
         store.societies.set(id, row);
@@ -595,7 +664,7 @@ function buildClient(store: Store): PrismaClient {
       }) => {
         store.dbCallCount += 1;
         const rows = [...store.societies.values()].filter((row) =>
-          matchesSocietyWhere(row, args.where),
+          matchesSocietyWhere(row, args.where, store),
         );
         const groups = new Map<string, { key: Record<string, unknown>; count: number }>();
         for (const row of rows) {
@@ -616,7 +685,7 @@ function buildClient(store: Store): PrismaClient {
       count: async (args?: { where?: Record<string, unknown> }) => {
         store.dbCallCount += 1;
         return [...store.societies.values()].filter((row) =>
-          matchesSocietyWhere(row, args?.where),
+          matchesSocietyWhere(row, args?.where, store),
         ).length;
       },
     },
@@ -660,17 +729,72 @@ function buildClient(store: Store): PrismaClient {
 
     inventoryCategory: {
       findMany: async (args?: {
-        where?: { societyId?: string | { in?: string[] } };
+        where?: {
+          societyId?: string | { in?: string[] };
+          society?: Record<string, unknown>;
+        };
         select?: Record<string, boolean>;
       }) => {
         store.dbCallCount += 1;
-        const filter = args?.where?.societyId;
         return [...store.categories.values()].filter((category) => {
-          if (filter === undefined) return true;
-          if (typeof filter === "string") return category.societyId === filter;
-          if (filter.in !== undefined) return filter.in.includes(category.societyId);
+          const filter = args?.where?.societyId;
+          if (typeof filter === "string" && category.societyId !== filter) {
+            return false;
+          }
+          if (
+            filter !== undefined &&
+            typeof filter !== "string" &&
+            filter.in !== undefined &&
+            !filter.in.includes(category.societyId)
+          ) {
+            return false;
+          }
+          if (args?.where?.society !== undefined) {
+            const society = store.societies.get(category.societyId);
+            if (society === undefined) return false;
+            if (!matchesSocietyWhere(society, args.where.society, store)) {
+              return false;
+            }
+          }
           return true;
         });
+      },
+      groupBy: async (args: {
+        by: string[];
+        where?: {
+          societyId?: string | { in?: string[] };
+          society?: Record<string, unknown>;
+        };
+      }) => {
+        store.dbCallCount += 1;
+        const rows = [...store.categories.values()].filter((category) => {
+          if (args.where?.society !== undefined) {
+            const society = store.societies.get(category.societyId);
+            if (society === undefined) return false;
+            if (!matchesSocietyWhere(society, args.where.society, store)) {
+              return false;
+            }
+          }
+          return true;
+        });
+        const groups = new Map<
+          string,
+          { key: Record<string, unknown>; count: number }
+        >();
+        for (const row of rows) {
+          const key: Record<string, unknown> = {};
+          for (const field of args.by) {
+            key[field] = (row as unknown as Record<string, unknown>)[field];
+          }
+          const mapKey = JSON.stringify(key);
+          const existing = groups.get(mapKey);
+          if (existing === undefined) groups.set(mapKey, { key, count: 1 });
+          else existing.count += 1;
+        }
+        return [...groups.values()].map((group) => ({
+          ...group.key,
+          _count: { _all: group.count },
+        }));
       },
       findUnique: async (args: {
         where: { id: string };
@@ -701,7 +825,34 @@ function buildClient(store: Store): PrismaClient {
           ? { ...category }
           : { ...category, paymentPlans };
       },
+      create: async (args: { data: Record<string, unknown> }) => {
+        store.dbCallCount += 1;
+        const id =
+          typeof args.data.id === "string"
+            ? args.data.id
+            : `cat_${store.categories.size + 1}`;
+        const row: CategoryRow = {
+          id,
+          societyId: String(args.data.societyId),
+          slug: String(args.data.slug),
+          phase: String(args.data.phase),
+          block: String(args.data.block),
+          plotType: String(args.data.plotType),
+          sizeLabel: String(args.data.sizeLabel),
+          sizeSqft: Number(args.data.sizeSqft),
+          pricePerSqft: String(args.data.pricePerSqft),
+          totalUnits: Number(args.data.totalUnits),
+          availableUnits: Number(
+            args.data.availableUnits ?? args.data.totalUnits,
+          ),
+          allocationStrategy: String(args.data.allocationStrategy ?? "FIFO"),
+          fbrValuationZone: String(args.data.fbrValuationZone),
+        };
+        store.categories.set(id, row);
+        return row;
+      },
       update: async (args: WhereId & { data: Record<string, unknown> }) => {
+        store.dbCallCount += 1;
         const row = store.categories.get(args.where.id);
         if (row === undefined) throw new Error("category not found");
         if ("availableUnits" in args.data) {
@@ -709,6 +860,15 @@ function buildClient(store: Store): PrismaClient {
             row.availableUnits,
             args.data.availableUnits,
           );
+        }
+        if (typeof args.data.pricePerSqft === "string") {
+          row.pricePerSqft = args.data.pricePerSqft;
+        }
+        if (typeof args.data.totalUnits === "number") {
+          row.totalUnits = args.data.totalUnits;
+        }
+        if (typeof args.data.allocationStrategy === "string") {
+          row.allocationStrategy = args.data.allocationStrategy;
         }
         return row;
       },

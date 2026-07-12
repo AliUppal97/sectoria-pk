@@ -39,6 +39,7 @@ function seedSociety(store: Store): void {
     publishStatus: "PUBLISHED",
     publishedAt: new Date("2026-05-01T00:00:00.000Z"),
     createdById: null,
+    startingPricePkr: null,
     createdAt: new Date("2026-04-01T00:00:00.000Z"),
   });
 }

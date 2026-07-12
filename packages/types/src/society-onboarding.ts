@@ -2,6 +2,8 @@ import { z } from "zod";
 import { idSchema, slugSchema } from "./common.js";
 import { societyPublishStatusSchema } from "./society.js";
 import { isKnownAuthority, isKnownCitySlug } from "./reference-data.js";
+import { plotTypeSchema } from "./inventory-category.js";
+import { societyBookingStatusSchema } from "./society-update.js";
 
 /**
  * Input contracts for society onboarding & lifecycle (M0). Society creation is
@@ -86,20 +88,66 @@ export type SocietyImportRowResult = z.infer<
 >;
 
 /**
- * Cursor-paginated directory listing input (M0.7). Filters and search are
- * index-backed on the server; there is no in-memory full-table scan.
+ * Directory sort options (ADR-010 / V2). `ratingDesc` is deferred until a
+ * maintained aggregate exists — do not add it here.
  */
-export const societyListSummariesInputSchema = z.object({
-  limit: z.number().int().min(1).max(60).default(24),
-  cursor: idSchema.nullish(),
-  citySlug: slugSchema.optional(),
-  authority: z.string().min(1).optional(),
-  verificationTier: z
-    .enum(["PENDING", "VERIFIED", "HSMS_LINKED"])
-    .optional(),
-  /** Free-text name/city search, backed by a Postgres trigram index. */
-  search: z.string().trim().min(1).max(120).optional(),
-});
+export const societyListSortSchema = z.enum([
+  "name",
+  "priceAsc",
+  "priceDesc",
+]);
+export type SocietyListSort = z.infer<typeof societyListSortSchema>;
+
+/** Max PKR bound accepted on directory price filters (1 trillion). */
+const PRICE_FILTER_MAX_PKR = 1_000_000_000_000;
+
+/**
+ * Cursor-paginated directory listing input (M0.7 + H1). Filters and search are
+ * index-backed on the server; there is no in-memory full-table scan.
+ * Price uses denormalized `Society.startingPricePkr` (ADR-010).
+ */
+export const societyListSummariesInputSchema = z
+  .object({
+    limit: z.number().int().min(1).max(60).default(24),
+    cursor: idSchema.nullish(),
+    citySlug: slugSchema.optional(),
+    authority: z.string().min(1).optional(),
+    verificationTier: z
+      .enum(["PENDING", "VERIFIED", "HSMS_LINKED"])
+      .optional(),
+    /** Free-text name/city search; name is trigram-backed, city is contains. */
+    search: z.string().trim().min(1).max(120).optional(),
+    plotType: plotTypeSchema.optional(),
+    sizeLabel: z.string().trim().min(1).max(40).optional(),
+    priceMinPkr: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(PRICE_FILTER_MAX_PKR)
+      .optional(),
+    priceMaxPkr: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(PRICE_FILTER_MAX_PKR)
+      .optional(),
+    developmentStage: z.string().trim().min(1).max(80).optional(),
+    bookingStatus: societyBookingStatusSchema.optional(),
+    sort: societyListSortSchema.default("name"),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.priceMinPkr !== undefined &&
+      value.priceMaxPkr !== undefined &&
+      value.priceMinPkr > value.priceMaxPkr
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "priceMinPkr must be less than or equal to priceMaxPkr.",
+        path: ["priceMinPkr"],
+      });
+    }
+  });
 export type SocietyListSummariesInput = z.infer<
   typeof societyListSummariesInputSchema
 >;

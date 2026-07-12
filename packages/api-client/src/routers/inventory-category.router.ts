@@ -11,6 +11,7 @@ import type { InventoryCategory as CategoryRow } from "@sectoria/database";
 import { router, TRPCError } from "../trpc.js";
 import { publicProcedure, societyAdminProcedure } from "../procedures.js";
 import { assertSocietyOwnership } from "../middleware/require-society-ownership.js";
+import { recomputeSocietyStartingPrice } from "../lib/recompute-society-starting-price.js";
 
 /**
  * Inventory-category procedures: a society's sellable buckets (phase/block/size)
@@ -20,6 +21,10 @@ import { assertSocietyOwnership } from "../middleware/require-society-ownership.
  * `pricePerSqft` is a `Decimal` at the database level — it is converted to and
  * from a decimal *string* at this boundary so exact pricing precision survives
  * the wire (a JSON float would silently lose it; see `json-and-config-conventions.mdc`).
+ *
+ * Category create/update recompute `Society.startingPricePkr` in the same
+ * transaction (ADR-010). There is no category delete procedure yet — if one
+ * lands, call `recomputeSocietyStartingPrice` there too.
  */
 function toCategoryDto(row: CategoryRow) {
   return { ...row, pricePerSqft: row.pricePerSqft.toString() };
@@ -107,22 +112,26 @@ export const inventoryCategoryRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       assertSocietyOwnership(ctx.session, input.societyId);
-      const created = await ctx.db.inventoryCategory.create({
-        data: {
-          societyId: input.societyId,
-          slug: input.slug,
-          phase: input.phase,
-          block: input.block,
-          plotType: input.plotType,
-          sizeLabel: input.sizeLabel,
-          sizeSqft: input.sizeSqft,
-          pricePerSqft: input.pricePerSqft,
-          totalUnits: input.totalUnits,
-          // New inventory starts fully available.
-          availableUnits: input.totalUnits,
-          allocationStrategy: input.allocationStrategy,
-          fbrValuationZone: input.fbrValuationZone,
-        },
+      const created = await ctx.db.$transaction(async (tx) => {
+        const category = await tx.inventoryCategory.create({
+          data: {
+            societyId: input.societyId,
+            slug: input.slug,
+            phase: input.phase,
+            block: input.block,
+            plotType: input.plotType,
+            sizeLabel: input.sizeLabel,
+            sizeSqft: input.sizeSqft,
+            pricePerSqft: input.pricePerSqft,
+            totalUnits: input.totalUnits,
+            // New inventory starts fully available.
+            availableUnits: input.totalUnits,
+            allocationStrategy: input.allocationStrategy,
+            fbrValuationZone: input.fbrValuationZone,
+          },
+        });
+        await recomputeSocietyStartingPrice(tx, input.societyId);
+        return category;
       });
       return toCategoryDto(created);
     }),
@@ -153,9 +162,14 @@ export const inventoryCategoryRouter = router({
       }
       assertSocietyOwnership(ctx.session, category.societyId);
 
-      const updated = await ctx.db.inventoryCategory.update({
-        where: { id: input.categoryId },
-        data: input.data,
+      const updated = await ctx.db.$transaction(async (tx) => {
+        const row = await tx.inventoryCategory.update({
+          where: { id: input.categoryId },
+          data: input.data,
+        });
+        // pricePerSqft (and any future sizeSqft edits) change starting price.
+        await recomputeSocietyStartingPrice(tx, category.societyId);
+        return row;
       });
       return toCategoryDto(updated);
     }),

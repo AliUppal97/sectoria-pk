@@ -1,6 +1,11 @@
 import "server-only";
 import { cache } from "react";
-import type { SocietyBookingStatus, VerificationTier } from "@sectoria/types";
+import type {
+  PlotType,
+  SocietyBookingStatus,
+  SocietyListSort,
+  VerificationTier,
+} from "@sectoria/types";
 import { getApi } from "./trpc/server";
 import { isNotFound } from "./fetch";
 import {
@@ -12,7 +17,7 @@ import {
 /**
  * Composed read helpers for the marketplace pages.
  *
- * SCALE (M0.7): the directory list, facets, and search are served by the
+ * SCALE (M0.7 + H1): the directory list, facets, and search are served by the
  * cursor-paginated `society.listSummaries` / `society.facets` procedures, which
  * run a *bounded* number of queries (aggregates via `groupBy`, search via the
  * pg_trgm trigram index) rather than the old N+1 fan-out + three full-table
@@ -23,12 +28,19 @@ import {
 /** The number of societies the directory shows on its first (SSR) page. */
 const DIRECTORY_PAGE_SIZE = 48;
 
-/** Filters accepted by the society directory, mirroring `society.list` input. */
+/** Filters accepted by the society directory, mirroring listSummaries input. */
 export interface SocietyFilters {
   readonly citySlug?: string;
   readonly verificationTier?: VerificationTier;
   readonly authority?: string;
   readonly search?: string;
+  readonly plotType?: PlotType;
+  readonly sizeLabel?: string;
+  readonly priceMinPkr?: number;
+  readonly priceMaxPkr?: number;
+  readonly developmentStage?: string;
+  readonly bookingStatus?: SocietyBookingStatus;
+  readonly sort?: SocietyListSort;
 }
 
 /** The reviewable shape used to derive an aggregate rating. */
@@ -108,6 +120,13 @@ export async function listSocietySummaries(
     authority: filters?.authority,
     verificationTier: filters?.verificationTier,
     search: filters?.search,
+    plotType: filters?.plotType,
+    sizeLabel: filters?.sizeLabel,
+    priceMinPkr: filters?.priceMinPkr,
+    priceMaxPkr: filters?.priceMaxPkr,
+    developmentStage: filters?.developmentStage,
+    bookingStatus: filters?.bookingStatus,
+    sort: filters?.sort,
   });
   return items;
 }
@@ -153,13 +172,13 @@ export async function listSocietyOptions(): Promise<
  */
 const getFacets = cache(async () => getApi().society.facets());
 
-/** Distinct city facets (slug + display label) for the directory filter. */
+/** Distinct city facets (slug + label + count) for directory / homepage chips. */
 export async function listCityFacets(): Promise<
-  { slug: string; label: string }[]
+  { slug: string; label: string; count: number }[]
 > {
   const { cities } = await getFacets();
   return cities
-    .map(({ slug, label }) => ({ slug, label }))
+    .map(({ slug, label, count }) => ({ slug, label, count }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 

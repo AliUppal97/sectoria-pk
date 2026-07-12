@@ -18,15 +18,22 @@ describe("parseSocietyDiscoveryParams", () => {
       citySlug: "lahore",
       authority: "LDA",
       verificationTier: "HSMS_LINKED",
+      plotType: undefined,
+      sizeLabel: undefined,
+      priceMinPkr: undefined,
+      priceMaxPkr: undefined,
+      developmentStage: undefined,
+      bookingStatus: undefined,
+      sort: undefined,
     });
   });
 
   it("trims search and ignores empty / whitespace-only search", () => {
-    expect(parseSocietyDiscoveryParams({ search: "  bahria  " })).toEqual({
+    expect(parseSocietyDiscoveryParams({ search: "  bahria  " })).toMatchObject({
       search: "bahria",
     });
-    expect(parseSocietyDiscoveryParams({ search: "   " })).toEqual({});
-    expect(parseSocietyDiscoveryParams({ search: "" })).toEqual({});
+    expect(parseSocietyDiscoveryParams({ search: "   " }).search).toBeUndefined();
+    expect(parseSocietyDiscoveryParams({ search: "" }).search).toBeUndefined();
   });
 
   it("clamps oversized search to the API max length", () => {
@@ -38,17 +45,19 @@ describe("parseSocietyDiscoveryParams", () => {
 
   it("ignores invalid verificationTier values", () => {
     expect(
-      parseSocietyDiscoveryParams({ verificationTier: "NOT_A_TIER" }),
-    ).toEqual({});
+      parseSocietyDiscoveryParams({ verificationTier: "NOT_A_TIER" })
+        .verificationTier,
+    ).toBeUndefined();
     expect(
-      parseSocietyDiscoveryParams({ verificationTier: "verified" }),
-    ).toEqual({});
+      parseSocietyDiscoveryParams({ verificationTier: "verified" })
+        .verificationTier,
+    ).toBeUndefined();
   });
 
   it("accepts PENDING for API/ops URLs even though public UI omits it", () => {
     expect(
       parseSocietyDiscoveryParams({ verificationTier: "PENDING" }),
-    ).toEqual({ verificationTier: "PENDING" });
+    ).toMatchObject({ verificationTier: "PENDING" });
   });
 
   it("ignores array / repeated param values", () => {
@@ -56,8 +65,66 @@ describe("parseSocietyDiscoveryParams", () => {
       parseSocietyDiscoveryParams({
         search: ["a", "b"],
         citySlug: ["lahore"],
+      }).search,
+    ).toBeUndefined();
+  });
+
+  it("parses H1 filter fields and ignores invalid enums", () => {
+    expect(
+      parseSocietyDiscoveryParams({
+        plotType: "RESIDENTIAL",
+        sizeLabel: "5 Marla",
+        priceMinPkr: "5000000",
+        priceMaxPkr: "10000000",
+        developmentStage: "Possession Underway",
+        bookingStatus: "OPEN",
+        sort: "priceAsc",
       }),
-    ).toEqual({});
+    ).toMatchObject({
+      plotType: "RESIDENTIAL",
+      sizeLabel: "5 Marla",
+      priceMinPkr: 5_000_000,
+      priceMaxPkr: 10_000_000,
+      developmentStage: "Possession Underway",
+      bookingStatus: "OPEN",
+      sort: "priceAsc",
+    });
+
+    expect(
+      parseSocietyDiscoveryParams({
+        plotType: "VILLA",
+        bookingStatus: "MAYBE",
+        sort: "ratingDesc",
+      }),
+    ).toMatchObject({
+      plotType: undefined,
+      bookingStatus: undefined,
+      sort: undefined,
+    });
+  });
+
+  it("drops the price pair when min > max", () => {
+    expect(
+      parseSocietyDiscoveryParams({
+        priceMinPkr: "10000000",
+        priceMaxPkr: "1000000",
+      }),
+    ).toMatchObject({
+      priceMinPkr: undefined,
+      priceMaxPkr: undefined,
+    });
+  });
+
+  it("ignores non-numeric price bounds", () => {
+    expect(
+      parseSocietyDiscoveryParams({
+        priceMinPkr: "abc",
+        priceMaxPkr: "12.5",
+      }),
+    ).toMatchObject({
+      priceMinPkr: undefined,
+      priceMaxPkr: undefined,
+    });
   });
 });
 
@@ -72,12 +139,24 @@ describe("serializeSocietyDiscoveryParams", () => {
     expect(params.has("verificationTier")).toBe(false);
   });
 
+  it("omits default sort=name from the URL", () => {
+    const params = serializeSocietyDiscoveryParams({ sort: "name" });
+    expect(params.has("sort")).toBe(false);
+  });
+
   it("round-trips with parse", () => {
     const original = {
       search: "dha",
       citySlug: "islamabad",
       authority: "CDA",
       verificationTier: "VERIFIED" as const,
+      plotType: "RESIDENTIAL" as const,
+      sizeLabel: "10 Marla",
+      priceMinPkr: 5_000_000,
+      priceMaxPkr: 20_000_000,
+      developmentStage: "Under Development",
+      bookingStatus: "OPEN" as const,
+      sort: "priceDesc" as const,
     };
     const serialized = serializeSocietyDiscoveryParams(original);
     const record = Object.fromEntries(serialized.entries());
