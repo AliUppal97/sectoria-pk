@@ -347,17 +347,13 @@ feat(marketplace): shared SocietyDiscoveryBar with rich filters
 ```
 
 **Test Gate:**
-- [ ] `/societies` uses DiscoveryBar with full Tier A inline; old UI gone or wrapped.
-- [ ] `mode=home` prop path shows Search + City only (budget/type behind Filters) — unit/story or manual prop check.
-- [ ] Budget preset writes correct `priceMinPkr` / `priceMaxPkr` URL params on directory.
-- [ ] Public verification options exclude `PENDING`.
-- [ ] Mobile layout usable at ~390px width (manual check).
-- [ ] `pnpm turbo run test lint typecheck` clean.
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
-
----
-
-## Session H3 — Homepage IA + slim bar + `listFeatured`
+- [x] `/societies` uses DiscoveryBar with full Tier A inline; old UI gone or wrapped.
+- [x] `mode=home` prop path shows Search + City only (budget/type behind Filters) — unit/story or manual prop check.
+- [x] Budget preset writes correct `priceMinPkr` / `priceMaxPkr` URL params on directory.
+- [x] Public verification options exclude `PENDING`.
+- [x] Mobile layout usable at ~390px width (manual check).
+- [x] `pnpm turbo run test lint typecheck` clean.
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 - **Model:** Tier B
 - **Mode:** Agent
@@ -530,7 +526,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H1 | Rich filters API + `startingPricePkr` | First ship | ✅ |
 | H1a | Seed `startingPricePkr` (ship-review gap) | First ship | ✅ |
 | H1b | Seed from persisted `pricePerSqft` (ship-review gap) | First ship | ✅ |
-| H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ⬜ |
+| H2 | `SocietyDiscoveryBar` on `/societies` (full Tier A) | First ship | ✅ |
 | H3 | Homepage IA + slim bar + `listFeatured` | First ship | ⬜ |
 | H4 | Typeahead `society.suggest` | Hardening | ⬜ |
 | H5 | SEO SearchAction + chip a11y polish | Hardening | ⬜ |

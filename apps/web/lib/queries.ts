@@ -166,11 +166,23 @@ export async function listSocietyOptions(): Promise<
 }
 
 /**
- * Facet counts (city/authority/tier) for PUBLISHED societies, derived from a
- * single `groupBy` in `society.facets`. `cache`d per request so the directory
- * page's city and authority filters share one round-trip.
+ * Facet counts for PUBLISHED societies from `society.facets`. `cache`d per
+ * request so directory filters / city chips share one round-trip.
  */
 const getFacets = cache(async () => getApi().society.facets());
+
+/** Full facet payload for SocietyDiscoveryBar (cities include counts). */
+export async function listSocietyFacets(): Promise<{
+  cities: { slug: string; label: string; count: number }[];
+  authorities: { value: string; count: number }[];
+  tiers: { tier: string; count: number }[];
+  plotTypes: { value: string; count: number }[];
+  sizeLabels: { value: string; count: number }[];
+  developmentStages: { value: string; count: number }[];
+  bookingStatuses: { value: string; count: number }[];
+}> {
+  return getFacets();
+}
 
 /** Distinct city facets (slug + label + count) for directory / homepage chips. */
 export async function listCityFacets(): Promise<
