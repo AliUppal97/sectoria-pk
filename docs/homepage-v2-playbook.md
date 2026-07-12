@@ -559,10 +559,10 @@ test(marketplace): e2e coverage for homepage discovery funnel
 ```
 
 **Test Gate:**
-- [ ] New E2E spec passes locally against seeded DB.
-- [ ] Concierge assertion: no Book Now on discovery surfaces.
-- [ ] `pnpm turbo run test lint typecheck` clean (and e2e job if separate).
-- [ ] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
+- [x] New E2E spec passes locally against seeded DB.
+- [x] Concierge assertion: no Book Now on discovery surfaces.
+- [x] `pnpm turbo run test lint typecheck` clean (and e2e job if separate).
+- [x] Ready for human review / ship (`session-ship-review` → `ship-pr`) — agent does not commit or open a PR unprompted.
 
 ---
 
@@ -579,7 +579,7 @@ test(marketplace): e2e coverage for homepage discovery funnel
 | H4 | Typeahead `society.suggest` | Hardening | ✅ |
 | H4a | DiscoveryBar typeahead + applied-chips UX | Hardening | ✅ |
 | H5 | SEO SearchAction + chip a11y polish | Hardening | ✅ |
-| H6 | E2E discovery path | Hardening | ⬜ |
+| H6 | E2E discovery path | Hardening | ✅ |
 
 ---
 
